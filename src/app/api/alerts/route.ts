@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type'); // OPERATIONAL | SECURITY
 
-    const where: Record<string, unknown> = { tenantId: tenant.id };
+    const where: Record<string, unknown> = { tenantId };
     if (type && type !== 'ALL') where.type = type;
 
     const alerts = await db.alert.findMany({

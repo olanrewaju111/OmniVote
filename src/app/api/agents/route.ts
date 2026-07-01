@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
 // GET /api/agents — list all users with details
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || 'ALL';
 
-    const where: Record<string, unknown> = { tenantId: tenant.id };
+    const where: Record<string, unknown> = { tenantId };
     if (role !== 'ALL') where.role = role;
     if (search) {
       where.OR = [
@@ -51,12 +52,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    // Resolve tenant from request
+    const { id: tenantId, error: tenantError } = await resolveTenant(req);
+    if (tenantError) return tenantError;
 
     // Check for duplicate email
     const existing = await db.user.findFirst({
-      where: { email, tenantId: tenant.id },
+      where: { email, tenantId },
     });
     if (existing) {
       return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest) {
         name,
         email,
         role,
-        tenantId: tenant.id,
+        tenantId,
         isOnline: false,
       },
       select: { id: true, email: true, name: true, role: true, isOnline: true },

@@ -1,80 +1,76 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useDashboardStore, ROLE_TABS, type UserRole } from '@/store/dashboard';
+import { motion } from 'framer-motion';
+import { useDashboardStore, ROLE_TABS, type UserRole, TIER_SHORT } from '@/store/dashboard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Shield, Eye, UserCheck, Users, Zap, Search,
-  ChevronRight, Loader2, MapPin, Radio,
+  ChevronRight, Loader2, Radio, Vote, Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface TenantOption {
+  id: string;
+  name: string;
+  slug: string;
+  primaryColor: string;
+}
 
 interface UserOption {
   email: string;
   name: string;
   role: UserRole;
   isOnline: boolean;
+  tenantId: string;
 }
 
 const ROLE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string; desc: string }> = {
-  SUPER_ADMIN: {
-    label: 'Super Admin',
-    icon: <Shield className="h-5 w-5" />,
-    color: 'text-emerald border-emerald/30 bg-emerald/10',
-    desc: 'Platform owner — infrastructure, tenants, global health',
-  },
-  TENANT_ADMIN: {
-    label: 'Tenant Admin',
-    icon: <Users className="h-5 w-5" />,
-    color: 'text-cyan border-cyan/30 bg-cyan/10',
-    desc: 'Organization admin — agent rosters, account management',
-  },
-  ANALYST: {
-    label: 'Situation Room Analyst',
-    icon: <Eye className="h-5 w-5" />,
-    color: 'text-amber border-amber/30 bg-amber/10',
-    desc: 'Live dashboard monitoring, incident review, field ops',
-  },
-  TRUST_SAFETY: {
-    label: 'Trust & Safety Officer',
-    icon: <UserCheck className="h-5 w-5" />,
-    color: 'text-rose border-rose/30 bg-rose/10',
-    desc: 'Deepfake review, disverification, agent authenticity',
-  },
-  FIELD_AGENT: {
-    label: 'Field Agent',
-    icon: <Radio className="h-5 w-5" />,
-    color: 'text-muted-foreground border-border bg-card',
-    desc: 'Polling unit observer — submit reports & media',
-  },
+  SUPER_ADMIN: { label: 'Super Admin', icon: <Shield className="h-5 w-5" />, color: 'text-emerald border-emerald/30 bg-emerald/10', desc: 'Platform owner — infrastructure, tenants, global health' },
+  TENANT_ADMIN: { label: 'Tenant Admin', icon: <Users className="h-5 w-5" />, color: 'text-cyan border-cyan/30 bg-cyan/10', desc: 'Organization admin — agent rosters, account management' },
+  ANALYST: { label: 'Analyst', icon: <Eye className="h-5 w-5" />, color: 'text-amber border-amber/30 bg-amber/10', desc: 'Live dashboard monitoring, incident review, field ops' },
+  TRUST_SAFETY: { label: 'Trust & Safety', icon: <UserCheck className="h-5 w-5" />, color: 'text-rose border-rose/30 bg-rose/10', desc: 'Deepfake review, disverification, agent authenticity' },
+  FIELD_AGENT: { label: 'Field Agent', icon: <Radio className="h-5 w-5" />, color: 'text-muted-foreground border-border bg-card', desc: 'Polling unit observer — submit reports & media' },
 };
 
 const ROLE_ORDER: UserRole[] = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'];
 
+const TENANT_TIER: Record<string, { tier: 'PRESIDENTIAL' | 'STATE' | 'LOCAL'; badge: string }> = {
+  'presidential': { tier: 'PRESIDENTIAL', badge: 'Presidential' },
+  'governorship': { tier: 'STATE', badge: 'Governorship' },
+  'local-gov': { tier: 'LOCAL', badge: 'Local Gov' },
+};
+
 export function LoginScreen() {
-  const { login, setElectionInfo } = useDashboardStore();
+  const { login, setElectionInfo, setTenantId } = useDashboardStore();
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | 'ALL'>('ALL');
   const [loggingIn, setLoggingIn] = useState(false);
   const [error, setError] = useState('');
 
   const { data, isLoading } = useQuery<{
-    tenant: { name: string; slug: string };
+    tenants: TenantOption[];
     users: UserOption[];
   }>({
-    queryKey: ['auth-users'],
+    queryKey: ['auth-all'],
     queryFn: () => fetch('/api/auth').then(r => r.json()),
   });
 
-  const users = data?.users || [];
-  const tenantName = data?.tenant?.name || 'OmniVote Monitor';
+  const tenants = data?.tenants || [];
+  const allUsers = data?.users || [];
 
-  const filtered = users.filter(u => {
+  // Auto-select first tenant if none selected
+  const activeTenantId = selectedTenantId || tenants[0]?.id || '';
+  const activeTenant = tenants.find(t => t.id === activeTenantId);
+
+  // Filter users to selected tenant
+  const tenantUsers = allUsers.filter(u => u.tenantId === activeTenantId);
+
+  const filtered = tenantUsers.filter(u => {
     if (selectedRole !== 'ALL' && u.role !== selectedRole) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -83,12 +79,11 @@ export function LoginScreen() {
     return true;
   });
 
-  // Group by role
-  const grouped = ROLE_ORDER.reduce<Record<string, UserOption[]>>((acc, role) => {
-    const roleUsers = filtered.filter(u => u.role === role);
-    if (roleUsers.length > 0) acc[role] = roleUsers;
-    return acc;
-  }, {});
+  // Quick-logins: one per role for the selected tenant
+  const quickLogins = ROLE_ORDER.map(role => {
+    const user = tenantUsers.find(u => u.role === role);
+    return user ? { ...user, config: ROLE_CONFIG[role] } : null;
+  }).filter(Boolean) as { email: string; name: string; role: UserRole; isOnline: boolean; config: typeof ROLE_CONFIG[string] }[];
 
   const handleLogin = async (email: string) => {
     setLoggingIn(true);
@@ -103,25 +98,20 @@ export function LoginScreen() {
       if (!res.ok) throw new Error(data.error || 'Login failed');
       login(data.user);
       if (data.electionInfo) setElectionInfo(data.electionInfo);
+      if (data.user.tenantId) setTenantId(data.user.tenantId);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Login failed');
       setLoggingIn(false);
     }
   };
 
-  // Quick-login: pick one representative user per role for quick access
-  const quickLogins = ROLE_ORDER.map(role => {
-    const user = users.find(u => u.role === role);
-    return user ? { ...user, config: ROLE_CONFIG[role] } : null;
-  }).filter(Boolean) as { email: string; name: string; role: UserRole; isOnline: boolean; config: typeof ROLE_CONFIG[string] }[];
+  const tierInfo = activeTenant ? TENANT_TIER[activeTenant.slug] : null;
 
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left panel — branding */}
       <div className="hidden lg:flex lg:w-[420px] xl:w-[480px] bg-gradient-to-b from-emerald/10 via-background to-background border-r border-border flex-col p-8 justify-between relative overflow-hidden">
-        {/* Grid pattern */}
         <div className="absolute inset-0 map-grid opacity-40" />
-
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-8">
             <div className="w-10 h-10 rounded-xl bg-emerald flex items-center justify-center">
@@ -139,15 +129,13 @@ export function LoginScreen() {
             Real-time election monitoring with AI-powered threat detection, deepfake identification, and adversarial defense systems.
           </p>
         </div>
-
         <div className="relative z-10 space-y-4">
-          {/* Live stats */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Polling Units', value: '269' },
-              { label: 'Active Agents', value: '27' },
-              { label: 'Incidents', value: '80+' },
-              { label: 'Threats Blocked', value: '12' },
+              { label: 'Tenants', value: String(tenants.length) },
+              { label: 'Total Agents', value: String(allUsers.filter(u => u.role === 'FIELD_AGENT').length) },
+              { label: 'Polling Units', value: '381+' },
+              { label: 'Incidents', value: '140+' },
             ].map(s => (
               <div key={s.label} className="rounded-lg border border-border bg-card/40 px-3 py-2.5">
                 <p className="text-lg font-bold text-emerald tabular-nums">{s.value}</p>
@@ -157,10 +145,10 @@ export function LoginScreen() {
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-dot" />
-            <span>Election Day — Live Monitoring Active</span>
+            <span>Multi-Tenant Deployment &middot; {tenants.length} Active Organizations</span>
           </div>
           <p className="text-[10px] text-muted-foreground/50">
-            {tenantName} &middot; Multi-tenant deployment &middot; AES-256 encrypted
+            OmniVote Monitor v1.2 &middot; Zero-Trust Architecture &middot; AES-256 Encryption
           </p>
         </div>
       </div>
@@ -180,37 +168,99 @@ export function LoginScreen() {
               </div>
             </div>
 
-            <h3 className="text-lg font-semibold mb-1">Select Account</h3>
-            <p className="text-sm text-muted-foreground mb-5">Choose a persona to explore the platform. Each role sees a different view.</p>
+            <h3 className="text-lg font-semibold mb-1">Select Organization</h3>
+            <p className="text-sm text-muted-foreground mb-4">Choose a tenant, then pick a persona. Each tenant has its own election type.</p>
 
-            {/* Quick login cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 mb-6">
-              {quickLogins.map((ql) => (
-                <motion.button
-                  key={ql.role}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleLogin(ql.email)}
-                  disabled={loggingIn}
-                  className="rounded-lg border border-border bg-card/60 hover:bg-card/80 p-3.5 text-left transition-colors group disabled:opacity-50"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <Badge variant="outline" className={cn('text-[10px] border', ql.config.color)}>
-                      {ql.config.icon}
-                      <span className="ml-1.5">{ql.config.label}</span>
-                    </Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="text-sm font-medium mb-0.5">{ql.name}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{ql.email}</p>
-                </motion.button>
-              ))}
+            {/* Tenant selector */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-6">
+              {tenants.map(t => {
+                const tInfo = TENANT_TIER[t.slug];
+                const isActive = t.id === activeTenantId;
+                const userCount = allUsers.filter(u => u.tenantId === t.id).length;
+                return (
+                  <motion.button
+                    key={t.id}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { setSelectedTenantId(t.id); setSelectedRole('ALL'); setSearch(''); setError(''); }}
+                    className={cn(
+                      'rounded-lg border p-3.5 text-left transition-all',
+                      isActive
+                        ? 'border-emerald bg-emerald/10 shadow-sm'
+                        : 'border-border bg-card/60 hover:bg-card/80'
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className={cn('h-4 w-4', isActive ? 'text-emerald' : 'text-muted-foreground')} />
+                      {tInfo && (
+                        <Badge variant="outline" className={cn(
+                          'text-[10px] h-5',
+                          tInfo.tier === 'PRESIDENTIAL' ? 'border-violet/30 text-violet bg-violet/10' :
+                          tInfo.tier === 'STATE' ? 'border-amber/30 text-amber bg-amber/10' :
+                          'border-cyan/30 text-cyan bg-cyan/10'
+                        )}>
+                          <Vote className="h-2.5 w-2.5 mr-1" />
+                          {tInfo.badge}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium leading-tight">{t.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{userCount} users</p>
+                  </motion.button>
+                );
+              })}
             </div>
+
+            {activeTenant && tierInfo && (
+              <div className="mb-4 p-2.5 rounded-lg border border-border bg-card/40 flex items-center gap-2">
+                <Vote className={cn('h-4 w-4',
+                  tierInfo.tier === 'PRESIDENTIAL' ? 'text-violet' :
+                  tierInfo.tier === 'STATE' ? 'text-amber' : 'text-cyan'
+                )} />
+                <span className="text-xs text-muted-foreground">
+                  Election Type: <span className="font-medium text-foreground">{tierInfo.badge} Election</span>
+                </span>
+                <span className="text-[10px] text-muted-foreground/50 ml-auto">
+                  {tierInfo.tier === 'PRESIDENTIAL' ? 'All 36 states + FCT' :
+                   tierInfo.tier === 'STATE' ? 'Lagos State (14 LGAs)' :
+                   'Lagos Island LGA (6 wards)'}
+                </span>
+              </div>
+            )}
+
+            {/* Quick login cards for selected tenant */}
+            {quickLogins.length > 0 && (
+              <>
+                <h4 className="text-sm font-semibold mb-2">Quick Login — {activeTenant?.name}</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 mb-6">
+                  {quickLogins.map((ql) => (
+                    <motion.button
+                      key={ql.role}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleLogin(ql.email)}
+                      disabled={loggingIn}
+                      className="rounded-lg border border-border bg-card/60 hover:bg-card/80 p-3.5 text-left transition-colors group disabled:opacity-50"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <Badge variant="outline" className={cn('text-[10px] border', ql.config.color)}>
+                          {ql.config.icon}
+                          <span className="ml-1.5">{ql.config.label}</span>
+                        </Badge>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <p className="text-sm font-medium mb-0.5">{ql.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{ql.email}</p>
+                    </motion.button>
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Divider */}
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or browse all accounts</span>
+              <span className="text-xs text-muted-foreground">or browse all accounts for this tenant</span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
@@ -258,8 +308,8 @@ export function LoginScreen() {
             ) : (
               <div className="space-y-4">
                 {ROLE_ORDER.map(role => {
-                  const roleUsers = grouped[role];
-                  if (!roleUsers) return null;
+                  const roleUsers = filtered.filter(u => u.role === role);
+                  if (roleUsers.length === 0) return null;
                   const cfg = ROLE_CONFIG[role];
                   return (
                     <div key={role}>
@@ -269,7 +319,6 @@ export function LoginScreen() {
                           <span className="ml-1.5">{cfg.label}</span>
                         </Badge>
                         <span className="text-[11px] text-muted-foreground">{roleUsers.length} account{roleUsers.length > 1 ? 's' : ''}</span>
-                        <span className="text-[11px] text-muted-foreground/50 ml-1">— {cfg.desc}</span>
                       </div>
                       <div className="space-y-1">
                         {roleUsers.slice(0, selectedRole === role ? roleUsers.length : 3).map(user => (
@@ -300,7 +349,7 @@ export function LoginScreen() {
                             onClick={() => setSelectedRole(role)}
                             className="w-full text-center text-xs text-muted-foreground hover:text-foreground py-1.5 transition-colors"
                           >
-                            +{roleUsers.length - 3} more {role.replace('_', ' ').toLowerCase()}s...
+                            +{roleUsers.length - 3} more...
                           </button>
                         )}
                       </div>
@@ -315,7 +364,7 @@ export function LoginScreen() {
         {/* Footer */}
         <div className="border-t border-border px-6 py-3 text-center">
           <p className="text-[10px] text-muted-foreground/50">
-            OmniVote Monitor v1.1 &middot; Zero-Trust Architecture &middot; AES-256 Encryption &middot; C2PA Content Provenance
+            OmniVote Monitor v1.2 &middot; Multi-Tenant &middot; AES-256 Encryption &middot; C2PA Content Provenance
           </p>
         </div>
       </div>

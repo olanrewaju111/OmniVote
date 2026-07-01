@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDashboardStore } from '@/store/dashboard';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -46,6 +47,7 @@ interface ReportsSlideOver {
 
 export function AgentRoster() {
   const queryClient = useQueryClient();
+  const { tenantId } = useDashboardStore();
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -60,11 +62,12 @@ export function AgentRoster() {
 
   // Fetch agents from proper API
   const { data, isLoading, refetch } = useQuery<{ users: AgentUser[] }>({
-    queryKey: ['agents', search, roleFilter],
+    queryKey: ['agents', search, roleFilter, tenantId],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
       if (roleFilter !== 'ALL') params.set('role', roleFilter);
+      if (tenantId) params.set('tenantId', tenantId);
       return fetch(`/api/agents?${params}`).then(r => r.json());
     },
   });
@@ -72,7 +75,7 @@ export function AgentRoster() {
   // Add agent mutation
   const addMutation = useMutation({
     mutationFn: (body: { name: string; email: string; role: string }) =>
-      fetch('/api/agents', {
+      fetch(`/api/agents?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -93,7 +96,7 @@ export function AgentRoster() {
   // Action mutation (toggle online, remote wipe, change role, delete)
   const actionMutation = useMutation({
     mutationFn: (body: { userId: string; action: string; newRole?: string }) =>
-      fetch('/api/agents', {
+      fetch(`/api/agents?tenantId=${tenantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

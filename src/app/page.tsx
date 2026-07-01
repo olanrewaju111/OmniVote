@@ -72,12 +72,15 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId } = useDashboardStore();
+
+  // Build URL with tenantId for all API calls
+  const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
 
   // Fetch dashboard data (only when authenticated)
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: () => fetch('/api/dashboard').then(r => r.json()),
+    queryKey: ['dashboard', tenantId],
+    queryFn: () => fetch(`/api/dashboard${tenantParam}`).then(r => r.json()),
     refetchInterval: 15000,
     enabled: isAuthenticated,
   });
@@ -90,15 +93,15 @@ export default function Home() {
   }, [dashData?.electionInfo, setElectionInfo]);
 
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
-    queryKey: ['incidents', 'all'],
-    queryFn: () => fetch('/api/incidents?limit=50').then(r => r.json()),
+    queryKey: ['incidents', 'all', tenantId],
+    queryFn: () => fetch(`/api/incidents?limit=50&tenantId=${tenantId}`).then(r => r.json()),
     refetchInterval: 10000,
     enabled: isAuthenticated,
   });
 
   const { data: alertsData, isLoading: alertsLoading } = useQuery<AlertsData>({
-    queryKey: ['alerts', 'all'],
-    queryFn: () => fetch('/api/alerts').then(r => r.json()),
+    queryKey: ['alerts', 'all', tenantId],
+    queryFn: () => fetch(`/api/alerts?tenantId=${tenantId}`).then(r => r.json()),
     refetchInterval: 10000,
     enabled: isAuthenticated,
   });

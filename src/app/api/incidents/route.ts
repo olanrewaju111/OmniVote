@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type');
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const where: Record<string, unknown> = { tenantId: tenant.id };
+    const where: Record<string, unknown> = { tenantId };
     if (type && type !== 'ALL') where.type = type;
     if (severity && severity !== 'ALL') where.severity = severity;
     if (status && status !== 'ALL') where.status = status;
@@ -71,6 +72,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'reporterId, type, and description are required' }, { status: 400 });
     }
 
+    // Resolve reporter's tenant
+    const reporter = await db.user.findUnique({ where: { id: reporterId }, select: { tenantId: true } });
+    if (!reporter) return NextResponse.json({ error: 'Reporter not found' }, { status: 404 });
+
     const validTypes = [
       'OBSERVATION', 'VIOLENCE', 'INTIMIDATION', 'BALLOT_STUFFING',
       'LOGISTICS', 'BRIBERY', 'VOTE_BUYING', 'UNDERAGE_VOTING',
@@ -86,7 +91,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid severity' }, { status: 400 });
     }
 
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
+    const tenant = await db.tenant.findUnique({ where: { id: reporter.tenantId } });
     if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
     // Get reporter's PU GPS if no coordinates provided
@@ -102,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     const incident = await db.incident.create({
       data: {
-        tenantId: tenant.id,
+        tenantId: reporter.tenantId,
         pollingUnitId: pollingUnitId || null,
         reportedById: reporterId,
         type,
@@ -120,7 +125,7 @@ export async function POST(req: NextRequest) {
       try {
         await db.alert.create({
           data: {
-            tenantId: tenant.id,
+            tenantId: reporter.tenantId,
             incidentId: incident.id,
             type: type === 'VIOLENCE' || type === 'BALLOT_STUFFING' ? 'SECURITY' : 'OPERATIONAL',
             category: severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING',

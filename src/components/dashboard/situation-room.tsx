@@ -54,7 +54,7 @@ interface Breadcrumb {
 }
 
 export function SituationRoom() {
-  const { electionTier } = useDashboardStore();
+  const { electionTier, tenantId } = useDashboardStore();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
 
   const currentCrumb = breadcrumbs[breadcrumbs.length - 1];
@@ -62,9 +62,9 @@ export function SituationRoom() {
   const activeFilter = currentCrumb?.filter || '';
 
   const { data, isLoading } = useQuery<SituationData>({
-    queryKey: ['situation-room', activeLevel, activeFilter],
+    queryKey: ['situation-room', activeLevel, activeFilter, tenantId],
     queryFn: () => {
-      const params = new URLSearchParams({ level: activeLevel, filter: activeFilter });
+      const params = new URLSearchParams({ level: activeLevel, filter: activeFilter, tenantId });
       return fetch(`/api/situation-room?${params}`).then(r => r.json());
     },
   });

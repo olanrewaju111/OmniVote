@@ -46,3 +46,31 @@ Stage Summary:
 - `field-submit.tsx` — UPDATED dynamic stats + query invalidation
 - `page.tsx` — UPDATED MyReports no longer takes props
 - Full submit → view pipeline working: Submit Report tab → POST /api/results or /api/incidents → My Reports tab → GET /api/reports
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Multi-tenant system — 3 election types (Presidential, Governorship, Local Gov) with proper data isolation
+
+Work Log:
+- Created `/lib/tenant.ts` — shared `resolveTenant()` helper that resolves tenant from `?tenantId=` query param
+- Created `scripts/seed-multi-tenant.ts` — seeds 3 tenants:
+  1. Presidential Election Watch (slug: presidential) — 48 users, 269 PUs across 15 states, 102 incidents
+  2. Lagos State Governorship Monitor (slug: governorship) — 24 users, 89 PUs in 14 LGAs, 25 incidents, 8 results
+  3. Lagos Island LGA Election Monitor (slug: local-gov) — 15 users, 23 PUs in 6 wards, 15 incidents, 5 results
+- Each tenant has named test personas: admin@{slug}.omnivote.ng, tenant@, analyst@, trust@, field@, field2@
+- Updated `store/dashboard.ts` — added `tenantId` + `setTenantId()` to state; added `tenantId`/`tenantSlug` to `UserInfo`
+- Rewrote `api/auth/route.ts` — GET returns ALL tenants + ALL users; POST finds user across all tenants, returns tenantId/tenantSlug
+- Updated ALL 8 API routes to use `resolveTenant()`: dashboard, incidents, results, reports, agents, alerts, situation-room
+- Rewrote `login.tsx` — 3 tenant cards at top with tier badges (violet/amber/cyan), election type indicator, user list filtered per tenant, quick-login cards per role
+- Updated `page.tsx` — all queries pass `?tenantId=`; query keys include tenantId for cache isolation
+- Updated `situation-room.tsx`, `agent-roster.tsx`, `field-submit.tsx` — all pass tenantId to their API calls
+- Dashboard API now uses tier-aware aggregation: LOCAL→ward level, STATE→state level, PRESIDENTIAL→state level
+- Zero NEW TypeScript errors (only pre-existing alert-triage and ai-insights issues)
+
+Stage Summary:
+- 3 fully isolated tenants with separate elections, polling units, users, incidents, results
+- Login screen shows tenant selector with election type badges
+- No more dropdown — election type is server-driven per tenant, shown as read-only badge
+- Each tenant's data is completely isolated — logging into one tenant never sees another's data
+- Test credentials: admin@presidential.omnivote.ng, admin@governorship.omnivote.ng, admin@localgov.omnivote.ng (and more per tenant)

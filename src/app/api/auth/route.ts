@@ -6,17 +6,18 @@ export async function POST(req: NextRequest) {
     const { email } = await req.json();
     if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
-
+    // Find user across ALL tenants (not just one)
     const user = await db.user.findFirst({
-      where: { email, tenantId: tenant.id },
-      select: { id: true, email: true, name: true, role: true, isOnline: true },
+      where: { email },
+      select: { id: true, email: true, name: true, role: true, isOnline: true, tenantId: true },
     });
 
     if (!user) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
 
-    // Get counts for the user's role context
+    const tenant = await db.tenant.findUnique({ where: { id: user.tenantId } });
+    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+
+    // Get counts for the user's tenant context
     const agents = await db.user.count({ where: { tenantId: tenant.id, role: 'FIELD_AGENT' } });
     const onlineAgents = await db.user.count({ where: { tenantId: tenant.id, role: 'FIELD_AGENT', isOnline: true } });
 
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        tenantId: tenant.id,
         tenantName: tenant.name,
+        tenantSlug: tenant.slug,
       },
       electionInfo: activeElection ? {
         tier: activeElection.tier,
@@ -48,22 +51,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Return all users for the login screen (demo only)
+// Return ALL tenants and their users for the login screen
 export async function GET() {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const tenants = await db.tenant.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true, primaryColor: true },
+      orderBy: { name: 'asc' },
+    });
 
-    const users = await db.user.findMany({
-      where: { tenantId: tenant.id },
-      select: { email: true, name: true, role: true, isOnline: true },
+    const allUsers = await db.user.findMany({
+      select: { email: true, name: true, role: true, isOnline: true, tenantId: true },
       orderBy: { role: 'asc' },
     });
 
-    return NextResponse.json({
-      tenant: { name: tenant.name, slug: tenant.slug },
-      users,
-    });
+    return NextResponse.json({ tenants, users: allUsers });
   } catch {
     return NextResponse.json({ error: 'Failed' }, { status: 500 });
   }

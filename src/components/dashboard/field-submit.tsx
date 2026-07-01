@@ -66,7 +66,7 @@ interface PartyVote {
 }
 
 export function SubmitReport() {
-  const { user, electionTier } = useDashboardStore();
+  const { user, electionTier, tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<Tab>('results');
@@ -98,7 +98,7 @@ export function SubmitReport() {
   // Fetch polling units for the agent (show first 10 as options)
   const { data: puData } = useQuery({
     queryKey: ['my-polling-units'],
-    queryFn: () => fetch('/api/dashboard').then(r => r.json()).then(d => d.pollingUnits?.slice(0, 15) || []),
+    queryFn: () => fetch(`/api/dashboard?tenantId=${tenantId}`).then(r => r.json()).then(d => d.pollingUnits?.slice(0, 15) || []),
   });
 
   // Fetch agent's report counts for live stats

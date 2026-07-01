@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
 // GET /api/results — fetch results for a polling unit or all
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const pollingUnitId = searchParams.get('pollingUnitId');
     const reporterId = searchParams.get('reporterId');
 
-    const where: Record<string, unknown> = { tenantId: tenant.id };
+    const where: Record<string, unknown> = { tenantId };
     if (pollingUnitId) where.pollingUnitId = pollingUnitId;
     if (reporterId) where.reportedById = reporterId;
 
@@ -67,8 +68,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'totalVotesCast is required' }, { status: 400 });
     }
 
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    // Resolve reporter's tenant
+    const reporter = await db.user.findUnique({ where: { id: reporterId }, select: { tenantId: true } });
+    if (!reporter) return NextResponse.json({ error: 'Reporter not found' }, { status: 404 });
 
     const pu = await db.pollingUnit.findUnique({
       where: { id: pollingUnitId },
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // Check for existing result (only one per PU)
     const existing = await db.electionResult.findFirst({
-      where: { tenantId: tenant.id, pollingUnitId },
+      where: { tenantId: reporter.tenantId, pollingUnitId },
     });
     if (existing) {
       return NextResponse.json({
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
     // Create the result
     const result = await db.electionResult.create({
       data: {
-        tenantId: tenant.id,
+        tenantId: reporter.tenantId,
         pollingUnitId,
         reportedById: reporterId,
         accreditedVoters: accreditedVoters || 0,
@@ -108,17 +110,13 @@ export async function POST(req: NextRequest) {
 
     // Update the polling unit's total votes and turnout
     const newTotalVotes = (pu.registeredVoters > 0 && totalVotesCast > 0)
-      ? totalVotesCast : pu.registeredVoters; // keep existing for demo
+      ? totalVotesCast : pu.registeredVoters;
     const newTurnout = pu.registeredVoters > 0
       ? Math.round((newTotalVotes / pu.registeredVoters) * 10000) / 100 : 0;
 
     await db.pollingUnit.update({
       where: { id: pollingUnitId },
-      data: {
-        totalVotes: newTotalVotes,
-        turnout: newTurnout,
-        status: 'CLOSED',
-      },
+      data: { totalVotes: newTotalVotes, turnout: newTurnout, status: 'CLOSED' },
     });
 
     // Audit log
@@ -129,12 +127,7 @@ export async function POST(req: NextRequest) {
           action: 'RESULTS_SUBMITTED',
           entityType: 'ElectionResult',
           entityId: result.id,
-          metadata: JSON.stringify({
-            pollingUnitId,
-            totalVotesCast,
-            accreditedVoters,
-            partyCount: (partyResults || []).length,
-          }),
+          metadata: JSON.stringify({ pollingUnitId, totalVotesCast, accreditedVoters, partyCount: (partyResults || []).length }),
         },
       });
     } catch { /* non-fatal */ }
@@ -144,24 +137,24 @@ export async function POST(req: NextRequest) {
       try {
         await db.incident.create({
           data: {
-            tenantId: tenant.id,
+            tenantId: reporter.tenantId,
             pollingUnitId,
             reportedById: reporterId,
             type: 'VIOLENCE',
             severity: 'HIGH',
-            description: `Violence reported during result submission at polling unit. Agent noted violence during the voting process.`,
+            description: 'Violence reported during result submission at polling unit. Agent noted violence during the voting process.',
           },
         });
         await db.alert.create({
           data: {
-            tenantId: tenant.id,
+            tenantId: reporter.tenantId,
             type: 'SECURITY',
             category: 'WARNING',
             title: 'Violence reported during result submission',
-          description: 'Agent reported violence at their polling unit while submitting results.',
-        },
-      });
-    } catch { /* non-fatal: violence incident creation should not block result submission */ }
+            description: 'Agent reported violence at their polling unit while submitting results.',
+          },
+        });
+      } catch { /* non-fatal */ }
     }
 
     return NextResponse.json({

@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
 
     // Fetch the active election for this tenant
     const activeElection = await db.election.findFirst({
-      where: { tenantId: tenant.id, status: { in: ['ACTIVE', 'UPCOMING'] } },
+      where: { tenantId, status: { in: ['ACTIVE', 'UPCOMING'] } },
       select: { id: true, title: true, tier: true, status: true, date: true },
       orderBy: { date: 'desc' },
     });
@@ -16,31 +17,23 @@ export async function GET() {
     const electionTier = (activeElection?.tier || 'PRESIDENTIAL') as 'LOCAL' | 'STATE' | 'PRESIDENTIAL';
 
     const [
-      totalAgents,
-      onlineAgents,
-      totalIncidents,
-      pendingIncidents,
-      criticalIncidents,
-      quarantinedIncidents,
-      securityAlerts,
-      operationalAlerts,
-      unreadAlerts,
-      pollingUnits,
-      sosCount,
+      totalAgents, onlineAgents, totalIncidents, pendingIncidents,
+      criticalIncidents, quarantinedIncidents, securityAlerts,
+      operationalAlerts, unreadAlerts, pollingUnits, sosCount,
     ] = await Promise.all([
-      db.user.count({ where: { tenantId: tenant.id, role: 'FIELD_AGENT' } }),
-      db.user.count({ where: { tenantId: tenant.id, role: 'FIELD_AGENT', isOnline: true } }),
-      db.incident.count({ where: { tenantId: tenant.id } }),
-      db.incident.count({ where: { tenantId: tenant.id, status: 'PENDING' } }),
-      db.incident.count({ where: { tenantId: tenant.id, severity: 'CRITICAL' } }),
-      db.incident.count({ where: { tenantId: tenant.id, isQuarantined: true } }),
-      db.alert.count({ where: { tenantId: tenant.id, type: 'SECURITY' } }),
-      db.alert.count({ where: { tenantId: tenant.id, type: 'OPERATIONAL' } }),
-      db.alert.count({ where: { tenantId: tenant.id, isRead: false } }),
+      db.user.count({ where: { tenantId, role: 'FIELD_AGENT' } }),
+      db.user.count({ where: { tenantId, role: 'FIELD_AGENT', isOnline: true } }),
+      db.incident.count({ where: { tenantId } }),
+      db.incident.count({ where: { tenantId, status: 'PENDING' } }),
+      db.incident.count({ where: { tenantId, severity: 'CRITICAL' } }),
+      db.incident.count({ where: { tenantId, isQuarantined: true } }),
+      db.alert.count({ where: { tenantId, type: 'SECURITY' } }),
+      db.alert.count({ where: { tenantId, type: 'OPERATIONAL' } }),
+      db.alert.count({ where: { tenantId, isRead: false } }),
       db.pollingUnit.findMany({
         where: activeElection ? { electionId: activeElection.id } : {},
       }),
-      db.incident.count({ where: { tenantId: tenant.id, type: 'VIOLENCE', severity: 'CRITICAL' } }),
+      db.incident.count({ where: { tenantId, type: 'VIOLENCE', severity: 'CRITICAL' } }),
     ]);
 
     const totalRegistered = pollingUnits.reduce((s, p) => s + p.registeredVoters, 0);
@@ -50,17 +43,22 @@ export async function GET() {
     const openUnits = pollingUnits.filter(p => p.status === 'OPEN').length;
     const closedUnits = pollingUnits.filter(p => p.status === 'CLOSED').length;
 
-    // State-level aggregation
-    const stateAgg: Record<string, { units: number; votes: number; registered: number; turnout: number }> = {};
+    // Aggregation key depends on election tier
+    const aggKey = electionTier === 'LOCAL' ? 'ward' : 'state';
+    const agg: Record<string, { units: number; votes: number; registered: number; turnout: number }> = {};
     for (const pu of pollingUnits) {
-      if (!stateAgg[pu.state]) stateAgg[pu.state] = { units: 0, votes: 0, registered: 0, turnout: 0 };
-      stateAgg[pu.state].units++;
-      stateAgg[pu.state].votes += pu.totalVotes;
-      stateAgg[pu.state].registered += pu.registeredVoters;
+      const key = pu[aggKey] || 'Unknown';
+      if (!agg[key]) agg[key] = { units: 0, votes: 0, registered: 0, turnout: 0 };
+      agg[key].units++;
+      agg[key].votes += pu.totalVotes;
+      agg[key].registered += pu.registeredVoters;
     }
-    for (const s of Object.keys(stateAgg)) {
-      stateAgg[s].turnout = Math.round((stateAgg[s].votes / stateAgg[s].registered) * 10000) / 100;
+    for (const s of Object.keys(agg)) {
+      agg[s].turnout = Math.round((agg[s].votes / agg[s].registered) * 10000) / 100;
     }
+
+    // Rename stateAgg for backward compat (frontend uses this key)
+    const stateAgg = electionTier === 'LOCAL' ? agg : agg;
 
     return NextResponse.json({
       electionInfo: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
 // Nigeria's 6 geo-political zones
 const GEO_ZONES: Record<string, string[]> = {
@@ -40,12 +41,12 @@ type DrillDown = {
 
 export async function GET(req: NextRequest) {
   try {
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
 
     // Get active election
     const election = await db.election.findFirst({
-      where: { tenantId: tenant.id, status: { in: ['ACTIVE', 'UPCOMING'] } },
+      where: { tenantId, status: { in: ['ACTIVE', 'UPCOMING'] } },
       select: { id: true, tier: true, title: true },
     });
     const tier = election?.tier || 'PRESIDENTIAL';
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch incident counts grouped by pollingUnitId
     const incidents = await db.incident.findMany({
-      where: { tenantId: tenant.id },
+      where: { tenantId },
       select: { pollingUnitId: true, severity: true },
     });
 

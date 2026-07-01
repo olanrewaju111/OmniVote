@@ -18,7 +18,9 @@ export interface UserInfo {
   email: string;
   name: string;
   role: UserRole;
+  tenantId: string;
   tenantName: string;
+  tenantSlug: string;
 }
 
 // Role-based tab permissions
@@ -55,6 +57,10 @@ interface DashboardState {
   electionInfo: ElectionInfo | null;
   setElectionInfo: (info: ElectionInfo) => void;
 
+  // Tenant
+  tenantId: string;
+  setTenantId: (id: string) => void;
+
   // Navigation
   activeTab: ViewTab;
   unreadAlerts: number;
@@ -77,12 +83,16 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     const defaultTab = ROLE_TABS[user.role]?.[0] || 'overview';
     set({ user, isAuthenticated: true, activeTab: defaultTab, alertFilter: 'ALL' });
   },
-  logout: () => set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL' }),
+  logout: () => set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL', tenantId: '' }),
 
   // Election — server-driven, one tier per tenant
   electionTier: 'PRESIDENTIAL',
   electionInfo: null,
   setElectionInfo: (info) => set({ electionInfo: info, electionTier: info.tier }),
+
+  // Tenant
+  tenantId: '',
+  setTenantId: (id) => set({ tenantId: id }),
 
   // Navigation
   activeTab: 'overview',
