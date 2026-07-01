@@ -24,7 +24,7 @@ interface HeaderProps {
 }
 
 export function AppHeader({ kpis }: HeaderProps) {
-  const { electionTier, setElectionTier, alertFilter, setAlertFilter, setSelectedTab } = useDashboardStore();
+  const { electionTier, setElectionTier, alertFilter, setAlertFilter, setSelectedTab, user, logout } = useDashboardStore();
 
   return (
     <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
@@ -50,28 +50,32 @@ export function AppHeader({ kpis }: HeaderProps) {
       </Select>
 
       <div className="flex items-center gap-2 ml-auto">
-        {/* System health */}
-        <div className="hidden md:flex items-center gap-2 px-3 h-9 rounded-md bg-background border border-border">
-          <Activity className="h-3.5 w-3.5 text-emerald" />
-          <span className="text-xs text-muted-foreground">All Systems</span>
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
-        </div>
+        {/* System health — only for admin roles */}
+        {user && (user.role === 'SUPER_ADMIN' || user.role === 'TENANT_ADMIN') && (
+          <div className="hidden md:flex items-center gap-2 px-3 h-9 rounded-md bg-background border border-border">
+            <Activity className="h-3.5 w-3.5 text-emerald" />
+            <span className="text-xs text-muted-foreground">All Systems</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
+          </div>
+        )}
 
-        {/* AI Defense */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 gap-2 bg-background border-border text-sm"
-          onClick={() => setSelectedTab('alerts')}
-        >
-          <Shield className="h-4 w-4 text-cyan" />
-          <span className="hidden sm:inline">Defense</span>
-          {kpis?.securityAlerts ? (
-            <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px]">
-              {kpis.securityAlerts}
-            </Badge>
-          ) : null}
-        </Button>
+        {/* AI Defense — hide for field agents */}
+        {user && user.role !== 'FIELD_AGENT' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-2 bg-background border-border text-sm"
+            onClick={() => setSelectedTab('alerts')}
+          >
+            <Shield className="h-4 w-4 text-cyan" />
+            <span className="hidden sm:inline">Defense</span>
+            {kpis?.securityAlerts ? (
+              <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px]">
+                {kpis.securityAlerts}
+              </Badge>
+            ) : null}
+          </Button>
+        )}
 
         {/* Notifications */}
         <Button
@@ -95,18 +99,20 @@ export function AppHeader({ kpis }: HeaderProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 px-2 gap-2">
               <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-emerald/20 text-emerald text-xs font-bold">SA</AvatarFallback>
+                <AvatarFallback className="bg-emerald/20 text-emerald text-xs font-bold">
+                  {user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || '??'}
+                </AvatarFallback>
               </Avatar>
               <div className="hidden lg:block text-left">
-                <p className="text-xs font-medium leading-tight">Admin</p>
-                <p className="text-[10px] text-muted-foreground leading-tight">Super Admin</p>
+                <p className="text-xs font-medium leading-tight">{user?.name || 'User'}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">{user?.role?.replace(/_/g, ' ') || ''}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem><User className="mr-2 h-4 w-4" />Profile</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">Sign Out</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={logout}>Sign Out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

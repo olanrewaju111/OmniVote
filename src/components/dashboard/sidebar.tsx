@@ -1,27 +1,43 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { useDashboardStore, type ViewTab } from '@/store/dashboard';
+import { useDashboardStore, ROLE_TABS, type ViewTab, type UserRole } from '@/store/dashboard';
 import {
   LayoutDashboard, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
-  ChevronLeft, ChevronRight, Activity, Zap
+  ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
+  Server, Building2, LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
-const NAV_ITEMS: { id: ViewTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { id: 'map', label: 'Geo Map', icon: <Map className="h-5 w-5" /> },
-  { id: 'feed', label: 'Live Feed', icon: <Radio className="h-5 w-5" /> },
-  { id: 'alerts', label: 'Alert Triage', icon: <ShieldAlert className="h-5 w-5" /> },
-  { id: 'ai', label: 'AI Engine', icon: <Brain className="h-5 w-5" /> },
-  { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-5 w-5" /> },
+const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserRole[] }[] = [
+  { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+  { id: 'map', label: 'Geo Map', icon: <Map className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+  { id: 'feed', label: 'Live Feed', icon: <Radio className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'] },
+  { id: 'alerts', label: 'Alert Triage', icon: <ShieldAlert className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+  { id: 'ai', label: 'AI Engine', icon: <Brain className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+  { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+  { id: 'agents', label: 'Agent Roster', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+  { id: 'system', label: 'System Health', icon: <Server className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
+  { id: 'tenants', label: 'Tenants', icon: <Building2 className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
+  { id: 'submit', label: 'Submit Report', icon: <Send className="h-5 w-5" />, roles: ['FIELD_AGENT'] },
+  { id: 'my-reports', label: 'My Reports', icon: <FileText className="h-5 w-5" />, roles: ['FIELD_AGENT'] },
 ];
 
 export function AppSidebar() {
-  const { activeTab, setSelectedTab, sidebarCollapsed, toggleSidebar, unreadAlerts } = useDashboardStore();
+  const {
+    activeTab, setSelectedTab, sidebarCollapsed, toggleSidebar, user, logout, unreadAlerts,
+  } = useDashboardStore();
+
+  if (!user) return null;
+
+  const allowedTabs = ROLE_TABS[user.role] || [];
+  const navItems = ALL_NAV.filter(item => allowedTabs.includes(item.id));
+
+  const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2);
 
   return (
     <aside className={cn(
@@ -54,7 +70,7 @@ export function AppSidebar() {
       {/* Nav items */}
       <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
         <TooltipProvider delayDuration={0}>
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Tooltip key={item.id}>
               <TooltipTrigger asChild>
                 <Button
@@ -85,6 +101,30 @@ export function AppSidebar() {
 
       <Separator className="bg-sidebar-border" />
 
+      {/* User info + logout */}
+      {!sidebarCollapsed && (
+        <div className="px-3 py-3 shrink-0 space-y-2">
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-emerald/20 text-emerald text-xs font-bold">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-sidebar-foreground truncate">{user.name}</p>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user.role.replace(/_/g, ' ')}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={logout}
+            className="w-full justify-start gap-2 h-8 text-xs text-sidebar-foreground/50 hover:text-rose"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Sign Out
+          </Button>
+        </div>
+      )}
+
       {/* Collapse button */}
       <div className="p-2 shrink-0">
         <Button
@@ -98,9 +138,4 @@ export function AppSidebar() {
       </div>
     </aside>
   );
-}
-
-// Hook-compatible sidebar with unread alerts
-export function useUnreadAlerts() {
-  return useDashboardStore((s) => s.unreadAlerts ?? 0);
 }
