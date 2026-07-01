@@ -101,7 +101,16 @@ export function SubmitReport() {
     queryFn: () => fetch('/api/dashboard').then(r => r.json()).then(d => d.pollingUnits?.slice(0, 15) || []),
   });
 
+  // Fetch agent's report counts for live stats
+  const { data: reportCounts } = useQuery({
+    queryKey: ['my-report-counts', user?.id],
+    queryFn: () => fetch(`/api/reports?reporterId=${user!.id}`).then(r => r.json()).then(d => d.counts),
+    enabled: !!user?.id,
+    refetchInterval: 10000,
+  });
+
   const pollingUnits = puData || [];
+  const counts = reportCounts || { totalResults: 0, totalIncidents: 0, resultsToday: 0, incidentsToday: 0 };
 
   const parties = PARTIES_BY_TIER[electionTier] || PARTIES_BY_TIER.PRESIDENTIAL;
 
@@ -142,6 +151,8 @@ export function SubmitReport() {
       toast.success('Election results submitted successfully!');
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['situation-room'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['my-report-counts'] });
       setSubmitted(true); setSubmittedType('results');
       setTimeout(() => setSubmitted(false), 4000);
     },
@@ -161,6 +172,8 @@ export function SubmitReport() {
       }
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
       queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      queryClient.invalidateQueries({ queryKey: ['my-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['my-report-counts'] });
       setSubmitted(true); setSubmittedType('incident');
       setIncDescription(''); setIncType('');
       setTimeout(() => setSubmitted(false), 4000);
@@ -661,24 +674,30 @@ export function SubmitReport() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Submission stats */}
-        <div className="grid grid-cols-3 gap-3 text-center">
+        {/* Submission stats — live from API */}
+        <div className="grid grid-cols-4 gap-3 text-center">
           <Card className="border-border bg-card/40">
             <CardContent className="p-3">
-              <p className="text-lg font-bold text-emerald tabular-nums">0</p>
+              <p className="text-lg font-bold text-emerald tabular-nums">{counts.resultsToday}</p>
               <p className="text-[11px] text-muted-foreground">Results Today</p>
             </CardContent>
           </Card>
           <Card className="border-border bg-card/40">
             <CardContent className="p-3">
-              <p className="text-lg font-bold text-amber tabular-nums">0</p>
-              <p className="text-[11px] text-muted-foreground">Incidents</p>
+              <p className="text-lg font-bold text-amber tabular-nums">{counts.incidentsToday}</p>
+              <p className="text-[11px] text-muted-foreground">Incidents Today</p>
             </CardContent>
           </Card>
           <Card className="border-border bg-card/40">
             <CardContent className="p-3">
-              <p className="text-lg font-bold text-cyan tabular-nums">0</p>
-              <p className="text-[11px] text-muted-foreground">Media Captured</p>
+              <p className="text-lg font-bold text-cyan tabular-nums">{counts.totalResults}</p>
+              <p className="text-[11px] text-muted-foreground">Total Results</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border bg-card/40">
+            <CardContent className="p-3">
+              <p className="text-lg font-bold text-violet tabular-nums">{counts.totalIncidents}</p>
+              <p className="text-[11px] text-muted-foreground">Total Incidents</p>
             </CardContent>
           </Card>
         </div>

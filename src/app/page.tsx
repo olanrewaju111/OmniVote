@@ -193,7 +193,7 @@ export default function Home() {
                 <SubmitReport />
               )}
               {activeTab === 'my-reports' && (
-                <MyReports incidents={incidentsData?.incidents || []} />
+                <MyReports />
               )}
               {activeTab === 'agents' && (
                 <AgentRoster />
