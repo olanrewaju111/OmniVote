@@ -57,6 +57,7 @@ interface DashboardState {
 
   // Navigation
   activeTab: ViewTab;
+  unreadAlerts: number;
   alertFilter: 'ALL' | 'OPERATIONAL' | 'SECURITY';
   incidentFilter: { type: string; severity: string; status: string };
   sidebarCollapsed: boolean;
@@ -85,6 +86,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
   // Navigation
   activeTab: 'overview',
+  unreadAlerts: 0,
   alertFilter: 'ALL',
   incidentFilter: { type: 'ALL', severity: 'ALL', status: 'ALL' },
   sidebarCollapsed: false,

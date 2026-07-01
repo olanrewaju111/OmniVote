@@ -60,3 +60,107 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch incidents' }, { status: 500 });
   }
 }
+
+// POST /api/incidents — submit a new incident/infraction report
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { reporterId, pollingUnitId, type, severity, description } = body;
+
+    if (!reporterId || !type || !description) {
+      return NextResponse.json({ error: 'reporterId, type, and description are required' }, { status: 400 });
+    }
+
+    const validTypes = [
+      'OBSERVATION', 'VIOLENCE', 'INTIMIDATION', 'BALLOT_STUFFING',
+      'LOGISTICS', 'BRIBERY', 'VOTE_BUYING', 'UNDERAGE_VOTING',
+      'MULTIPLE_VOTING', 'SNATCHED_BALLOT', 'IMPEDIMENT',
+      'DEEPFAKE_SUSPECT', 'CIB_DETECTED', 'GEO_ANOMALY',
+    ];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({ error: `Invalid type. Must be one of: ${validTypes.join(', ')}` }, { status: 400 });
+    }
+
+    const validSeverities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+    if (severity && !validSeverities.includes(severity)) {
+      return NextResponse.json({ error: 'Invalid severity' }, { status: 400 });
+    }
+
+    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
+    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
+
+    // Get reporter's PU GPS if no coordinates provided
+    let gpsLat = body.gpsLat || null;
+    let gpsLng = body.gpsLng || null;
+    if (!gpsLat && pollingUnitId) {
+      const pu = await db.pollingUnit.findUnique({ where: { id: pollingUnitId }, select: { latitude: true, longitude: true } });
+      if (pu) { gpsLat = pu.latitude; gpsLng = pu.longitude; }
+    }
+
+    // Simulate GPS anomaly check (5% chance)
+    const gpsAnomaly = Math.random() < 0.05;
+
+    const incident = await db.incident.create({
+      data: {
+        tenantId: tenant.id,
+        pollingUnitId: pollingUnitId || null,
+        reportedById: reporterId,
+        type,
+        severity: severity || 'MEDIUM',
+        description,
+        gpsLatitude: gpsLat,
+        gpsLongitude: gpsLng,
+        gpsAnomaly,
+        isQuarantined: gpsAnomaly,
+      },
+    });
+
+    // Create alert for HIGH/CRITICAL
+    if (severity === 'HIGH' || severity === 'CRITICAL' || type === 'VIOLENCE' || type === 'BALLOT_STUFFING') {
+      try {
+        await db.alert.create({
+          data: {
+            tenantId: tenant.id,
+            incidentId: incident.id,
+            type: type === 'VIOLENCE' || type === 'BALLOT_STUFFING' ? 'SECURITY' : 'OPERATIONAL',
+            category: severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING',
+            title: `${type.replace(/_/g, ' ')} reported at ${pollingUnitId ? 'polling unit' : 'unknown location'}`,
+            description: description.substring(0, 200),
+          },
+        });
+      } catch {
+        // Non-fatal: alert creation failure should not block incident submission
+      }
+    }
+
+    // Audit log
+    try {
+      await db.auditLog.create({
+      data: {
+        userId: reporterId,
+        action: 'INCIDENT_REPORTED',
+        entityType: 'Incident',
+        entityId: incident.id,
+        metadata: JSON.stringify({ type, severity, hasGpsAnomaly: gpsAnomaly }),
+      },
+    });
+    } catch {
+      // Non-fatal
+    }
+
+    return NextResponse.json({
+      success: true,
+      incident: {
+        id: incident.id,
+        type: incident.type,
+        severity: incident.severity,
+        status: incident.status,
+        gpsAnomaly,
+        submittedAt: incident.submittedAt,
+      },
+    }, { status: 201 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Failed to submit incident';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

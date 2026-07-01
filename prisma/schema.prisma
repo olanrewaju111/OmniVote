@@ -22,6 +22,7 @@ model Tenant {
   elections    Election[]
   incidents    Incident[]
   alerts       Alert[]
+  results      ElectionResult[]
 }
 
 model User {
@@ -38,6 +39,7 @@ model User {
 
   tenant        Tenant    @relation(fields: [tenantId], references: [id])
   incidents     Incident[]
+  results       ElectionResult[]
   auditLogs     AuditLog[]
 }
 
@@ -74,6 +76,34 @@ model PollingUnit {
 
   election      Election  @relation(fields: [electionId], references: [id])
   incidents     Incident[]
+  results       ElectionResult[]
+}
+
+model ElectionResult {
+  id              String    @id @default(cuid())
+  tenantId        String
+  pollingUnitId   String
+  reportedById    String
+  accreditedVoters Int      @default(0)
+  totalValidVotes  Int      @default(0)
+  rejectedBallots  Int      @default(0)
+  totalVotesCast   Int      @default(0)
+  // Party results stored as JSON: [{party:"APC",votes:120},{party:"PDP",votes:98},...]
+  partyResults    String    @default("[]")
+  // Statistics
+  bvasUsed        Boolean   @default(true)
+  materialsArrivedOnTime Boolean @default(true)
+  securityPresent Boolean   @default(true)
+  violenceOccurred Boolean  @default(false)
+  notes           String    @default("")
+  verified        Boolean   @default(false)
+  verifiedById    String?
+  submittedAt     DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  pollingUnit     PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  reporter        User        @relation(fields: [reportedById], references: [id])
 }
 
 model Incident {

@@ -1,58 +1,237 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { useDashboardStore } from '@/store/dashboard';
 import {
   Send, MapPin, Camera, Mic, AlertTriangle, CheckCircle2,
-  Radio, Loader2, ShieldCheck, Clock, Image as ImageIcon,
+  Radio, Loader2, ShieldCheck, Vote, FileWarning, Plus, X,
+  TrendingUp, BarChart3, Users,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+
+// Nigerian political parties for different election tiers
+const PARTIES_BY_TIER: Record<string, { code: string; name: string; color: string }[]> = {
+  PRESIDENTIAL: [
+    { code: 'APC', name: 'All Progressives Congress', color: '#008751' },
+    { code: 'PDP', name: 'Peoples Democratic Party', color: '#CE1126' },
+    { code: 'LP', name: 'Labour Party', color: '#2196F3' },
+    { code: 'NNPP', name: 'New Nigeria Peoples Party', color: '#FF9800' },
+  ],
+  STATE: [
+    { code: 'APC', name: 'APC', color: '#008751' },
+    { code: 'PDP', name: 'PDP', color: '#CE1126' },
+    { code: 'LP', name: 'LP', color: '#2196F3' },
+    { code: 'NNPP', name: 'NNPP', color: '#FF9800' },
+    { code: 'ADC', name: 'ADC', color: '#9C27B0' },
+  ],
+  LOCAL: [
+    { code: 'APC', name: 'APC', color: '#008751' },
+    { code: 'PDP', name: 'PDP', color: '#CE1126' },
+    { code: 'LP', name: 'LP', color: '#2196F3' },
+  ],
+};
+
+const INCIDENT_TYPES = [
+  { value: 'VIOLENCE', label: 'Violence', severity: 'HIGH', color: 'rose' },
+  { value: 'INTIMIDATION', label: 'Voter Intimidation', severity: 'HIGH', color: 'rose' },
+  { value: 'BALLOT_STUFFING', label: 'Ballot Stuffing', severity: 'CRITICAL', color: 'rose' },
+  { value: 'BRIBERY', label: 'Bribery / Vote Buying', severity: 'HIGH', color: 'amber' },
+  { value: 'UNDERAGE_VOTING', label: 'Underage Voting', severity: 'MEDIUM', color: 'amber' },
+  { value: 'MULTIPLE_VOTING', label: 'Multiple Voting', severity: 'HIGH', color: 'amber' },
+  { value: 'SNATCHED_BALLOT', label: 'Snatched Ballot Box', severity: 'CRITICAL', color: 'rose' },
+  { value: 'IMPEDIMENT', label: 'Impediment to Voting', severity: 'MEDIUM', color: 'amber' },
+  { value: 'LOGISTICS', label: 'Logistics / Materials Issue', severity: 'LOW', color: 'cyan' },
+  { value: 'BVAS_FAILURE', label: 'BVAS / Tech Failure', severity: 'MEDIUM', color: 'amber' },
+  { value: 'OBSERVATION', label: 'General Observation', severity: 'LOW', color: 'muted' },
+];
+
+type Tab = 'results' | 'statistics' | 'incident';
+
+interface PartyVote {
+  party: string;
+  votes: string; // string for input, parsed on submit
+}
 
 export function SubmitReport() {
-  const { user } = useDashboardStore();
-  const [incidentType, setIncidentType] = useState('OBSERVATION');
-  const [severity, setSeverity] = useState('LOW');
-  const [description, setDescription] = useState('');
+  const { user, electionTier } = useDashboardStore();
+  const queryClient = useQueryClient();
+
+  const [activeTab, setActiveTab] = useState<Tab>('results');
+  const [selectedPU, setSelectedPU] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedType, setSubmittedType] = useState('');
 
-  const handleSimulateSubmit = () => {
-    setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setSubmitted(true);
-      setTimeout(() => {
-        setSubmitted(false);
-        setDescription('');
-      }, 3000);
-    }, 1500);
+  // ---- RESULTS STATE ----
+  const [accredited, setAccredited] = useState('');
+  const [validVotes, setValidVotes] = useState('');
+  const [rejectedBallots, setRejectedBallots] = useState('');
+  const [partyVotes, setPartyVotes] = useState<PartyVote[]>(
+    (PARTIES_BY_TIER[electionTier] || PARTIES_BY_TIER.PRESIDENTIAL).map(p => ({ party: p.code, votes: '' }))
+  );
+
+  // ---- STATISTICS STATE ----
+  const [bvasUsed, setBvasUsed] = useState(true);
+  const [materialsOnTime, setMaterialsOnTime] = useState(true);
+  const [securityPresent, setSecurityPresent] = useState(true);
+  const [violenceOccurred, setViolenceOccurred] = useState(false);
+  const [statsNotes, setStatsNotes] = useState('');
+
+  // ---- INCIDENT STATE ----
+  const [incType, setIncType] = useState('');
+  const [incSeverity, setIncSeverity] = useState('MEDIUM');
+  const [incDescription, setIncDescription] = useState('');
+
+  // Fetch polling units for the agent (show first 10 as options)
+  const { data: puData } = useQuery({
+    queryKey: ['my-polling-units'],
+    queryFn: () => fetch('/api/dashboard').then(r => r.json()).then(d => d.pollingUnits?.slice(0, 15) || []),
+  });
+
+  const pollingUnits = puData || [];
+
+  const parties = PARTIES_BY_TIER[electionTier] || PARTIES_BY_TIER.PRESIDENTIAL;
+
+  // Add a party vote row
+  const addPartyRow = () => {
+    const existingCodes = partyVotes.map(p => p.party);
+    const missing = parties.find(p => !existingCodes.includes(p.code));
+    if (missing) {
+      setPartyVotes(prev => [...prev, { party: missing.code, votes: '' }]);
+    }
   };
+
+  const removePartyRow = (idx: number) => {
+    if (partyVotes.length > 2) {
+      setPartyVotes(prev => prev.filter((_, i) => i !== idx));
+    }
+  };
+
+  const updatePartyVote = (idx: number, field: 'party' | 'votes', value: string) => {
+    setPartyVotes(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+  };
+
+  // Auto-calculate totals
+  const totalVotesCast = partyVotes.reduce((s, p) => s + (parseInt(p.votes) || 0), 0);
+  const accreditedNum = parseInt(accredited) || 0;
+  const validVotesNum = parseInt(validVotes) || 0;
+  const rejectedNum = parseInt(rejectedBallots) || 0;
+
+  // ---- SUBMIT HANDLERS ----
+
+  const resultMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      fetch('/api/results', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      }).then(r => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast.error(data.error); return; }
+      toast.success('Election results submitted successfully!');
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['situation-room'] });
+      setSubmitted(true); setSubmittedType('results');
+      setTimeout(() => setSubmitted(false), 4000);
+    },
+    onError: () => toast.error('Failed to submit results'),
+  });
+
+  const incidentMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      fetch('/api/incidents', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      }).then(r => r.json()),
+    onSuccess: (data) => {
+      if (data.error) { toast.error(data.error); return; }
+      toast.success('Incident report submitted!');
+      if (data.incident?.gpsAnomaly) {
+        toast.warning('GPS anomaly detected — report quarantined for review');
+      }
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      setSubmitted(true); setSubmittedType('incident');
+      setIncDescription(''); setIncType('');
+      setTimeout(() => setSubmitted(false), 4000);
+    },
+    onError: () => toast.error('Failed to submit incident'),
+  });
+
+  const handleSubmitResults = () => {
+    if (!user?.id || !selectedPU) {
+      toast.error('Please select a polling unit');
+      return;
+    }
+    if (partyVotes.every(p => !p.votes)) {
+      toast.error('Enter at least one party vote count');
+      return;
+    }
+
+    const parsedPartyResults = partyVotes
+      .filter(p => p.votes)
+      .map(p => {
+        const partyInfo = parties.find(pt => pt.code === p.party);
+        return { party: p.party, name: partyInfo?.name || p.party, votes: parseInt(p.votes) || 0, color: partyInfo?.color || '#888' };
+      });
+
+    setSubmitting(true);
+    resultMutation.mutate({
+      reporterId: user.id,
+      pollingUnitId: selectedPU,
+      accreditedVoters: accreditedNum,
+      totalValidVotes: validVotesNum,
+      rejectedBallots: rejectedNum,
+      totalVotesCast,
+      partyResults: parsedPartyResults,
+      bvasUsed, materialsArrivedOnTime: materialsOnTime,
+      securityPresent, violenceOccurred, notes: statsNotes,
+    }, { onSettled: () => setSubmitting(false) });
+  };
+
+  const handleSubmitIncident = () => {
+    if (!user?.id) return;
+    if (!incType) { toast.error('Select an incident type'); return; }
+    if (!incDescription.trim()) { toast.error('Describe the incident'); return; }
+
+    const typeConfig = INCIDENT_TYPES.find(t => t.value === incType);
+    setSubmitting(true);
+    incidentMutation.mutate({
+      reporterId: user.id,
+      pollingUnitId: selectedPU || undefined,
+      type: incType,
+      severity: typeConfig?.severity || incSeverity,
+      description: incDescription.trim(),
+    }, { onSettled: () => setSubmitting(false) });
+  };
+
+  const selectedPUData = pollingUnits.find(p => p.id === selectedPU);
 
   return (
     <div className="h-full overflow-y-auto p-4 sm:p-6">
-      <div className="max-w-xl mx-auto space-y-5">
+      <div className="max-w-2xl mx-auto space-y-4">
         {/* Header */}
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Send className="h-5 w-5 text-emerald" />
-            Submit Incident Report
+            Field Report
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Report from your assigned polling unit. All submissions include GPS, timestamp, and device telemetry automatically.
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Submit election results, polling unit statistics, or report incidents and infractions.
           </p>
         </div>
 
-        {/* Agent info card */}
+        {/* Agent info + PU selector */}
         <Card className="border-emerald/20 bg-emerald/5">
           <CardContent className="p-3.5 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-emerald/20 flex items-center justify-center text-sm font-bold text-emerald">
@@ -60,161 +239,445 @@ export function SubmitReport() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-[11px] text-muted-foreground">{user?.role.replace(/_/g, ' ')}</p>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                In-App Capture
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <ShieldCheck className="h-3 w-3 text-emerald" />
+                <span className="text-[10px] text-muted-foreground">In-App Capture &middot; C2PA enabled</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">C2PA enabled</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Proof of Presence notice */}
-        <Card className="border-amber/20 bg-amber/5">
-          <CardContent className="p-3.5 flex items-start gap-3">
-            <Camera className="h-5 w-5 text-amber shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium text-amber">Proof of Presence (Anti-Spoofing)</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Media must be captured using the in-app camera. Camera roll uploads are disabled to prevent pre-recorded or stolen media from off-site locations.
-              </p>
+        {/* Polling Unit Selector */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-emerald" />
+            Select Polling Unit
+          </label>
+          <Select value={selectedPU} onValueChange={setSelectedPU}>
+            <SelectTrigger className="h-10">
+              <SelectValue placeholder="Choose your assigned polling unit..." />
+            </SelectTrigger>
+            <SelectContent>
+              {pollingUnits.map(pu => (
+                <SelectItem key={pu.id} value={pu.id}>
+                  <span className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-[10px]">{pu.code}</span>
+                    <span>{pu.name}</span>
+                    <span className="text-muted-foreground text-[10px]">{pu.state}/{pu.lga}</span>
+                    {pu.status === 'FLAGGED' && <Badge variant="outline" className="text-[9px] h-4 border-amber/30 text-amber ml-1">FLAGGED</Badge>}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedPUData && (
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              <Badge variant="outline" className="text-[10px] h-5 border-emerald/30 text-emerald">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald mr-1" />IN GEOFENCE
+              </Badge>
+              <span>{selectedPUData.registered} registered voters</span>
+              <span>{selectedPUData.state} / {selectedPUData.lga}</span>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
 
-        {/* Form */}
-        <Card>
-          <CardContent className="p-4 space-y-4">
-            {/* Polling unit info */}
-            <div className="rounded-lg bg-background border border-border p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="h-4 w-4 text-emerald" />
-                <span className="text-xs font-medium">Assigned Polling Unit</span>
-                <Badge variant="outline" className="ml-auto text-[10px] h-5 border-emerald/30 text-emerald">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald mr-1" />IN GEOFENCE
-                </Badge>
-              </div>
-              <p className="text-sm font-medium">Surulere Ward 2 Unit 7</p>
-              <p className="text-[11px] text-muted-foreground">LAG-SUR-007 &middot; Lagos / Surulere</p>
-            </div>
-
-            {/* Incident type */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">Incident Type</label>
-              <Select value={incidentType} onValueChange={setIncidentType}>
-                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="OBSERVATION">General Observation</SelectItem>
-                  <SelectItem value="VIOLENCE">Violence</SelectItem>
-                  <SelectItem value="INTIMIDATION">Voter Intimidation</SelectItem>
-                  <SelectItem value="BALLOT_STUFFING">Ballot Stuffing</SelectItem>
-                  <SelectItem value="LOGISTICS">Logistics Issue</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Severity */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">Severity</label>
-              <div className="grid grid-cols-4 gap-2">
-                {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setSeverity(s)}
-                    className={cn(
-                      'px-3 py-2 rounded-lg border text-xs font-medium transition-all text-center',
-                      severity === s
-                        ? s === 'CRITICAL' ? 'bg-rose/15 text-rose border-rose/30'
-                        : s === 'HIGH' ? 'bg-amber/15 text-amber border-amber/30'
-                        : s === 'MEDIUM' ? 'bg-cyan/15 text-cyan border-cyan/30'
-                        : 'bg-muted text-foreground border-border'
-                        : 'border-border text-muted-foreground hover:bg-card/60'
-                    )}
-                  >
-                    {s === 'CRITICAL' && <AlertTriangle className="h-3 w-3 mx-auto mb-0.5" />}
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">Description</label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what you're observing at the polling unit..."
-                className="min-h-[100px] bg-background border-border text-sm resize-none"
-              />
-            </div>
-
-            {/* Media capture */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium">Attach Evidence</label>
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
-                  <Camera className="h-5 w-5 text-emerald" />
-                  <span className="text-[10px]">Photo</span>
-                </Button>
-                <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
-                  <Mic className="h-5 w-5 text-cyan" />
-                  <span className="text-[10px]">Audio</span>
-                </Button>
-                <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
-                  <Radio className="h-5 w-5 text-amber" />
-                  <span className="text-[10px]">Video</span>
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                All media captured in-app with C2PA provenance metadata. Camera roll disabled for anti-spoofing.
-              </p>
-            </div>
-
-            {/* SOS Button */}
-            <Separator />
-            <Button
-              variant="outline"
-              className="w-full h-12 border-rose/30 text-rose hover:bg-rose/10 hover:text-rose gap-2"
-            >
-              <Radio className="h-5 w-5" />
-              <div className="text-left">
-                <p className="text-sm font-semibold">SOS — Dead-Man&apos;s Switch</p>
-                <p className="text-[10px] opacity-70">Triggers stealth recording + alerts T&S with exact GPS</p>
-              </div>
-            </Button>
-
-            {/* Submit */}
-            <Button
-              onClick={handleSimulateSubmit}
-              disabled={submitting || !description}
-              className="w-full h-11 bg-emerald hover:bg-emerald/90 text-emerald-950 font-semibold gap-2"
-            >
-              {submitting ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
-              ) : submitted ? (
-                <><CheckCircle2 className="h-4 w-4" /> Report Submitted Successfully</>
-              ) : (
-                <><Send className="h-4 w-4" /> Submit Report</>
+        {/* Tab selector */}
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-card/60 border border-border">
+          {[
+            { id: 'results' as Tab, label: 'Election Results', icon: <Vote className="h-4 w-4" /> },
+            { id: 'statistics' as Tab, label: 'Statistics', icon: <BarChart3 className="h-4 w-4" /> },
+            { id: 'incident' as Tab, label: 'Incident / Infraction', icon: <FileWarning className="h-4 w-4" /> },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                'flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-medium transition-all',
+                activeTab === tab.id
+                  ? 'bg-emerald/15 text-emerald shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-card'
               )}
-            </Button>
-          </CardContent>
-        </Card>
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 text-center">
+        {/* Tab content */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+          >
+            {/* ===== ELECTION RESULTS TAB ===== */}
+            {activeTab === 'results' && (
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Vote className="h-4 w-4 text-emerald" />
+                      Election Results Form
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Enter the official vote counts from Form EC8A at your polling unit.
+                    </p>
+                  </div>
+
+                  {/* Summary fields */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-muted-foreground">Accredited Voters</label>
+                      <Input
+                        type="number" min="0"
+                        placeholder="0"
+                        value={accredited}
+                        onChange={(e) => setAccredited(e.target.value)}
+                        className="h-10 text-sm tabular-nums"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-muted-foreground">Rejected Ballots</label>
+                      <Input
+                        type="number" min="0"
+                        placeholder="0"
+                        value={rejectedBallots}
+                        onChange={(e) => setRejectedBallots(e.target.value)}
+                        className="h-10 text-sm tabular-nums"
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Party vote entries */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium">Vote Count by Party</label>
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1" onClick={addPartyRow}>
+                        <Plus className="h-3 w-3" /> Add Party
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {partyVotes.map((pv, idx) => {
+                        const partyInfo = parties.find(p => p.code === pv.party);
+                        return (
+                          <div key={idx} className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-8 rounded-sm shrink-0"
+                              style={{ backgroundColor: partyInfo?.color || '#555' }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <Select value={pv.party} onValueChange={(v) => updatePartyVote(idx, 'party', v)}>
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {parties.map(p => (
+                                    <SelectItem key={p.code} value={p.code}>
+                                      <span className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: p.color }} />
+                                        <span className="font-medium">{p.code}</span>
+                                        <span className="text-muted-foreground text-[10px] hidden sm:inline">{p.name}</span>
+                                      </span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Input
+                              type="number" min="0" placeholder="0"
+                              value={pv.votes}
+                              onChange={(e) => updatePartyVote(idx, 'votes', e.target.value)}
+                              className="w-28 h-8 text-sm tabular-nums text-right"
+                            />
+                            {partyVotes.length > 2 && (
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-rose" onClick={() => removePartyRow(idx)}>
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Live totals */}
+                  <div className="rounded-lg bg-background border border-border p-3 space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-medium">
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald" />
+                      Live Totals
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-lg font-bold tabular-nums text-emerald">{totalVotesCast.toLocaleString()}</p>
+                        <p className="text-[10px] text-muted-foreground">Total Cast</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold tabular-nums text-cyan">{rejectedNum}</p>
+                        <p className="text-[10px] text-muted-foreground">Rejected</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold tabular-nums text-amber">{accreditedNum > 0 ? Math.round((totalVotesCast / accreditedNum) * 10000) / 100 : 0}%</p>
+                        <p className="text-[10px] text-muted-foreground">Turnout</p>
+                      </div>
+                    </div>
+                    {/* Simple bar chart */}
+                    {partyVotes.some(p => p.votes) && (
+                      <div className="flex h-3 rounded-full overflow-hidden bg-secondary mt-1">
+                        {partyVotes.filter(p => p.votes).map((pv) => {
+                          const partyInfo = parties.find(p => p.code === pv.party);
+                          const pct = totalVotesCast > 0 ? (parseInt(pv.votes) || 0) / totalVotesCast * 100 : 0;
+                          return (
+                            <div
+                              key={pv.party}
+                              className="h-full transition-all duration-500"
+                              style={{ width: `${pct}%`, backgroundColor: partyInfo?.color || '#555' }}
+                              title={`${pv.party}: ${pv.votes}`}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={handleSubmitResults}
+                    disabled={submitting || !selectedPU || partyVotes.every(p => !p.votes)}
+                    className="w-full h-11 bg-emerald hover:bg-emerald/90 text-emerald-950 font-semibold gap-2"
+                  >
+                    {submitting && submittedType === 'results' ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
+                    ) : submitted && submittedType === 'results' ? (
+                      <><CheckCircle2 className="h-4 w-4" /> Results Submitted!</>
+                    ) : (
+                      <><Send className="h-4 w-4" /> Submit Election Results</>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ===== STATISTICS TAB ===== */}
+            {activeTab === 'statistics' && (
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-cyan" />
+                      Polling Unit Statistics
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Record the operational status and conditions at your polling unit.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {[
+                      { label: 'BVAS / Voting device used', desc: 'Was the BVAS machine used for accreditation and voting?', value: bvasUsed, setter: setBvasUsed },
+                      { label: 'Materials arrived on time', desc: 'Did electoral materials arrive before the scheduled start time?', value: materialsOnTime, setter: setMaterialsOnTime },
+                      { label: 'Security personnel present', desc: 'Were police or security agents present throughout?', value: securityPresent, setter: setSecurityPresent },
+                      { label: 'Violence occurred', desc: 'Was any form of violence, disruption, or chaos observed?', value: violenceOccurred, setter: setViolenceOccurred },
+                    ].map(item => (
+                      <div key={item.label} className="flex items-start justify-between gap-4 py-2 border-b border-border/50 last:border-0">
+                        <div>
+                          <p className={cn('text-sm font-medium', item.label === 'Violence occurred' && violenceOccurred ? 'text-rose' : '')}>{item.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{item.desc}</p>
+                        </div>
+                        <Switch
+                          checked={item.value}
+                          onCheckedChange={item.setter}
+                          className={cn(
+                            item.value && item.label === 'Violence occurred' ? 'data-[state=checked]:bg-rose' : ''
+                          )}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Additional Notes</label>
+                    <Textarea
+                      value={statsNotes}
+                      onChange={(e) => setStatsNotes(e.target.value)}
+                      placeholder="Any other observations about the polling unit environment, queue management, accessibility, etc."
+                      className="min-h-[80px] bg-background border-border text-sm resize-none"
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-amber/20 bg-amber/5 p-3 flex items-start gap-2.5">
+                    <Users className="h-4 w-4 text-amber shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-amber/80">
+                      <p className="font-medium text-amber">Statistics are attached to your next result submission</p>
+                      Fill in the statistics here, then go to the Results tab to submit everything together. Or submit an incident separately from the Incident tab.
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ===== INCIDENT / INFRACTION TAB ===== */}
+            {activeTab === 'incident' && (
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <FileWarning className="h-4 w-4 text-rose" />
+                      Report Incident / Infraction
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Report electoral offenses, violence, intimidation, or procedural violations.
+                    </p>
+                  </div>
+
+                  {/* Incident type grid */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">What happened?</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {INCIDENT_TYPES.map(t => (
+                        <button
+                          key={t.value}
+                          onClick={() => {
+                            setIncType(t.value);
+                            setIncSeverity(t.severity);
+                          }}
+                          className={cn(
+                            'px-3 py-2.5 rounded-lg border text-xs font-medium transition-all text-left',
+                            incType === t.value
+                              ? t.color === 'rose' ? 'bg-rose/15 text-rose border-rose/30'
+                                : t.color === 'amber' ? 'bg-amber/15 text-amber border-amber/30'
+                                : t.color === 'cyan' ? 'bg-cyan/15 text-cyan border-cyan/30'
+                                : 'bg-muted text-foreground border-border'
+                              : 'border-border text-muted-foreground hover:bg-card/60'
+                          )}
+                        >
+                          <span className="block">{t.label}</span>
+                          <span className={cn(
+                            'text-[9px] mt-0.5 block',
+                            t.severity === 'CRITICAL' ? 'text-rose/60' :
+                            t.severity === 'HIGH' ? 'text-amber/60' :
+                            t.severity === 'MEDIUM' ? 'text-cyan/60' : 'text-muted-foreground/60'
+                          )}>
+                            {t.severity}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Severity override */}
+                  {incType && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Severity (auto-set, you can override)</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setIncSeverity(s)}
+                            className={cn(
+                              'px-3 py-2 rounded-lg border text-xs font-medium transition-all text-center',
+                              incSeverity === s
+                                ? s === 'CRITICAL' ? 'bg-rose/15 text-rose border-rose/30'
+                                : s === 'HIGH' ? 'bg-amber/15 text-amber border-amber/30'
+                                : s === 'MEDIUM' ? 'bg-cyan/15 text-cyan border-cyan/30'
+                                : 'bg-muted text-foreground border-border'
+                                : 'border-border text-muted-foreground hover:bg-card/60'
+                            )}
+                          >
+                            {s === 'CRITICAL' && <AlertTriangle className="h-3 w-3 mx-auto mb-0.5" />}
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Describe what happened</label>
+                    <Textarea
+                      value={incDescription}
+                      onChange={(e) => setIncDescription(e.target.value)}
+                      placeholder="Provide details: who was involved, what happened, time, location within the PU, names if known..."
+                      className="min-h-[120px] bg-background border-border text-sm resize-none"
+                    />
+                  </div>
+
+                  {/* Media capture */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Attach Evidence</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
+                        <Camera className="h-5 w-5 text-emerald" />
+                        <span className="text-[10px]">Photo</span>
+                      </Button>
+                      <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
+                        <Mic className="h-5 w-5 text-cyan" />
+                        <span className="text-[10px]">Audio</span>
+                      </Button>
+                      <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
+                        <Radio className="h-5 w-5 text-amber" />
+                        <span className="text-[10px]">Video</span>
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      All media captured in-app with C2PA provenance. Camera roll disabled.
+                    </p>
+                  </div>
+
+                  {/* SOS */}
+                  <Separator />
+                  <Button
+                    variant="outline"
+                    className="w-full h-12 border-rose/30 text-rose hover:bg-rose/10 hover:text-rose gap-2"
+                  >
+                    <Radio className="h-5 w-5" />
+                    <div className="text-left">
+                      <p className="text-sm font-semibold">SOS — Emergency Alert</p>
+                      <p className="text-[10px] opacity-70">Triggers stealth recording + exact GPS to T&S</p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    onClick={handleSubmitIncident}
+                    disabled={submitting || !incType || !incDescription.trim()}
+                    className="w-full h-11 bg-emerald hover:bg-emerald/90 text-emerald-950 font-semibold gap-2"
+                  >
+                    {submitting && submittedType === 'incident' ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
+                    ) : submitted && submittedType === 'incident' ? (
+                      <><CheckCircle2 className="h-4 w-4" /> Incident Reported!</>
+                    ) : (
+                      <><Send className="h-4 w-4" /> Submit Incident Report</>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Submission stats */}
+        <div className="grid grid-cols-3 gap-3 text-center">
           <Card className="border-border bg-card/40">
             <CardContent className="p-3">
-              <p className="text-lg font-bold text-emerald tabular-nums">7</p>
-              <p className="text-[11px] text-muted-foreground">Reports Today</p>
+              <p className="text-lg font-bold text-emerald tabular-nums">0</p>
+              <p className="text-[11px] text-muted-foreground">Results Today</p>
             </CardContent>
           </Card>
           <Card className="border-border bg-card/40">
             <CardContent className="p-3">
-              <p className="text-lg font-bold text-cyan tabular-nums">3</p>
+              <p className="text-lg font-bold text-amber tabular-nums">0</p>
+              <p className="text-[11px] text-muted-foreground">Incidents</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border bg-card/40">
+            <CardContent className="p-3">
+              <p className="text-lg font-bold text-cyan tabular-nums">0</p>
               <p className="text-[11px] text-muted-foreground">Media Captured</p>
             </CardContent>
           </Card>
