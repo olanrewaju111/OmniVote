@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  primaryColor String   @default("#10b981")
+  domain       String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        User[]
+  elections    Election[]
+  incidents    Incident[]
+  alerts       Alert[]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String
+  name          String
+  role          String    @default("FIELD_AGENT") // FIELD_AGENT, ANALYST, TENANT_ADMIN, SUPER_ADMIN, TRUST_SAFETY
+  tenantId      String
+  isOnline      Boolean   @default(false)
+  lastSeenAt    DateTime?
+  deviceFingerprint String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  incidents     Incident[]
+  auditLogs     AuditLog[]
+}
+
+model Election {
+  id          String   @id @default(cuid())
+  tenantId    String
+  title       String
+  tier        String   @default("LOCAL") // LOCAL, STATE, PRESIDENTIAL
+  status      String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED
+  date        DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  pollingUnits PollingUnit[]
+}
+
+model PollingUnit {
+  id            String    @id @default(cuid())
+  electionId    String
+  name          String
+  code          String
+  state         String
+  lga           String
+  ward          String
+  latitude      Float
+  longitude     Float
+  registeredVoters Int    @default(0)
+  totalVotes    Int       @default(0)
+  turnout       Float     @default(0)
+  status        String    @default("PENDING") // PENDING, OPEN, CLOSED, FLAGGED
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  election      Election  @relation(fields: [electionId], references: [id])
+  incidents     Incident[]
+}
+
+model Incident {
+  id              String    @id @default(cuid())
+  tenantId        String
+  pollingUnitId   String?
+  reportedById    String
+  type            String    @default("OBSERVATION") // OBSERVATION, VIOLENCE, INTIMIDATION, BALLOT_STUFFING, LOGISTICS, DEEPFAKE_SUSPECT, CIB_DETECTED, GEO_ANOMALY
+  severity        String    @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  status          String    @default("PENDING") // PENDING, REVIEWED, ESCALATED, DISMISSED, QUARANTINED
+  description     String
+  mediaUrls       String    @default("[]") // JSON array
+  gpsLatitude     Float?
+  gpsLongitude    Float?
+  gpsAnomaly      Boolean   @default(false)
+  aiSummary       String?
+  aiFlags         String    @default("[]") // JSON array of AI flags
+  isQuarantined   Boolean   @default(false)
+  c2paVerified    Boolean   @default(false)
+  submittedAt     DateTime  @default(now())
+  reviewedAt      DateTime?
+  reviewedById    String?
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  pollingUnit     PollingUnit? @relation(fields: [pollingUnitId], references: [id])
+  reporter        User      @relation(fields: [reportedById], references: [id])
+  alerts          Alert[]
+}
+
+model Alert {
+  id            String    @id @default(cuid())
+  tenantId      String
+  incidentId    String?
+  type          String    @default("OPERATIONAL") // OPERATIONAL, SECURITY
+  category      String    @default("INFO") // INFO, WARNING, CRITICAL, SOS
+  title         String
+  description   String
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  incident      Incident? @relation(fields: [incidentId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  entityType  String?
+  entityId    String?
+  metadata    String   @default("{}") // JSON
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+}
