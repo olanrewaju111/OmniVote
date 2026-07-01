@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     if (type && type !== 'ALL') where.type = type;
     if (severity && severity !== 'ALL') where.severity = severity;
     if (status && status !== 'ALL') where.status = status;
+    const reporterId = searchParams.get('reporterId');
+    if (reporterId) where.reportedById = reporterId;
 
     const [incidents, total] = await Promise.all([
       db.incident.findMany({
