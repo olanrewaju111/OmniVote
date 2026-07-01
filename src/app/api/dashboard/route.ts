@@ -6,6 +6,15 @@ export async function GET() {
     const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
     if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
+    // Fetch the active election for this tenant
+    const activeElection = await db.election.findFirst({
+      where: { tenantId: tenant.id, status: { in: ['ACTIVE', 'UPCOMING'] } },
+      select: { id: true, title: true, tier: true, status: true, date: true },
+      orderBy: { date: 'desc' },
+    });
+
+    const electionTier = (activeElection?.tier || 'PRESIDENTIAL') as 'LOCAL' | 'STATE' | 'PRESIDENTIAL';
+
     const [
       totalAgents,
       onlineAgents,
@@ -28,7 +37,9 @@ export async function GET() {
       db.alert.count({ where: { tenantId: tenant.id, type: 'SECURITY' } }),
       db.alert.count({ where: { tenantId: tenant.id, type: 'OPERATIONAL' } }),
       db.alert.count({ where: { tenantId: tenant.id, isRead: false } }),
-      db.pollingUnit.findMany({ where: { electionId: { in: (await db.election.findMany({ where: { tenantId: tenant.id }, select: { id: true } })).map(e => e.id) } } }),
+      db.pollingUnit.findMany({
+        where: activeElection ? { electionId: activeElection.id } : {},
+      }),
       db.incident.count({ where: { tenantId: tenant.id, type: 'VIOLENCE', severity: 'CRITICAL' } }),
     ]);
 
@@ -52,6 +63,12 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      electionInfo: {
+        tier: electionTier,
+        title: activeElection?.title || 'No Active Election',
+        status: activeElection?.status || 'NONE',
+        date: activeElection?.date || null,
+      },
       kpis: {
         totalAgents, onlineAgents, totalIncidents, pendingIncidents,
         criticalIncidents, quarantinedIncidents, securityAlerts, operationalAlerts,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
+import { useDashboardStore, type ElectionInfo } from '@/store/dashboard';
 import { KpiGrid } from '@/components/dashboard/kpi-grid';
 import { GeoMapView } from '@/components/dashboard/geo-map';
 import { LiveFeed } from '@/components/dashboard/live-feed';
@@ -19,7 +20,6 @@ import { MyReports } from '@/components/dashboard/field-reports';
 import { AgentRoster } from '@/components/dashboard/agent-roster';
 import { SystemHealth } from '@/components/dashboard/system-health';
 import { TenantManagement } from '@/components/dashboard/tenant-mgmt';
-import { useDashboardStore } from '@/store/dashboard';
 
 // ---- Types ----
 export interface Incident {
@@ -42,6 +42,7 @@ export interface Incident {
 }
 
 interface DashboardData {
+  electionInfo: ElectionInfo;
   kpis: {
     totalAgents: number; onlineAgents: number; totalIncidents: number;
     pendingIncidents: number; criticalIncidents: number; quarantinedIncidents: number;
@@ -70,7 +71,7 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo } = useDashboardStore();
 
   // Fetch dashboard data (only when authenticated)
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
@@ -79,6 +80,13 @@ export default function Home() {
     refetchInterval: 15000,
     enabled: isAuthenticated,
   });
+
+  // Sync election info from server (one type per tenant — not user-switchable)
+  useEffect(() => {
+    if (dashData?.electionInfo) {
+      setElectionInfo(dashData.electionInfo);
+    }
+  }, [dashData?.electionInfo, setElectionInfo]);
 
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
     queryKey: ['incidents', 'all'],

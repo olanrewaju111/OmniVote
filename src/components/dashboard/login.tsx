@@ -57,7 +57,7 @@ const ROLE_CONFIG: Record<string, { label: string; icon: React.ReactNode; color:
 const ROLE_ORDER: UserRole[] = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'];
 
 export function LoginScreen() {
-  const { login } = useDashboardStore();
+  const { login, setElectionInfo } = useDashboardStore();
   const [search, setSearch] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole | 'ALL'>('ALL');
   const [loggingIn, setLoggingIn] = useState(false);
@@ -102,6 +102,7 @@ export function LoginScreen() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
       login(data.user);
+      if (data.electionInfo) setElectionInfo(data.electionInfo);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Login failed');
       setLoggingIn(false);

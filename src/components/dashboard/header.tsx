@@ -1,18 +1,16 @@
 'use client';
 
-import { Activity, Bell, Search, Shield, User } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { useDashboardStore } from '@/store/dashboard';
+import { useDashboardStore, TIER_SHORT, TIER_LABELS } from '@/store/dashboard';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface HeaderProps {
   kpis?: {
@@ -23,8 +21,14 @@ interface HeaderProps {
   };
 }
 
+const TIER_STYLES: Record<string, string> = {
+  PRESIDENTIAL: 'border-violet/30 text-violet bg-violet/10',
+  STATE: 'border-amber/30 text-amber bg-amber/10',
+  LOCAL: 'border-cyan/30 text-cyan bg-cyan/10',
+};
+
 export function AppHeader({ kpis }: HeaderProps) {
-  const { electionTier, setElectionTier, alertFilter, setAlertFilter, setSelectedTab, user, logout } = useDashboardStore();
+  const { electionTier, electionInfo, alertFilter, setAlertFilter, setSelectedTab, user, logout } = useDashboardStore();
 
   return (
     <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
@@ -37,17 +41,30 @@ export function AppHeader({ kpis }: HeaderProps) {
         />
       </div>
 
-      {/* Election Tier Selector */}
-      <Select value={electionTier} onValueChange={(v) => setElectionTier(v as 'LOCAL' | 'STATE' | 'PRESIDENTIAL')}>
-        <SelectTrigger className="w-44 h-9 text-sm bg-background border-border">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="PRESIDENTIAL">Presidential</SelectItem>
-          <SelectItem value="STATE">Governorship</SelectItem>
-          <SelectItem value="LOCAL">Local Government</SelectItem>
-        </SelectContent>
-      </Select>
+      {/* Election Type Badge — fixed per tenant, not switchable */}
+      <div className="flex items-center gap-2">
+        <Badge
+          variant="outline"
+          className={cn(
+            'text-[11px] h-9 px-3 font-medium gap-1.5 cursor-default',
+            TIER_STYLES[electionTier] || 'border-border text-muted-foreground'
+          )}
+        >
+          <Vote className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{TIER_SHORT[electionTier]}</span>
+          <span className="sm:hidden">{electionTier === 'LOCAL' ? 'Local' : electionTier === 'STATE' ? 'Gov' : 'Pres'}</span>
+        </Badge>
+
+        {/* Election date — show if available */}
+        {electionInfo?.date && (
+          <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {new Date(electionInfo.date).toLocaleDateString('en-NG', {
+              day: 'numeric', month: 'short', year: 'numeric',
+            })}
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center gap-2 ml-auto">
         {/* System health — only for admin roles */}

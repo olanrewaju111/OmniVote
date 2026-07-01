@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
     const agents = await db.user.count({ where: { tenantId: tenant.id, role: 'FIELD_AGENT' } });
     const onlineAgents = await db.user.count({ where: { tenantId: tenant.id, role: 'FIELD_AGENT', isOnline: true } });
 
+    // Get the tenant's active election type
+    const activeElection = await db.election.findFirst({
+      where: { tenantId: tenant.id, status: { in: ['ACTIVE', 'UPCOMING'] } },
+      select: { tier: true, title: true, status: true, date: true },
+      orderBy: { date: 'desc' },
+    });
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -28,6 +35,12 @@ export async function POST(req: NextRequest) {
         role: user.role,
         tenantName: tenant.name,
       },
+      electionInfo: activeElection ? {
+        tier: activeElection.tier,
+        title: activeElection.title,
+        status: activeElection.status,
+        date: activeElection.date,
+      } : null,
       meta: { totalAgents: agents, onlineAgents },
     });
   } catch {

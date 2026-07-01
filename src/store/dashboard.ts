@@ -4,6 +4,15 @@ export type ViewTab = 'overview' | 'map' | 'feed' | 'alerts' | 'ai' | 'media' | 
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'ANALYST' | 'TRUST_SAFETY' | 'FIELD_AGENT';
 
+export type ElectionTier = 'LOCAL' | 'STATE' | 'PRESIDENTIAL';
+
+export interface ElectionInfo {
+  tier: ElectionTier;
+  title: string;
+  status: string;
+  date: string | null;
+}
+
 export interface UserInfo {
   id: string;
   email: string;
@@ -21,6 +30,19 @@ export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
   FIELD_AGENT: ['submit', 'my-reports', 'feed'],
 };
 
+// Display labels for election tiers
+export const TIER_LABELS: Record<ElectionTier, string> = {
+  PRESIDENTIAL: 'Presidential Election',
+  STATE: 'Governorship Election',
+  LOCAL: 'Local Government Election',
+};
+
+export const TIER_SHORT: Record<ElectionTier, string> = {
+  PRESIDENTIAL: 'Presidential',
+  STATE: 'Governorship',
+  LOCAL: 'Local Gov',
+};
+
 interface DashboardState {
   // Auth
   user: UserInfo | null;
@@ -28,15 +50,18 @@ interface DashboardState {
   login: (user: UserInfo) => void;
   logout: () => void;
 
+  // Election — set from server only, one type per tenant
+  electionTier: ElectionTier;
+  electionInfo: ElectionInfo | null;
+  setElectionInfo: (info: ElectionInfo) => void;
+
   // Navigation
   activeTab: ViewTab;
-  electionTier: 'LOCAL' | 'STATE' | 'PRESIDENTIAL';
   alertFilter: 'ALL' | 'OPERATIONAL' | 'SECURITY';
   incidentFilter: { type: string; severity: string; status: string };
   sidebarCollapsed: boolean;
   liveFeedPaused: boolean;
   setSelectedTab: (tab: ViewTab) => void;
-  setElectionTier: (tier: 'LOCAL' | 'STATE' | 'PRESIDENTIAL') => void;
   setAlertFilter: (filter: 'ALL' | 'OPERATIONAL' | 'SECURITY') => void;
   setIncidentFilter: (filter: { type: string; severity: string; status: string }) => void;
   toggleSidebar: () => void;
@@ -51,17 +76,20 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     const defaultTab = ROLE_TABS[user.role]?.[0] || 'overview';
     set({ user, isAuthenticated: true, activeTab: defaultTab, alertFilter: 'ALL' });
   },
-  logout: () => set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL' }),
+  logout: () => set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL' }),
+
+  // Election — server-driven, one tier per tenant
+  electionTier: 'PRESIDENTIAL',
+  electionInfo: null,
+  setElectionInfo: (info) => set({ electionInfo: info, electionTier: info.tier }),
 
   // Navigation
   activeTab: 'overview',
-  electionTier: 'PRESIDENTIAL',
   alertFilter: 'ALL',
   incidentFilter: { type: 'ALL', severity: 'ALL', status: 'ALL' },
   sidebarCollapsed: false,
   liveFeedPaused: false,
   setSelectedTab: (tab) => set({ activeTab: tab }),
-  setElectionTier: (tier) => set({ electionTier: tier }),
   setAlertFilter: (filter) => set({ alertFilter: filter }),
   setIncidentFilter: (filter) => set({ incidentFilter: filter }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
