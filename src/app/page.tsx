@@ -20,6 +20,7 @@ import { MyReports } from '@/components/dashboard/field-reports';
 import { AgentRoster } from '@/components/dashboard/agent-roster';
 import { SystemHealth } from '@/components/dashboard/system-health';
 import { TenantManagement } from '@/components/dashboard/tenant-mgmt';
+import { SituationRoom } from '@/components/dashboard/situation-room';
 
 // ---- Types ----
 export interface Incident {
@@ -145,6 +146,11 @@ export default function Home() {
               transition={{ duration: 0.2 }}
               className="h-full"
             >
+              {activeTab === 'situation' && (
+                <div className="h-full">
+                  <SituationRoom />
+                </div>
+              )}
               {activeTab === 'overview' && (
                 <OverviewTab
                   dashData={dashData!}

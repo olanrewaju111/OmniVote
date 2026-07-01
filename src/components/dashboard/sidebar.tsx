@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type UserRole } from '@/store/dashboard';
 import {
-  LayoutDashboard, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
+  LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut,
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserRole[] }[] = [
   { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+  { id: 'situation', label: 'Situation Room', icon: <BarChart3 className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
   { id: 'map', label: 'Geo Map', icon: <Map className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
   { id: 'feed', label: 'Live Feed', icon: <Radio className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'] },
   { id: 'alerts', label: 'Alert Triage', icon: <ShieldAlert className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
