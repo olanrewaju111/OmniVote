@@ -384,7 +384,7 @@ export function AgentEngagement() {
         </TabsContent>
 
         {/* ─── Compose Tab ───────────────────────────────────── */}
-        <TabsContent value="compose" className="flex-1 mt-3">
+        <TabsContent value="compose" className="flex-1 min-h-0 mt-3 overflow-y-auto">
           <ComposeForm
             preselectedAgent={composeAgent}
             onSend={handleSendMessage}
@@ -647,7 +647,7 @@ function ComposeForm({
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4 pb-4">
       <Card className="bg-card/40 border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2">
