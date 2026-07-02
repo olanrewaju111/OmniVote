@@ -23,6 +23,7 @@ model Tenant {
   incidents    Incident[]
   alerts       Alert[]
   results      ElectionResult[]
+  agentMessages AgentMessage[]
 }
 
 model User {
@@ -41,6 +42,8 @@ model User {
   incidents     Incident[]
   results       ElectionResult[]
   auditLogs     AuditLog[]
+  agentMessages AgentMessage[]  @relation("agentMessages")
+  sentMessages  AgentMessage[]  @relation("sentMessages")
 }
 
 model Election {
@@ -159,4 +162,28 @@ model AuditLog {
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id])
+}
+
+model AgentMessage {
+  id            String   @id @default(cuid())
+  tenantId      String
+  agentId       String   // recipient field agent
+  sentById      String?  // who sent it (admin/analyst) or null if system-auto
+  channel       String   @default("IN_APP") // IN_APP, WHATSAPP, SMS, PUSH
+  triggerType   String   @default("MANUAL") // MANUAL, IDLE_DETECTION, NO_DATA, INCIDENT_FOLLOWUP, INFRACTION_REMINDER, SCHEDULED_CHECKIN
+  subject       String
+  body          String
+  priority      String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  status        String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  responseText  String?  // agent's reply if any
+  respondedAt   DateTime?
+  metadata      String   @default("{}") // JSON — e.g. {"idleMinutes": 45, "lastReportDate": "..."}
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  agent         User     @relation(fields: [agentId], references: [id], name: "agentMessages")
+  sentBy        User?    @relation(fields: [sentById], references: [id], name: "sentMessages")
 }

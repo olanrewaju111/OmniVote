@@ -5,7 +5,7 @@ import { useDashboardStore, ROLE_TABS, type ViewTab, type UserRole } from '@/sto
 import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
-  Server, Building2, LogOut,
+  Server, Building2, LogOut, MessageSquareWarning,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -22,6 +22,7 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserR
   { id: 'ai', label: 'AI Engine', icon: <Brain className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'agents', label: 'Agent Roster', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+  { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'system', label: 'System Health', icon: <Server className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
   { id: 'tenants', label: 'Tenants', icon: <Building2 className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
   { id: 'submit', label: 'Submit Report', icon: <Send className="h-5 w-5" />, roles: ['FIELD_AGENT'] },

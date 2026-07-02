@@ -21,6 +21,7 @@ import { AgentRoster } from '@/components/dashboard/agent-roster';
 import { SystemHealth } from '@/components/dashboard/system-health';
 import { TenantManagement } from '@/components/dashboard/tenant-mgmt';
 import { SituationRoom } from '@/components/dashboard/situation-room';
+import { AgentEngagement } from '@/components/dashboard/agent-engagement';
 
 // ---- Types ----
 export interface Incident {
@@ -200,6 +201,9 @@ export default function Home() {
               )}
               {activeTab === 'agents' && (
                 <AgentRoster />
+              )}
+              {activeTab === 'engagement' && (
+                <AgentEngagement />
               )}
               {activeTab === 'system' && (
                 <SystemHealth />

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'ai' | 'media' | 'agents' | 'submit' | 'my-reports' | 'system' | 'tenants';
+export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'ai' | 'media' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants';
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'ANALYST' | 'TRUST_SAFETY' | 'FIELD_AGENT';
 
@@ -25,10 +25,10 @@ export interface UserInfo {
 
 // Role-based tab permissions
 export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
-  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'agents', 'system', 'tenants'],
-  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'agents'],
-  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media'],
-  TRUST_SAFETY: ['alerts', 'media', 'ai', 'feed'],
+  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'agents', 'engagement', 'system', 'tenants'],
+  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'agents', 'engagement'],
+  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'engagement'],
+  TRUST_SAFETY: ['alerts', 'media', 'ai', 'feed', 'engagement'],
   FIELD_AGENT: ['submit', 'my-reports', 'feed'],
 };
 

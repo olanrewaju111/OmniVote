@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { resolveTenant } from '@/lib/tenant';
 
 // GET /api/reports?reporterId=xxx — unified "my reports" for a field agent
 // Returns their election results + incidents + summary counts
 export async function GET(req: NextRequest) {
   try {
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
+
     const { searchParams } = new URL(req.url);
     const reporterId = searchParams.get('reporterId');
 
@@ -12,22 +16,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'reporterId is required' }, { status: 400 });
     }
 
-    const tenant = await db.tenant.findFirst({ where: { slug: 'new' } });
-    if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
-
-    // Verify reporter belongs to tenant
     const reporter = await db.user.findFirst({
-      where: { id: reporterId, tenantId: tenant.id },
+      where: { id: reporterId, tenantId },
       select: { id: true, name: true, role: true },
     });
     if (!reporter) {
       return NextResponse.json({ error: 'Reporter not found' }, { status: 404 });
     }
 
-    // Fetch results and incidents in parallel
     const [results, incidents, resultCount, incidentCount] = await Promise.all([
       db.electionResult.findMany({
-        where: { tenantId: tenant.id, reportedById: reporterId },
+        where: { tenantId, reportedById: reporterId },
         include: {
           pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
         },
@@ -35,39 +34,22 @@ export async function GET(req: NextRequest) {
         take: 50,
       }),
       db.incident.findMany({
-        where: { tenantId: tenant.id, reportedById: reporterId },
+        where: { tenantId, reportedById: reporterId },
         include: {
           pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true } },
         },
         orderBy: { submittedAt: 'desc' },
         take: 50,
       }),
-      db.electionResult.count({
-        where: { tenantId: tenant.id, reportedById: reporterId },
-      }),
-      db.incident.count({
-        where: { tenantId: tenant.id, reportedById: reporterId },
-      }),
+      db.electionResult.count({ where: { tenantId, reportedById: reporterId } }),
+      db.incident.count({ where: { tenantId, reportedById: reporterId } }),
     ]);
 
-    // Count results submitted today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const [resultsToday, incidentsToday] = await Promise.all([
-      db.electionResult.count({
-        where: {
-          tenantId: tenant.id,
-          reportedById: reporterId,
-          submittedAt: { gte: todayStart },
-        },
-      }),
-      db.incident.count({
-        where: {
-          tenantId: tenant.id,
-          reportedById: reporterId,
-          submittedAt: { gte: todayStart },
-        },
-      }),
+      db.electionResult.count({ where: { tenantId, reportedById: reporterId, submittedAt: { gte: todayStart } } }),
+      db.incident.count({ where: { tenantId, reportedById: reporterId, submittedAt: { gte: todayStart } } }),
     ]);
 
     const mappedResults = results.map(r => ({
@@ -94,9 +76,11 @@ export async function GET(req: NextRequest) {
       severity: inc.severity,
       status: inc.status,
       description: inc.description,
+      mediaUrls: JSON.parse(inc.mediaUrls || '[]'),
       gpsLat: inc.gpsLatitude,
       gpsLng: inc.gpsLongitude,
       gpsAnomaly: inc.gpsAnomaly,
+      aiSummary: inc.aiSummary,
       isQuarantined: inc.isQuarantined,
       c2paVerified: inc.c2paVerified,
       submittedAt: inc.submittedAt,
@@ -107,12 +91,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       results: mappedResults,
       incidents: mappedIncidents,
-      counts: {
-        totalResults: resultCount,
-        totalIncidents: incidentCount,
-        resultsToday,
-        incidentsToday,
-      },
+      counts: { totalResults: resultCount, totalIncidents: incidentCount, resultsToday, incidentsToday },
     });
   } catch (error) {
     console.error('Reports fetch error:', error);

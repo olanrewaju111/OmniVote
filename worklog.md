@@ -74,3 +74,43 @@ Stage Summary:
 - No more dropdown — election type is server-driven per tenant, shown as read-only badge
 - Each tenant's data is completely isolated — logging into one tenant never sees another's data
 - Test credentials: admin@presidential.omnivote.ng, admin@governorship.omnivote.ng, admin@localgov.omnivote.ng (and more per tenant)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Populate all tenants with rich sample data (reports, incidents, media) and build Agent Engagement system
+
+Work Log:
+- Updated Prisma schema: added `AgentMessage` model with channels (IN_APP/WHATSAPP/SMS/PUSH), trigger types (IDLE_DETECTION/NO_DATA/INCIDENT_FOLLOWUP/INFRACTION_REMINDER/SCHEDULED_CHECKIN/MANUAL), priority, delivery tracking, and agent responses. Added reverse relations to User and Tenant.
+- Ran `prisma db push` to apply schema changes.
+- Created `scripts/seed-rich-data.ts` — comprehensive seed populating ALL 3 tenants with:
+  - 155 election results (80 presidential, 50 governorship, 25 local-gov) with party breakdowns and detailed notes
+  - 35 new incidents (20 gov, 15 local-gov) with 12 incident type categories each having 3-5 unique rich descriptions
+  - 95 agent messages (40 presidential, 35 governorship, 20 local-gov) across all 6 trigger types and 4 channels
+  - Media URLs on ALL incidents: images (18 unique URLs), videos (8 URLs), voice notes (8 URLs)
+  - Simulated agent states: ~30% idle, ~15% offline, rest active
+- Created `scripts/fix-presidential-media.ts` — backfilled media URLs on 102 existing presidential incidents
+- Created `/api/engagement/route.ts` — full engagement API:
+  - GET: returns engagement stats, 4 agent groups (idle/no-data/offline/infractions), message history with filters, channel/trigger/status breakdowns
+  - POST: send message to single agent with channel simulation (delivery probability varies by channel)
+  - PATCH: BULK_ENGAGE (send to entire group at once) and MARK_READ (record agent response)
+- Fixed `/api/reports/route.ts` — replaced hardcoded `slug: 'new'` with `resolveTenant()` for proper multi-tenant support; also added mediaUrls and aiSummary to incident mapping
+- Updated `store/dashboard.ts` — added 'engagement' to ViewTab union type and all relevant ROLE_TABS (SUPER_ADMIN, TENANT_ADMIN, ANALYST, TRUST_SAFETY)
+- Updated `sidebar.tsx` — added Agent Engagement nav item with MessageSquareWarning icon
+- Updated `page.tsx` — imported AgentEngagement component and added engagement tab rendering
+- Built `agent-engagement.tsx` — comprehensive Agent Engagement Center UI:
+  - 7 stat cards (Total, Online, Idle, No Data, Offline, Infractions, Messages)
+  - 4 agent group cards (Idle/No-Data/Offline/Infractions) with expandable agent lists, "Engage All" bulk action
+  - Message Log tab with filter controls (trigger type, channel, status), status stats inline, clickable message rows
+  - Compose tab with agent selector, channel picker, priority, subject/body, 4 quick message templates
+  - Message detail dialog showing full message, delivery tracking timeline, agent reply
+  - Channel icons (WhatsApp green, SMS blue, Push amber, In-App cyan) throughout
+
+Stage Summary:
+- All 3 tenants now have rich sample data:
+  - Presidential: 80 results, 102 incidents (401 media items), 40 messages, 21 idle agents
+  - Governorship: 50 results, 45 incidents (81 media items), 35 messages
+  - Local Gov: 25 results, 30 incidents (53 media items), 20 messages
+- Agent Engagement system complete: idle detection, no-data alerts, infraction tracking, multi-channel messaging (WhatsApp/SMS/Push/In-App), bulk engagement, message history with filters
+- /api/reports now uses resolveTenant() — fixed multi-tenant bug
+- Zero new TypeScript errors from these changes
