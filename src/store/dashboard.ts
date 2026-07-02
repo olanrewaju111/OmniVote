@@ -25,10 +25,10 @@ export interface UserInfo {
 
 // Role-based tab permissions
 export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
-  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'agents', 'engagement', 'system', 'tenants'],
-  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'agents', 'engagement'],
-  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'engagement'],
-  TRUST_SAFETY: ['alerts', 'media', 'ai', 'feed', 'engagement'],
+  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'agents', 'engagement', 'my-reports', 'system', 'tenants'],
+  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'agents', 'engagement', 'my-reports'],
+  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'ai', 'media', 'engagement', 'my-reports'],
+  TRUST_SAFETY: ['alerts', 'media', 'ai', 'feed', 'engagement', 'my-reports'],
   FIELD_AGENT: ['submit', 'my-reports', 'feed'],
 };
 

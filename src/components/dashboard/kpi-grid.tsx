@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
-  Users, AlertTriangle, Vote, Shield, Radio, ShieldAlert, Timer, BarChart3,
+  Users, AlertTriangle, Vote, Shield, ShieldCheck, Radio, ShieldAlert, Timer, BarChart3,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -15,6 +15,7 @@ interface KpiCardProps {
   color: 'emerald' | 'amber' | 'rose' | 'cyan' | 'violet';
   trend?: { value: number; up: boolean };
   glow?: boolean;
+  className?: string;
 }
 
 const COLOR_MAP = {
@@ -25,13 +26,14 @@ const COLOR_MAP = {
   violet: { bg: 'bg-violet/10', text: 'text-violet', border: 'border-violet/20', glow: '' },
 };
 
-function KpiCard({ label, value, sub, icon, color, trend, glow }: KpiCardProps) {
+function KpiCard({ label, value, sub, icon, color, trend, glow, className }: KpiCardProps) {
   const c = COLOR_MAP[color];
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className={className}
     >
       <Card className={cn(
         'border bg-card/60 backdrop-blur-sm transition-colors hover:bg-card/80',
@@ -82,13 +84,21 @@ interface KpiGridProps {
     totalRegistered: number;
     totalVotes: number;
   };
+  extraStats?: { label: string; value: number; color: 'emerald' | 'amber' | 'rose' | 'cyan' | 'violet' }[];
 }
 
-export function KpiGrid({ data, election }: KpiGridProps) {
+const EXTRA_ICONS: Record<string, React.ReactNode> = {
+  rose: <ShieldAlert className="h-4 w-4 text-rose" />,
+  emerald: <ShieldCheck className="h-4 w-4 text-emerald" />,
+  cyan: <BarChart3 className="h-4 w-4 text-cyan" />,
+  amber: <AlertTriangle className="h-4 w-4 text-amber" />,
+};
+
+export function KpiGrid({ data, election, extraStats }: KpiGridProps) {
   const agentPct = data.totalAgents ? Math.round((data.onlineAgents / data.totalAgents) * 100) : 0;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-3">
       <KpiCard
         label="Agents Online"
         value={data.onlineAgents}
@@ -96,6 +106,7 @@ export function KpiGrid({ data, election }: KpiGridProps) {
         icon={<Users className="h-5 w-5 text-emerald" />}
         color="emerald"
         trend={{ value: 4, up: true }}
+        className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard
         label="Polling Units"
@@ -103,6 +114,7 @@ export function KpiGrid({ data, election }: KpiGridProps) {
         sub={`${election.openUnits} open / ${election.totalPollingUnits - election.openUnits} closed`}
         icon={<BarChart3 className="h-5 w-5 text-cyan" />}
         color="cyan"
+        className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard
         label="Avg Turnout"
@@ -111,6 +123,7 @@ export function KpiGrid({ data, election }: KpiGridProps) {
         icon={<Vote className="h-5 w-5 text-emerald" />}
         color="emerald"
         trend={{ value: 2.3, up: true }}
+        className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard
         label="Total Incidents"
@@ -118,6 +131,7 @@ export function KpiGrid({ data, election }: KpiGridProps) {
         sub={`${data.pendingIncidents} pending review`}
         icon={<AlertTriangle className="h-5 w-5 text-amber" />}
         color="amber"
+        className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard
         label="Critical / SOS"
@@ -126,6 +140,7 @@ export function KpiGrid({ data, election }: KpiGridProps) {
         icon={<Radio className="h-5 w-5 text-rose" />}
         color="rose"
         glow
+        className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard
         label="Quarantined"
@@ -133,22 +148,29 @@ export function KpiGrid({ data, election }: KpiGridProps) {
         sub="AI-flagged, pending T&S review"
         icon={<Shield className="h-5 w-5 text-violet" />}
         color="violet"
+        className="md:col-span-1 xl:col-span-2"
       />
-      <KpiCard
-        label="Security Alerts"
-        value={data.securityAlerts}
-        sub="Deepfakes, CIB, anomalies"
-        icon={<ShieldAlert className="h-5 w-5 text-rose" />}
-        color="rose"
-        glow
-      />
-      <KpiCard
-        label="Unread Alerts"
-        value={data.unreadAlerts}
-        sub={`${data.operationalAlerts} operational / ${data.securityAlerts} security`}
-        icon={<AlertTriangle className="h-5 w-5 text-amber" />}
-        color="amber"
-      />
+
+      {/* Extra stats row — compact, single-line cards */}
+      {extraStats?.map((s) => (
+        <div
+          key={s.label}
+          className={cn(
+            'md:col-span-1 xl:col-span-3 rounded-lg border bg-card/60 px-3 py-2 flex items-center justify-between gap-2 transition-colors hover:bg-card/80',
+            COLOR_MAP[s.color]?.border
+          )}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <div className={cn('p-1.5 rounded-md shrink-0', COLOR_MAP[s.color]?.bg)}>
+              {EXTRA_ICONS[s.color]}
+            </div>
+            <span className="text-[11px] text-muted-foreground truncate">{s.label}</span>
+          </div>
+          <span className={cn('text-base font-bold tabular-nums shrink-0', COLOR_MAP[s.color]?.text)}>
+            {s.value}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

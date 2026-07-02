@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,12 +10,19 @@ import { useDashboardStore } from '@/store/dashboard';
 import {
   Clock, MapPin, ShieldCheck, CheckCircle2, AlertTriangle, Eye,
   Vote, FileWarning, BarChart3, TrendingUp, Users, Loader2,
-  ChevronDown, ChevronUp, CircleDot,
+  ChevronDown, ChevronUp, CircleDot, UserCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 // ---- Types ----
+interface ReporterInfo {
+  id: string; name: string; role: string; phone: string | null;
+}
+
 interface ReportResult {
   id: string;
   accreditedVoters: number;
@@ -32,6 +38,7 @@ interface ReportResult {
   verified: boolean;
   submittedAt: string;
   pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number } | null;
+  reporter?: ReporterInfo;
 }
 
 interface ReportIncident {
@@ -40,12 +47,14 @@ interface ReportIncident {
   severity: string;
   status: string;
   description: string;
+  mediaUrls: string[];
   gpsAnomaly: boolean;
   isQuarantined: boolean;
   c2paVerified: boolean;
   submittedAt: string;
   reviewedAt: string | null;
   pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
+  reporter?: ReporterInfo;
 }
 
 interface ReportsData {
@@ -57,7 +66,12 @@ interface ReportsData {
     resultsToday: number;
     incidentsToday: number;
   };
+  agents?: { id: string; name: string; email: string }[];
+  page?: number;
+  hasMore?: boolean;
 }
+
+const ADMIN_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'];
 
 // ---- Helpers ----
 function formatTime(date: string | Date) {
@@ -76,15 +90,6 @@ function sevColor(s: string) {
     case 'HIGH': return 'bg-amber/15 text-amber border-amber/30';
     case 'MEDIUM': return 'bg-cyan/15 text-cyan border-cyan/30';
     default: return 'bg-muted text-muted-foreground border-border';
-  }
-}
-
-function sevDot(s: string) {
-  switch (s) {
-    case 'CRITICAL': return 'bg-rose';
-    case 'HIGH': return 'bg-amber';
-    case 'MEDIUM': return 'bg-cyan';
-    default: return 'bg-muted-foreground';
   }
 }
 
@@ -114,18 +119,27 @@ const TYPE_LABELS: Record<string, string> = {
 
 // ---- Main Component ----
 export function MyReports() {
-  const { user } = useDashboardStore();
+  const { user, tenantId } = useDashboardStore();
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<string>('all');
+
+  const isAdmin = user?.role ? ADMIN_ROLES.includes(user.role) : false;
+
+  // Build query params based on role
+  const queryParams = isAdmin
+    ? `all=true&tenantId=${tenantId}${selectedAgent !== 'all' ? `&agentId=${selectedAgent}` : ''}&limit=100`
+    : `reporterId=${user!.id}`;
 
   const { data, isLoading, error, refetch } = useQuery<ReportsData>({
-    queryKey: ['my-reports', user?.id],
-    queryFn: () => fetch(`/api/reports?reporterId=${user!.id}`).then(r => r.json()),
-    enabled: !!user?.id,
+    queryKey: ['reports', isAdmin ? 'all' : user?.id, selectedAgent, tenantId],
+    queryFn: () => fetch(`/api/reports?${queryParams}`).then(r => r.json()),
+    enabled: !!user?.id && !!tenantId,
     refetchInterval: 15000,
   });
 
   const results = data?.results || [];
   const incidents = data?.incidents || [];
+  const agents = data?.agents || [];
   const counts = data?.counts || { totalResults: 0, totalIncidents: 0, resultsToday: 0, incidentsToday: 0 };
 
   // Merge and sort all reports by time for "All" tab
@@ -139,7 +153,7 @@ export function MyReports() {
       <div className="h-full flex items-center justify-center">
         <div className="text-center space-y-3">
           <Loader2 className="h-6 w-6 animate-spin text-emerald mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading your reports...</p>
+          <p className="text-sm text-muted-foreground">{isAdmin ? 'Loading all reports...' : 'Loading your reports...'}</p>
         </div>
       </div>
     );
@@ -161,13 +175,37 @@ export function MyReports() {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <Eye className="h-4 w-4 text-cyan" />
-          My Submission History
-        </h3>
-        <p className="text-[11px] text-muted-foreground mt-0.5">
-          {counts.totalResults + counts.totalIncidents} total reports
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Eye className="h-4 w-4 text-cyan" />
+              {isAdmin ? 'All Agent Reports' : 'My Submission History'}
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {counts.totalResults + counts.totalIncidents} total reports
+              {isAdmin && ` from ${agents.length} agents`}
+            </p>
+          </div>
+          {isAdmin && agents.length > 0 && (
+            <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+              <SelectTrigger className="h-8 w-48 text-[11px]">
+                <UserCircle className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Filter by agent..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All Agents</SelectItem>
+                {agents.map(a => (
+                  <SelectItem key={a.id} value={a.id} className="text-xs">
+                    <span className="flex items-center gap-2">
+                      <Users className="h-3 w-3 text-muted-foreground" />
+                      {a.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {/* Summary stats strip */}
@@ -195,13 +233,13 @@ export function MyReports() {
         </div>
 
         <TabsContent value="all" className="flex-1 min-h-0 mt-0">
-          <ReportList reports={allReports} expandedResult={expandedResult} setExpandedResult={setExpandedResult} />
+          <ReportList reports={allReports} expandedResult={expandedResult} setExpandedResult={setExpandedResult} showReporter={isAdmin} />
         </TabsContent>
         <TabsContent value="results" className="flex-1 min-h-0 mt-0">
-          <ReportList reports={results.map(r => ({ ...r, _type: 'result' as const }))} expandedResult={expandedResult} setExpandedResult={setExpandedResult} />
+          <ReportList reports={results.map(r => ({ ...r, _type: 'result' as const }))} expandedResult={expandedResult} setExpandedResult={setExpandedResult} showReporter={isAdmin} />
         </TabsContent>
         <TabsContent value="incidents" className="flex-1 min-h-0 mt-0">
-          <ReportList reports={incidents.map(i => ({ ...i, _type: 'incident' as const }))} expandedResult={expandedResult} setExpandedResult={setExpandedResult} />
+          <ReportList reports={incidents.map(i => ({ ...i, _type: 'incident' as const }))} expandedResult={expandedResult} setExpandedResult={setExpandedResult} showReporter={isAdmin} />
         </TabsContent>
       </Tabs>
     </div>
@@ -222,18 +260,21 @@ function StatPill({ label, value, icon, color }: { label: string; value: number;
 }
 
 // ---- Report List ----
-function ReportList({ reports, expandedResult, setExpandedResult }: {
+function ReportList({ reports, expandedResult, setExpandedResult, showReporter }: {
   reports: any[];
   expandedResult: string | null;
   setExpandedResult: (id: string | null) => void;
+  showReporter: boolean;
 }) {
   if (reports.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center space-y-2">
           <FileWarning className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-          <p className="text-sm text-muted-foreground">No reports yet</p>
-          <p className="text-[11px] text-muted-foreground/60">Submit your first report from the Submit tab</p>
+          <p className="text-sm text-muted-foreground">No reports found</p>
+          <p className="text-[11px] text-muted-foreground/60">
+            {showReporter ? 'No reports match the current filter' : 'Submit your first report from the Submit tab'}
+          </p>
         </div>
       </div>
     );
@@ -257,10 +298,9 @@ function ReportList({ reports, expandedResult, setExpandedResult }: {
                   key={r.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.03, duration: 0.2 }}
+                  transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
                   className="rounded-lg border border-border bg-card/60 overflow-hidden"
                 >
-                  {/* Result card header */}
                   <button
                     onClick={() => setExpandedResult(isExpanded ? null : r.id)}
                     className="w-full text-left p-3 space-y-2 hover:bg-card/40 transition-colors"
@@ -272,6 +312,12 @@ function ReportList({ reports, expandedResult, setExpandedResult }: {
                       {r.verified && (
                         <Badge className="bg-emerald text-white text-[10px] h-5 border-0">
                           <ShieldCheck className="h-2.5 w-2.5 mr-1" /> VERIFIED
+                        </Badge>
+                      )}
+                      {showReporter && r.reporter && (
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          <UserCircle className="h-2.5 w-2.5 mr-1" />
+                          {r.reporter.name}
                         </Badge>
                       )}
                       <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto', !r.verified ? 'border-amber/30 text-amber' : '')}>
@@ -334,7 +380,7 @@ function ReportList({ reports, expandedResult, setExpandedResult }: {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-3 pb-3 pt-0 space-y-3 border-t border-border/50 mt-0 pt-3">
+                        <div className="px-3 pb-3 pt-3 space-y-3 border-t border-border/50">
                           {/* Full party breakdown table */}
                           <div className="space-y-1">
                             <p className="text-[11px] font-medium text-muted-foreground">Full Party Breakdown</p>
@@ -396,7 +442,7 @@ function ReportList({ reports, expandedResult, setExpandedResult }: {
                 key={inc.id}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.03, duration: 0.2 }}
+                transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
                 className="rounded-lg border border-border bg-card/60 p-3 space-y-2"
               >
                 <div className="flex items-center gap-2 flex-wrap">
@@ -406,6 +452,12 @@ function ReportList({ reports, expandedResult, setExpandedResult }: {
                   <Badge variant="outline" className="text-[10px] h-5">
                     {TYPE_LABELS[inc.type] || inc.type.replace(/_/g, ' ')}
                   </Badge>
+                  {showReporter && inc.reporter && (
+                    <Badge variant="outline" className="text-[10px] h-5">
+                      <UserCircle className="h-2.5 w-2.5 mr-1" />
+                      {inc.reporter.name}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto', statusStyle(inc.status))}>
                     {inc.status === 'REVIEWED' && <CheckCircle2 className="h-2.5 w-2.5 mr-1" />}
                     {inc.status}
@@ -413,6 +465,32 @@ function ReportList({ reports, expandedResult, setExpandedResult }: {
                 </div>
 
                 <p className="text-xs text-foreground/80 leading-relaxed">{inc.description}</p>
+
+                {/* Media thumbnails */}
+                {inc.mediaUrls && inc.mediaUrls.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto">
+                    {inc.mediaUrls.slice(0, 4).map((url, mi) => (
+                      <div key={mi} className="w-14 h-14 rounded-md overflow-hidden border border-border shrink-0 bg-muted">
+                        {url.match(/\.(mp4|mov|avi)/i) ? (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
+                            <PlayIcon />
+                          </div>
+                        ) : url.match(/\.(mp3|ogg|wav)/i) ? (
+                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
+                            <MicIcon />
+                          </div>
+                        ) : (
+                          <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        )}
+                      </div>
+                    ))}
+                    {inc.mediaUrls.length > 4 && (
+                      <div className="w-14 h-14 rounded-md border border-border shrink-0 bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+                        +{inc.mediaUrls.length - 4}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(inc.submittedAt)}</span>
@@ -458,5 +536,24 @@ function StatToggle({ label, value, danger }: { label: string; value: boolean; d
       )} />
       <span className={cn('text-[11px]', danger && value ? 'text-rose' : 'text-muted-foreground')}>{label}</span>
     </div>
+  );
+}
+
+// ---- Inline SVG icons ----
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+      <polygon points="5,3 19,12 5,21" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" x2="12" y1="19" y2="22" />
+    </svg>
   );
 }

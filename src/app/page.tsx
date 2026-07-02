@@ -228,38 +228,31 @@ function OverviewTab({
   alertsData: AlertsData | undefined;
 }) {
   return (
-    <div className="h-full flex flex-col p-4 gap-4 overflow-y-auto">
-      <KpiGrid data={dashData.kpis} election={dashData.election} />
+    <div className="h-full flex flex-col p-4 gap-3 overflow-hidden">
+      {/* Top: KPI grid (includes the 4 quick stats inline so nothing overflows) */}
+      <div className="shrink-0">
+        <KpiGrid
+          data={dashData.kpis}
+          election={dashData.election}
+          extraStats={alertsData ? [
+            { label: 'Threats Intercepted', value: dashData.kpis.quarantinedIncidents, color: 'rose' },
+            { label: 'C2PA Verified Media', value: incidents.filter(i => i.c2paVerified).length, color: 'emerald' },
+            { label: 'Active Polling Units', value: dashData.election.openUnits, color: 'cyan' },
+            { label: 'Pending Review', value: dashData.kpis.pendingIncidents, color: 'amber' },
+          ] : undefined}
+        />
+      </div>
 
+      {/* Map + Feed: takes remaining space, no scroll overflow */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-3 rounded-xl border border-border bg-card/40 overflow-hidden min-h-[400px]">
+        <div className="lg:col-span-3 rounded-xl border border-border bg-card/40 overflow-hidden">
           <GeoMapView points={dashData.pollingUnits} />
         </div>
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card/40 overflow-hidden min-h-[400px]">
+        <div className="lg:col-span-2 rounded-xl border border-border bg-card/40 overflow-hidden">
           <LiveFeed incidents={incidents.slice(0, 25)} />
         </div>
       </div>
-
-      {alertsData && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-          <QuickStat label="Threats Intercepted" value={dashData.kpis.quarantinedIncidents} color="rose" />
-          <QuickStat label="C2PA Verified Media" value={incidents.filter(i => i.c2paVerified).length} color="emerald" />
-          <QuickStat label="Active Polling Units" value={dashData.election.openUnits} color="cyan" />
-          <QuickStat label="Pending Review" value={dashData.kpis.pendingIncidents} color="amber" />
-        </div>
-      )}
     </div>
   );
 }
 
-function QuickStat({ label, value, color }: { label: string; value: number; color: string }) {
-  const colorMap: Record<string, string> = {
-    rose: 'text-rose', emerald: 'text-emerald', cyan: 'text-cyan', amber: 'text-amber',
-  };
-  return (
-    <div className="rounded-lg border border-border bg-card/40 px-4 py-3 flex items-center justify-between">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={`text-lg font-bold tabular-nums ${colorMap[color] || 'text-foreground'}`}>{value}</span>
-    </div>
-  );
-}
