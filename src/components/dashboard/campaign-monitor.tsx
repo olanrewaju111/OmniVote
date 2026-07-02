@@ -217,36 +217,44 @@ export function CampaignMonitor() {
 
   // ── Log Event Mutation ──
   const logEventMutation = useMutation({
-    mutationFn: (payload: Record<string, unknown>) =>
-      fetch(`/api/campaign-events?tenantId=${tenantId}`, {
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const res = await fetch(`/api/campaign-events?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      }).then(r => r.json()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to log event');
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaign-events', tenantId] });
       toast.success('Campaign event logged successfully');
       setEventDialogOpen(false);
       resetEventForm();
     },
-    onError: () => toast.error('Failed to log campaign event'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to log campaign event'),
   });
 
   // ── Report Suppression Mutation ──
   const reportSuppressionMutation = useMutation({
-    mutationFn: (payload: Record<string, unknown>) =>
-      fetch(`/api/voter-suppression?tenantId=${tenantId}`, {
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const res = await fetch(`/api/voter-suppression?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-      }).then(r => r.json()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit report');
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['voter-suppression', tenantId] });
       toast.success('Suppression report submitted successfully');
       setSuppressionDialogOpen(false);
       resetSuppressionForm();
     },
-    onError: () => toast.error('Failed to submit suppression report'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to submit suppression report'),
   });
 
   // ── Event Dialog State ──
@@ -509,12 +517,12 @@ export function CampaignMonitor() {
               <Button
                 size="sm"
                 className="text-xs bg-emerald hover:bg-emerald/90 text-white"
-                disabled={!eventForm.eventType || !eventForm.title || logEventMutation.isPending}
+                disabled={!eventForm.eventType || !eventForm.title || !eventForm.state || logEventMutation.isPending}
                 onClick={() => logEventMutation.mutate({
                   eventType: eventForm.eventType,
                   title: eventForm.title,
                   party: eventForm.party || null,
-                  state: eventForm.state || null,
+                  state: eventForm.state,
                   lga: eventForm.lga || null,
                   venue: eventForm.venue || null,
                   estimatedCrowd: eventForm.estimatedCrowd ? parseInt(eventForm.estimatedCrowd) : null,

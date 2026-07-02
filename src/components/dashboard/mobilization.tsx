@@ -257,13 +257,14 @@ export function MobilizationEngine() {
 
   const createCampaign = useMutation({
     mutationFn: async (payload: typeof campaignForm) => {
-      const res = await fetch('/api/campaigns', {
+      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, tenantId }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Failed to create campaign');
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create campaign');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
@@ -271,49 +272,52 @@ export function MobilizationEngine() {
       setNewCampaignOpen(false);
       setCampaignForm({ name: '', templateBody: '', contactListId: '', segment: 'ALL', channel: 'WHATSAPP', scheduledAt: '', rateLimitPerMin: '50' });
     },
-    onError: () => toast.error('Failed to create campaign'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to create campaign'),
   });
 
   const updateCampaign = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch('/api/campaigns', {
+      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, tenantId }),
+        body: JSON.stringify({ id, status }),
       });
-      if (!res.ok) throw new Error('Failed to update campaign');
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update campaign');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
       toast.success('Campaign updated');
     },
-    onError: () => toast.error('Failed to update campaign'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to update campaign'),
   });
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/campaigns?id=${id}&tenantId=${tenantId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete campaign');
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete campaign');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
       toast.success('Campaign deleted');
       setDetailOpen(false);
     },
-    onError: () => toast.error('Failed to delete campaign'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to delete campaign'),
   });
 
   const uploadContacts = useMutation({
     mutationFn: async (payload: { name: string; segment: string; contacts: string[] }) => {
-      const res = await fetch('/api/campaigns/contacts', {
+      const res = await fetch(`/api/campaigns/contacts?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...payload, tenantId }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error('Failed to upload contacts');
-      return res.json();
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to upload contacts');
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
@@ -321,7 +325,7 @@ export function MobilizationEngine() {
       setUploadOpen(false);
       setUploadForm({ name: '', segment: 'VOLUNTEERS', consentChecked: false });
     },
-    onError: () => toast.error('Failed to upload contacts'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to upload contacts'),
   });
 
   // ─── Handlers ─────────────────────────────────────────────────────

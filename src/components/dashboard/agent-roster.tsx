@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import {
   Search, Users, UserCheck, UserX, Shield, ShieldAlert, Wrench,
-  Loader2, FileText, Trash2, Eye, ToggleLeft, X,
+  Loader2, FileText, Trash2, Eye, ToggleLeft, X, Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -54,6 +54,11 @@ export function AgentRoster() {
   const [addOpen, setAddOpen] = useState(false);
   const [reportsPanel, setReportsPanel] = useState<ReportsSlideOver>({ agent: null, open: false });
   const [confirmAction, setConfirmAction] = useState<{ type: string; agent: AgentUser | null }>({ type: '', agent: null });
+  const [editOpen, setEditOpen] = useState(false);
+  const [editAgent, setEditAgent] = useState<AgentUser | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRole, setEditRole] = useState('');
 
   // Add agent form state
   const [newName, setNewName] = useState('');
@@ -79,7 +84,11 @@ export function AgentRoster() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then(r => r.json()),
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Failed to add agent');
+        return data;
+      }),
     onSuccess: (data) => {
       if (data.error) {
         toast.error(data.error);
@@ -90,7 +99,7 @@ export function AgentRoster() {
       setAddOpen(false);
       setNewName(''); setNewEmail(''); setNewRole('FIELD_AGENT');
     },
-    onError: () => toast.error('Failed to add agent'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to add agent'),
   });
 
   // Action mutation (toggle online, remote wipe, change role, delete)
@@ -100,7 +109,11 @@ export function AgentRoster() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then(r => r.json()),
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Action failed');
+        return data;
+      }),
     onSuccess: (data, variables) => {
       if (data.error) {
         toast.error(data.error);
@@ -118,7 +131,7 @@ export function AgentRoster() {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setConfirmAction({ type: '', agent: null });
     },
-    onError: () => toast.error('Action failed'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Action failed'),
   });
 
   const users = data?.users || [];
@@ -134,6 +147,46 @@ export function AgentRoster() {
   const handleSearch = useCallback(() => {
     setSearch(searchInput);
   }, [searchInput]);
+
+  // Edit agent mutation
+  const editMutation = useMutation({
+    mutationFn: (body: { id: string; name?: string; phone?: string; role?: string }) =>
+      fetch('/api/tenants/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Failed to update agent');
+        return data;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      toast.success('Agent details updated');
+      setEditOpen(false);
+      setEditAgent(null);
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to update agent'),
+  });
+
+  const openEditDialog = (agent: AgentUser) => {
+    setEditAgent(agent);
+    setEditName(agent.name);
+    setEditPhone('');
+    setEditRole(agent.role);
+    setEditOpen(true);
+  };
+
+  const handleEditSave = () => {
+    if (!editAgent) return;
+    if (!editName.trim()) { toast.error('Name is required'); return; }
+    editMutation.mutate({
+      id: editAgent.id,
+      name: editName.trim(),
+      phone: editPhone.trim() || undefined,
+      role: editRole,
+    });
+  };
 
   // Handle confirm action
   const handleConfirmAction = () => {
@@ -378,6 +431,16 @@ export function AgentRoster() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-cyan"
+                              title="Edit Details"
+                              onClick={() => openEditDialog(agent)}
+                              disabled={agent.role === 'SUPER_ADMIN'}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                               title="View Reports"
                               onClick={() => setReportsPanel({ agent, open: true })}
@@ -524,6 +587,75 @@ export function AgentRoster() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ===== EDIT AGENT DIALOG ===== */}
+      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) setEditAgent(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-cyan" />
+              Edit Agent Details
+            </DialogTitle>
+            <DialogDescription>
+              Update name, phone, or role for {editAgent?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Full Name</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="h-9 text-sm"
+                placeholder="e.g. Adebayo Johnson"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Phone (optional)</label>
+              <Input
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                className="h-9 text-sm"
+                placeholder="e.g. +234 801 234 5678"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">Role</label>
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
+                  <SelectItem value="ANALYST">Analyst</SelectItem>
+                  <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
+                  <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
+              <p className="text-[10px] font-medium text-muted-foreground">Email (read-only)</p>
+              <p className="text-sm text-foreground">{editAgent?.email}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditSave}
+              disabled={editMutation.isPending || !editName.trim()}
+              className="bg-cyan hover:bg-cyan/90 text-cyan-950"
+            >
+              {editMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Saving...</>
+              ) : (
+                <><Pencil className="h-4 w-4 mr-1.5" /> Save Changes</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ===== REPORTS SLIDE PANEL ===== */}
       <Dialog open={reportsPanel.open} onOpenChange={(open) => setReportsPanel({ ...reportsPanel, open })}>
