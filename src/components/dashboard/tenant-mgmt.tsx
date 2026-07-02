@@ -224,7 +224,7 @@ export function TenantManagement() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, isActive }),
-      }).then(r => r.json()),
+      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
       toast.success('Tenant status updated');
@@ -256,7 +256,7 @@ export function TenantManagement() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, role }),
-      }).then(r => r.json()),
+      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       setRoleChangeOpen(false);
