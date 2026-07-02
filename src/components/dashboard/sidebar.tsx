@@ -6,6 +6,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, Globe, Megaphone, CalendarDays,
+  Shield, MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +25,8 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserR
   { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+  { id: 'security', label: 'Security Center', icon: <Shield className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
+  { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'agents', label: 'Agent Roster', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'system', label: 'System Health', icon: <Server className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },

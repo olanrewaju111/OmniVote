@@ -27,6 +27,14 @@ model Tenant {
   whatsappStatus  String   @default("DISCONNECTED") // DISCONNECTED, CONNECTING, CONNECTED, QR_READY, FAILED
   whatsappConnectedAt DateTime?
 
+  // Security hardening
+  encryptionEnabled    Boolean  @default(true)
+  twoFactorEnabled    Boolean  @default(false)
+  sessionTimeoutMin    Int      @default(60)
+  ipWhitelist          String   @default("[]") // JSON array of allowed IPs
+  dataRetentionDays    Int      @default(365)
+  auditLogRetentionDays Int     @default(730)
+
   users        User[]
   elections    Election[]
   incidents    Incident[]
@@ -39,6 +47,10 @@ model Tenant {
   campaignEvents           CampaignEvent[]
   voterSuppressionReports  VoterSuppressionReport[]
   campaignMessages         CampaignMessage[]
+  securityEvents           SecurityEvent[]
+  geofenceZones            GeofenceZone[]
+  agentCheckIns            AgentCheckIn[]
+  deadMansSwitches         DeadMansSwitch[]
 }
 
 model User {
@@ -52,6 +64,16 @@ model User {
   isOnline      Boolean   @default(false)
   lastSeenAt    DateTime?
   deviceFingerprint String?
+  // Security hardening
+  deviceTrustScore    Float    @default(100) // 0-100
+  lastSecurityAuditAt DateTime?
+  twoFactorSecret     String?  // encrypted TOTP secret
+  isLocked            Boolean  @default(false)
+  lockedAt            DateTime?
+  lockedReason        String?
+  // Biometric profile (JSON: {typingCadence, touchPressure, gyroPattern, lastProfiled})
+  biometricProfile    String?
+  biometricRiskScore Float    @default(0) // 0-1, higher = more suspicious
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -61,6 +83,9 @@ model User {
   auditLogs     AuditLog[]
   agentMessages AgentMessage[]  @relation("agentMessages")
   sentMessages  AgentMessage[]  @relation("sentMessages")
+  securityEvents SecurityEvent[]
+  agentCheckIns  AgentCheckIn[]
+  deadMansSwitches DeadMansSwitch[]
 }
 
 model Election {
@@ -378,4 +403,101 @@ model VoterSuppressionReport {
   @@index([tenantId, reportType])
   @@index([tenantId, state])
   @@index([tenantId, status])
+}
+
+// ============================================================
+// MODULE 4: Security Hardening
+// ============================================================
+
+model SecurityEvent {
+  id              String    @id @default(cuid())
+  tenantId        String
+  userId          String?
+  eventType       String    // LOGIN_SUCCESS, LOGIN_FAILED, PERMISSION_CHANGE, DATA_EXPORT, ENCRYPTION_EVENT, SESSION_EXPIRED, SUSPICIOUS_ACTIVITY, BRUTE_FORCE, CERT_PINNING, API_ABUSE
+  severity        String    @default("INFO") // INFO, WARNING, CRITICAL
+  ipAddress       String?
+  userAgent       String?
+  description     String
+  metadata        String    @default("{}") // JSON
+  resolved        Boolean   @default(false)
+  resolvedById    String?
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  user            User?     @relation(fields: [userId], references: [id])
+  @@index([tenantId, eventType])
+  @@index([tenantId, severity])
+  @@index([tenantId, createdAt])
+}
+
+// ============================================================
+// MODULE 5: Geofencing & Dead-Man's Switch
+// ============================================================
+
+model GeofenceZone {
+  id                   String   @id @default(cuid())
+  tenantId             String
+  name                 String
+  state                String
+  lga                  String?
+  centerLat            Float
+  centerLng            Float
+  radiusMeters         Float
+  pollingUnitIds       String   @default("[]") // JSON array
+  assignedAgentIds     String   @default("[]") // JSON array
+  isActive             Boolean  @default(true)
+  checkInIntervalMin   Int      @default(60)
+  maxMissedCheckIns    Int      @default(3)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tenant               Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, isActive])
+}
+
+model AgentCheckIn {
+  id              String    @id @default(cuid())
+  tenantId        String
+  agentId         String
+  geofenceZoneId  String
+  status          String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT, SOS_TRIGGERED, EXPIRED
+  latitude        Float
+  longitude       Float
+  isInsideZone    Boolean
+  batteryLevel    Int?
+  networkType     String?
+  accuracyMeters  Float?
+  notes           String?
+  checkedInAt     DateTime  @default(now())
+  checkedOutAt    DateTime?
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  user            User?     @relation(fields: [agentId], references: [id])
+  @@index([tenantId, agentId])
+  @@index([tenantId, status])
+  @@index([tenantId, checkedInAt])
+}
+
+model DeadMansSwitch {
+  id                String    @id @default(cuid())
+  tenantId          String
+  agentId           String
+  geofenceZoneId    String?
+  isActive          Boolean   @default(true)
+  checkInDeadline   DateTime
+  lastCheckInAt     DateTime?
+  missedCheckIns    Int       @default(0)
+  escalationLevel   Int       @default(0) // 0=none, 1=alert, 2=supervisor_notified, 3=emergency_SOS
+  autoSOSTriggered  Boolean   @default(false)
+  resolvedAt        DateTime?
+  resolvedById      String?
+  resolvedNotes     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  user              User?     @relation(fields: [agentId], references: [id])
+  @@index([tenantId, isActive])
+  @@index([tenantId, escalationLevel])
 }

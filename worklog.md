@@ -263,3 +263,31 @@ Stage Summary:
 - Production build successful with 20 routes (including new /api/campaigns/contacts)
 - All APIs verified via curl: correct data formats, counts, and CRUD operations
 
+---
+Task ID: 4
+Agent: Main Agent
+Task: Build Security Hardening, Offline-first PWA, and Geofencing/Dead-Man's Switch modules
+
+Work Log:
+- Added 4 new Prisma models: SecurityEvent, GeofenceZone, AgentCheckIn, DeadMansSwitch
+- Extended Tenant model with 6 security fields (encryptionEnabled, twoFactorEnabled, sessionTimeoutMin, ipWhitelist, dataRetentionDays, auditLogRetentionDays)
+- Extended User model with 7 security fields (deviceTrustScore, biometricRiskScore, isLocked, lockedAt, lockedReason, biometricProfile, twoFactorSecret, lastSecurityAuditAt)
+- Built /api/security route: GET (events, users, policies, security score) + POST (LOG_EVENT, UPDATE_POLICY, RESOLVE_EVENT, LOCK_USER, UNLOCK_USER)
+- Built /api/geofence route: GET (zones, check-ins, switches, agent safety, counts) + POST (CREATE_ZONE, CHECK_IN, TRIGGER_SOS, RESOLVE_SWITCH, TOGGLE_ZONE)
+- Built Security Center UI component (~1339 lines): 4 tabs (Overview with SVG gauge, Event Log with filters/expand, Users with trust/biometric scores/lock, Policies with toggles/IP whitelist)
+- Built Field Safety UI component: 4 tabs (Dashboard with KPIs/SOS monitor/agent map, Geofence Zones CRUD, Agent Roster with risk scoring, Check-in Log with battery/network)
+- Added PWA support: manifest.json, service worker (network-first API, cache-first static, background sync, push notifications), PwaRegistration + OfflineBar components
+- Updated store: added "security" and "field-safety" ViewTabs, updated ROLE_TABS for SUPER_ADMIN/TENANT_ADMIN/TRUST_SAFETY
+- Updated sidebar: added Shield + MapPin icons for Security Center and Field Safety nav items
+- Updated page.tsx: imported and rendered SecurityCenter, FieldSafety, PwaRegistration components
+- Updated layout.tsx: added manifest metadata and OfflineBar component
+- Created seed-security.ts: 120 security events, 5 geofence zones per tenant, agent check-ins, 14 dead-man's switches
+- Production build successful with 22 routes
+
+Stage Summary:
+- 4 new Prisma models, 13 new fields across Tenant/User
+- 2 new API routes (security, geofence) with 9 combined endpoints
+- 2 new UI components (~2500 lines total) with full CRUD operations
+- PWA infrastructure: manifest, service worker, offline detection, update notifications
+- Seed data verified: 40 security events, 5 geofence zones, 40 agent safety records, 14 dead-man switches
+

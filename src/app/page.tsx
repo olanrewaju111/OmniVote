@@ -25,6 +25,9 @@ import { AgentEngagement } from '@/components/dashboard/agent-engagement';
 import { OsintMonitor } from '@/components/dashboard/osint-monitor';
 import { MobilizationEngine } from '@/components/dashboard/mobilization';
 import { CampaignMonitor } from '@/components/dashboard/campaign-monitor';
+import { SecurityCenter } from '@/components/dashboard/security-center';
+import { FieldSafety } from '@/components/dashboard/field-safety';
+import { PwaRegistration } from '@/components/pwa-registration';
 
 // ---- Types ----
 export interface Incident {
@@ -216,6 +219,16 @@ export default function Home() {
                   <CampaignMonitor />
                 </div>
               )}
+              {activeTab === 'security' && (
+                <div className="h-full">
+                  <SecurityCenter />
+                </div>
+              )}
+              {activeTab === 'field-safety' && (
+                <div className="h-full">
+                  <FieldSafety />
+                </div>
+              )}
               {activeTab === 'submit' && (
                 <SubmitReport />
               )}
@@ -238,6 +251,7 @@ export default function Home() {
           </AnimatePresence>
         </main>
       </div>
+      <PwaRegistration />
     </div>
   );
 }

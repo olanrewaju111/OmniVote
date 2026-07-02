@@ -1,0 +1,19 @@
+{
+  "name": "OmniVote Monitor",
+  "short_name": "OmniVote",
+  "description": "Real-time Election Monitoring Command Center",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#10b981",
+  "orientation": "any",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
