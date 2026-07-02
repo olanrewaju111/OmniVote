@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'osint' | 'ai' | 'media' | 'mobilization' | 'campaigns' | 'security' | 'field-safety' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants';
+export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'osint' | 'ai' | 'media' | 'mobilization' | 'campaigns' | 'security' | 'field-safety' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants' | 'pvt' | 'evidence' | 'flashpoint' | 'honeypot';
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'ANALYST' | 'TRUST_SAFETY' | 'FIELD_AGENT';
 
@@ -25,10 +25,10 @@ export interface UserInfo {
 
 // Role-based tab permissions
 export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
-  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'my-reports', 'system', 'tenants'],
-  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'my-reports', 'tenants'],
-  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'engagement', 'my-reports'],
-  TRUST_SAFETY: ['alerts', 'osint', 'media', 'ai', 'feed', 'security', 'engagement', 'my-reports'],
+  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'my-reports', 'system', 'tenants'],
+  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'my-reports', 'tenants'],
+  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'engagement', 'pvt', 'evidence', 'flashpoint', 'my-reports'],
+  TRUST_SAFETY: ['alerts', 'osint', 'media', 'ai', 'feed', 'security', 'engagement', 'evidence', 'honeypot', 'my-reports'],
   FIELD_AGENT: ['submit', 'my-reports', 'feed'],
 };
 

@@ -27,6 +27,10 @@ import { MobilizationEngine } from '@/components/dashboard/mobilization';
 import { CampaignMonitor } from '@/components/dashboard/campaign-monitor';
 import { SecurityCenter } from '@/components/dashboard/security-center';
 import { FieldSafety } from '@/components/dashboard/field-safety';
+import { PvtQuickCount } from '@/components/dashboard/pvt-quick-count';
+import { EvidenceDossier } from '@/components/dashboard/evidence-dossier';
+import { FlashpointWargame } from '@/components/dashboard/flashpoint-wargame';
+import { HoneypotBiometrics } from '@/components/dashboard/honeypot-biometrics';
 import { PwaRegistration } from '@/components/pwa-registration';
 
 // ---- Types ----
@@ -227,6 +231,26 @@ export default function Home() {
               {activeTab === 'field-safety' && (
                 <div className="h-full">
                   <FieldSafety />
+                </div>
+              )}
+              {activeTab === 'pvt' && (
+                <div className="h-full">
+                  <PvtQuickCount />
+                </div>
+              )}
+              {activeTab === 'evidence' && (
+                <div className="h-full">
+                  <EvidenceDossier />
+                </div>
+              )}
+              {activeTab === 'flashpoint' && (
+                <div className="h-full">
+                  <FlashpointWargame />
+                </div>
+              )}
+              {activeTab === 'honeypot' && (
+                <div className="h-full">
+                  <HoneypotBiometrics />
                 </div>
               )}
               {activeTab === 'submit' && (

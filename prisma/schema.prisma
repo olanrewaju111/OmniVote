@@ -51,6 +51,14 @@ model Tenant {
   geofenceZones            GeofenceZone[]
   agentCheckIns            AgentCheckIn[]
   deadMansSwitches         DeadMansSwitch[]
+  pvtSubmissions           PvtSubmission[]
+  resultComparisons        ResultComparison[]
+  evidenceDossiers         EvidenceDossier[]
+  stegoScanResults         StegoScanResult[]
+  honeypotUnits            HoneypotUnit[]
+  flashpointForecasts      FlashpointForecast[]
+  wargameScenarios         WargameScenario[]
+  accessibilityReports     AccessibilityReport[]
 }
 
 model User {
@@ -122,6 +130,10 @@ model PollingUnit {
   election      Election  @relation(fields: [electionId], references: [id])
   incidents     Incident[]
   results       ElectionResult[]
+  pvtSubmissions PvtSubmission[]
+  resultComparisons ResultComparison[]
+  honeypotUnits HoneypotUnit[]
+  accessibilityReports AccessibilityReport[]
 }
 
 model ElectionResult {
@@ -500,4 +512,216 @@ model DeadMansSwitch {
   user              User?     @relation(fields: [agentId], references: [id])
   @@index([tenantId, isActive])
   @@index([tenantId, escalationLevel])
+}
+
+// ============================================================
+// MODULE 6: PVT / Quick Count Engine (Election Day §4.8)
+// ============================================================
+
+model PvtSubmission {
+  id                String    @id @default(cuid())
+  tenantId          String
+  electionId        String
+  pollingUnitId     String
+  submittedById     String
+  // Party results stored as JSON: [{party:"APC",votes:120},...]
+  partyResults      String    @default("[]")
+  accreditedVoters  Int       @default(0)
+  totalValidVotes   Int       @default(0)
+  rejectedBallots   Int       @default(0)
+  totalVotesCast    Int       @default(0)
+  bvasSerialNumber  String?
+  photoUrl          String?   // Form EC8A photo
+  submittedAt       DateTime  @default(now())
+  source            String    @default("MOBILE") // MOBILE, WHATSAPP, PAPER
+  verificationHash  String?   // SHA256 of submission for integrity
+  isVerified        Boolean   @default(false)
+  verifiedById      String?
+  verifiedAt        DateTime?
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  @@index([tenantId, electionId])
+  @@index([tenantId, pollingUnitId])
+  @@index([tenantId, submittedAt])
+}
+
+model ResultComparison {
+  id                  String  @id @default(cuid())
+  tenantId            String
+  electionId          String
+  pollingUnitId       String
+  pvtSubmissionId     String?
+  officialResultId    String?
+  // Delta per party stored as JSON: [{party:"APC",pvtVotes:120,officialVotes:135,delta:15,deltaPct:12.5},...]
+  partyDeltas         String  @default("[]")
+  totalPvtVotes       Int     @default(0)
+  totalOfficialVotes  Int     @default(0)
+  totalDelta          Int     @default(0)
+  deltaPct            Float   @default(0)
+  isAnomaly           Boolean @default(false)
+  anomalyReason       String? // "exceeds_5pct", "missing_unit", etc.
+  reviewedById        String?
+  reviewedAt          DateTime?
+  createdAt           DateTime @default(now())
+
+  tenant              Tenant      @relation(fields: [tenantId], references: [id])
+  pollingUnit         PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  @@index([tenantId, electionId])
+  @@index([tenantId, isAnomaly])
+}
+
+// ============================================================
+// MODULE 7: AI Evidence Dossier (§4.8)
+// ============================================================
+
+model EvidenceDossier {
+  id                String   @id @default(cuid())
+  tenantId          String
+  incidentId        String?
+  title             String
+  description       String   @default("")
+  // Evidence items stored as JSON: [{type:"photo",url:"...",c2paVerified:true,aiAnalysis:"..."},...]
+  evidenceItems     String   @default("[]")
+  c2paSigned        Boolean  @default(false)
+  c2paSignature     String?  // base64 C2PA manifest
+  aiSummary         String?
+  aiConfidence      Float    @default(0) // 0-1
+  status            String   @default("DRAFT") // DRAFT, REVIEWED, CERTIFIED, DISMISSED
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+model StegoScanResult {
+  id                String   @id @default(cuid())
+  tenantId          String
+  evidenceDossierId String?
+  fileName          String
+  fileType          String   // JPEG, PNG, MP4, WAV
+  fileSize          Int      @default(0)
+  fileUrl           String?
+  isManipulated     Boolean  @default(false)
+  manipulationType  String?  // "lsb_embedding", "exif_tamper", "audio_stego", "deepfake_face", "clone_stamp"
+  confidence        Float    @default(0) // 0-1
+  elaScore          Float?   // Error Level Analysis score
+  noiseAnalysis     String?  // JSON: {mean, stdDev, uniformity}
+  metadataDiff      String?  // JSON: differences between visual and EXIF metadata
+  scanDurationMs    Int      @default(0)
+  scannedAt         DateTime @default(now())
+
+  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, isManipulated])
+}
+
+// ============================================================
+// MODULE 8: Honeypot Polling Station (§4.8)
+// ============================================================
+
+model HoneypotUnit {
+  id                String   @id @default(cuid())
+  tenantId          String
+  pollingUnitId     String
+  name              String
+  state             String
+  lga               String?
+  isDecoy           Boolean  @default(true) // fake unit to detect result manipulation
+  trapType          String   @default("GHOST_UNIT") // GHOST_UNIT, TAMPER_TRAP, REPLAY_DETECTOR
+  // Expected results (simulated) stored as JSON: [{party:"APC",votes:100},...]
+  expectedResults   String   @default("[]")
+  // Official results that came back stored as JSON
+  officialResults   String   @default("[]")
+  deviationDetected Boolean  @default(false)
+  deviationPct      Float    @default(0)
+  alertTriggered    Boolean  @default(false)
+  alertId           String?
+  notes             String   @default("")
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  @@index([tenantId, isActive])
+  @@index([tenantId, deviationDetected])
+}
+
+// ============================================================
+// MODULE 9: Flashpoint Forecast & Wargame (§4.8)
+// ============================================================
+
+model FlashpointForecast {
+  id                String   @id @default(cuid())
+  tenantId          String
+  state             String
+  lga               String?
+  // Risk scores stored as JSON: {violence:0.8,intimidation:0.6,logistics:0.3,overall:0.65}
+  riskScores        String   @default("{}")
+  riskLevel         String   @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  // 7-day forecast stored as JSON: [{date:"2025-03-01",overall:0.4,violence:0.2},...]
+  forecast          String   @default("[]")
+  contributingFactors String  @default("[]") // JSON: ["historical_violence","high_unemployment",...]
+  aiModel           String   @default("ensemble_v2") // which model produced this
+  confidence        Float    @default(0)
+  generatedAt       DateTime @default(now())
+  expiresAt         DateTime
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, state])
+  @@index([tenantId, riskLevel])
+}
+
+model WargameScenario {
+  id                String   @id @default(cuid())
+  tenantId          String
+  title             String
+  description       String
+  // Scenario parameters stored as JSON
+  parameters        String   @default("{}") // {triggerType,affectedStates,severity,playerRole,...}
+  // Steps stored as JSON: [{step:1,description:"...",action:"...",outcome:"..."},...]
+  steps             String   @default("[]")
+  status            String   @default("DRAFT") // DRAFT, RUNNING, COMPLETED, ARCHIVED
+  currentPlayerRole String?  // RED_TEAM, BLUE_TEAM, OBSERVER
+  // Results stored as JSON: {responseTime,correctActions,missedActions,score}
+  results           String?  // JSON or null if not completed
+  score             Int?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, status])
+}
+
+// ============================================================
+// MODULE 10: Accessibility / PWD Tracking (§4.8)
+// ============================================================
+
+model AccessibilityReport {
+  id                String   @id @default(cuid())
+  tenantId          String
+  pollingUnitId     String
+  reportedById      String
+  // Accessibility features stored as JSON: {rampAccess:true,brailleBallots:false,signLanguage:false,assistiveTech:true,accessibleToilet:true}
+  features          String   @default("{}")
+  barrierTypes      String   @default("[]") // JSON: ["no_ramp","stairs_only","no_assistive_tech",...]
+  pwdVotersServed   Int      @default(0)
+  pwdVotersTurnedAway Int    @default(0)
+  overallScore      Float    @default(0) // 0-100 accessibility score
+  photoUrl          String?
+  notes             String   @default("")
+  verified          Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  @@index([tenantId, pollingUnitId])
+  @@index([tenantId, overallScore])
 }

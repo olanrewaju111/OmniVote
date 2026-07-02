@@ -1,10 +1,12 @@
 import { db } from '../src/lib/db';
 
-const TENANTS = [
-  { id: 'cmr2itdyq0000pddbrb61v8bm', name: 'Presidential' },
-  { id: 'cmr2py7if0024pdh9le57wwis', name: 'Governorship' },
-  { id: 'cmr2py7m300bfpdh9cey3iz3m', name: 'Local Gov' },
-];
+// Dynamic tenant lookup (works after seed.ts + seed-multi-tenant.ts)
+let TENANTS: { id: string; name: string }[] = [];
+
+async function loadTenants() {
+  TENANTS = await db.tenant.findMany({ select: { id: true, name: true } });
+  console.log(`Found ${TENANTS.length} tenants:`, TENANTS.map(t => t.name).join(', '));
+}
 
 const PLATFORMS = ['X', 'FACEBOOK', 'YOUTUBE', 'TIKTOK', 'NEWS', 'INSTAGRAM'];
 const CATEGORIES = ['ELECTION_NEWS', 'DISINFORMATION', 'HATE_SPEECH', 'VIOLENCE', 'RALLY', 'OPINION_POLL', 'FACT_CHECK', 'CIB_SUSPECT', 'BOT_ACTIVITY'];
@@ -287,6 +289,8 @@ async function seedVoterSuppression() {
 
 async function main() {
   console.log('=== Seeding OSINT, Campaign, and Pre-Election Modules ===\n');
+  
+  const TENANTS_LOADED = await loadTenants();
   
   await seedOsint();
   await seedCampaigns();

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, Globe, Megaphone, CalendarDays,
-  Shield, MapPin,
+  Shield, MapPin, Eye, Flame, Fingerprint, Accessibility,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -27,6 +27,10 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserR
   { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'security', label: 'Security Center', icon: <Shield className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
   { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+  { id: 'pvt', label: 'PVT / Quick Count', icon: <BarChart3 className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+  { id: 'evidence', label: 'Evidence Dossier', icon: <FileText className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+  { id: 'flashpoint', label: 'Flashpoint & Wargame', icon: <Activity className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+  { id: 'honeypot', label: 'Honeypot / PWD', icon: <Eye className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
   { id: 'agents', label: 'Agent Roster', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'system', label: 'System Health', icon: <Server className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
