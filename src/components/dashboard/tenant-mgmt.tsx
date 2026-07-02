@@ -70,21 +70,36 @@ export function TenantManagement() {
   // ===================== SUPER_ADMIN: Platform Tenants =====================
   const { data: allTenants, isLoading: tenantsLoading } = useQuery({
     queryKey: ['all-tenants'],
-    queryFn: () => fetch('/api/tenants').then(r => r.json()).then(d => d.tenants || []),
+    queryFn: async () => {
+      const res = await fetch('/api/tenants');
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to load tenants');
+      return d.tenants || [];
+    },
     enabled: isSuperAdmin,
   });
 
   // ===================== TENANT_ADMIN: Own tenant settings =====================
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['tenant-settings', tenantId],
-    queryFn: () => fetch(`/api/tenant-settings?tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/tenant-settings?tenantId=${tenantId}`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to load settings');
+      return d;
+    },
     enabled: !!tenantId && isAdmin,
   });
 
   // ===================== Common: Tenant Users =====================
   const { data: tenantUsersData, isLoading: usersLoading } = useQuery({
     queryKey: ['tenant-users', tenantId],
-    queryFn: () => fetch(`/api/tenants/users?tenantId=${tenantId}`).then(r => r.json()).then(d => d.users || []),
+    queryFn: async () => {
+      const res = await fetch(`/api/tenants/users?tenantId=${tenantId}`);
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || 'Failed to load users');
+      return d.users || [];
+    },
     enabled: !!tenantId && isAdmin,
   });
 
@@ -149,19 +164,23 @@ export function TenantManagement() {
   // ===================== Mutations =====================
   // Save map bounds
   const saveMapMutation = useMutation({
-    mutationFn: (bounds: MapBoundsData) =>
-      fetch('/api/tenant-settings', {
+    mutationFn: async (bounds: MapBoundsData) => {
+      const res = await fetch(`/api/tenant-settings?tenantId=${tenantId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mapBounds: bounds }),
-      }).then(r => r.json()),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save map configuration');
+      return data;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenant-settings'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] }); // auto-refresh map
+      queryClient.invalidateQueries({ queryKey: ['tenant-settings', tenantId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setMapConfigOpen(false);
       toast.success('Map area saved. The map will update automatically.');
     },
-    onError: (err) => toast.error(err?.message || 'Failed to save map configuration'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to save map configuration'),
   });
 
   // Create tenant
@@ -390,7 +409,7 @@ export function TenantManagement() {
               <TenantUsersView
                 settings={settings}
                 tenantUsers={tenantUsers}
-                userRole={user!.role}
+                userRole={user?.role || ''}
                 onOpenUserDialog={() => setAddUserOpen(true)}
                 onRoleChange={(u) => { setRoleChangeUser(u); setNewRole(u.role); setRoleChangeOpen(true); }}
                 onDeleteUser={(u) => setDeleteConfirm({ type: 'user', item: { id: u.id, name: u.name } })}
@@ -410,7 +429,7 @@ export function TenantManagement() {
             <TenantUsersView
               settings={settings}
               tenantUsers={tenantUsers}
-              userRole={user!.role}
+              userRole={user?.role || ''}
               onOpenUserDialog={() => setAddUserOpen(true)}
               onRoleChange={(u) => { setRoleChangeUser(u); setNewRole(u.role); setRoleChangeOpen(true); }}
               onDeleteUser={(u) => setDeleteConfirm({ type: 'user', item: { id: u.id, name: u.name } })}

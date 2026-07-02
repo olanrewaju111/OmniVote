@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Upload, Users, Send, CheckCircle, AlertTriangle, Clock,
   BarChart3, Plus, Phone, Shield, FileText, Pause, Play, Loader2,
-  X, Eye, MessageCircle, UserPlus, Check,
+  X, Eye, MessageCircle, UserPlus, Check, Image, Music, Video,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
+import { BUILT_IN_TEMPLATES, MEDIA_LABELS, type MessageTemplate, type MediaType } from '@/data/templates';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -82,16 +83,6 @@ interface CampaignData {
   stats: CampaignStats;
 }
 
-interface MessageTemplate {
-  id: string;
-  name: string;
-  body: string;
-  category: string;
-  isBuiltIn: boolean;
-}
-
-// ─── Constants ───────────────────────────────────────────────────────
-
 const SEGMENT_OPTIONS = [
   { value: 'PARTY_MEMBERS', label: 'Party Members' },
   { value: 'POLLING_AGENTS', label: 'Polling Agents' },
@@ -124,44 +115,6 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   FAILED: <AlertTriangle className="h-3 w-3" />,
   CANCELLED: <X className="h-3 w-3" />,
 };
-
-const BUILT_IN_TEMPLATES: MessageTemplate[] = [
-  {
-    id: 'tmpl-gotv',
-    name: 'GOTV Reminder',
-    body: '🗳️ *Election Day Reminder*\n\nDear {name},\n\nTomorrow is election day! Your polling unit is at *{polling_unit}*.\n\n📅 Date: {election_date}\n🕐 Time: 8:00 AM – 2:00 PM\n\nRemember to come with your PVC and arrive early. Every vote counts!\n\n_If you have moved, visit the INEC portal to confirm your unit._\n\nPowered by OmniVote',
-    category: 'GOTV',
-    isBuiltIn: true,
-  },
-  {
-    id: 'tmpl-rally',
-    name: 'Rally Invitation',
-    body: '📢 *You\'re Invited to Our Campaign Rally!*\n\nDear {name},\n\nJoin us for a mass rally:\n\n📍 Venue: {venue}\n📅 Date: {date}\n🕐 Time: {time}\n\nCome with friends and family. Let\'s show our strength together!\n\n_Reply STOP to opt out._',
-    category: 'RALLY',
-    isBuiltIn: true,
-  },
-  {
-    id: 'tmpl-factcheck',
-    name: 'Fact-Check Bulletin',
-    body: '🔍 *Fact-Check Alert*\n\n⚠️ *Claim:* "{claim}"\n✅ *Verdict:* {verdict}\n\n_{explanation}_\n\nStay informed. Verify before you share.\n\nReport misinformation: reply FACT {phone_number}',
-    category: 'FACT_CHECK',
-    isBuiltIn: true,
-  },
-  {
-    id: 'tmpl-polling',
-    name: 'Polling Location Update',
-    body: '📍 *Polling Unit Update*\n\nDear {name},\n\nYour polling unit has been updated:\n\n🏛️ PU Code: {pu_code}\n📍 Location: {pu_address}\nward: {ward}\nLGA: {lga}\n\nPlease verify at voters.inecnigeria.org\n\n_Reply HELP for support._',
-    category: 'LOGISTICS',
-    isBuiltIn: true,
-  },
-  {
-    id: 'tmpl-education',
-    name: 'Voter Education Tip',
-    body: '📚 *Did You Know?*\n\n{tip}\n\n💡 *Quick tip:* {action_item}\n\nShare this with 5 friends. An informed voter is a powerful voter!\n\n_This is an educational message from OmniVote._',
-    category: 'EDUCATION',
-    isBuiltIn: true,
-  },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -230,7 +183,10 @@ export function MobilizationEngine() {
   const [templateForm, setTemplateForm] = useState({
     name: '',
     body: '',
+    mediaType: 'none' as MediaType,
+    mediaDescription: '',
   });
+  const [mediaFilter, setMediaFilter] = useState<string>('all');
 
   // ─── Data fetching ────────────────────────────────────────────────
 
@@ -249,8 +205,12 @@ export function MobilizationEngine() {
   const stats = data?.stats ?? { totalCampaigns: 0, activeSending: 0, totalDelivered: 0, totalOptOuts: 0, totalContacts: 0 };
 
   const allTemplates = useMemo(
-    () => [...BUILT_IN_TEMPLATES, ...customTemplates],
-    [customTemplates],
+    () => {
+      let list = [...BUILT_IN_TEMPLATES, ...customTemplates];
+      if (mediaFilter !== 'all') list = list.filter(t => t.mediaType === mediaFilter);
+      return list;
+    },
+    [customTemplates, mediaFilter],
   );
 
   // ─── Mutations ────────────────────────────────────────────────────
@@ -353,11 +313,14 @@ export function MobilizationEngine() {
       body: templateForm.body,
       category: 'CUSTOM',
       isBuiltIn: false,
+      mediaType: templateForm.mediaType,
+      mediaUrl: templateForm.mediaType !== 'none' ? `/uploads/templates/custom-${Date.now()}.${templateForm.mediaType === 'image' ? 'jpg' : templateForm.mediaType === 'audio' ? 'mp3' : 'webm'}` : null,
+      mediaDescription: templateForm.mediaDescription || null,
     };
     setCustomTemplates(prev => [...prev, newTmpl]);
     toast.success('Template saved');
     setTemplateDialogOpen(false);
-    setTemplateForm({ name: '', body: '' });
+    setTemplateForm({ name: '', body: '', mediaType: 'none', mediaDescription: '' });
   }
 
   function useTemplateInCampaign(tmpl: MessageTemplate) {
@@ -728,18 +691,35 @@ export function MobilizationEngine() {
 
         {/* ─── Templates Tab ─────────────────────────────────────── */}
         <TabsContent value="templates" className="flex-1 min-h-0 mt-3 flex flex-col gap-3">
-          <div className="flex items-center justify-between shrink-0">
+          <div className="flex items-center justify-between shrink-0 flex-wrap gap-2">
             <p className="text-xs text-muted-foreground">
               {allTemplates.length} template{allTemplates.length !== 1 ? 's' : ''} available
+              <span className="text-[10px] text-muted-foreground ml-2">
+                ({allTemplates.filter(t => t.mediaType !== 'none').length} with media)
+              </span>
             </p>
-            <Button
-              size="sm"
-              className="h-8 text-xs bg-violet hover:bg-violet/90 text-violet-foreground rounded-lg"
-              onClick={() => setTemplateDialogOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Create Template
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={mediaFilter} onValueChange={setMediaFilter}>
+                <SelectTrigger className="h-8 text-[11px] w-28 rounded-lg border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Media</SelectItem>
+                  <SelectItem value="image"><span className="flex items-center gap-1.5"><Image className="h-3 w-3 text-sky" /> Image</span></SelectItem>
+                  <SelectItem value="audio"><span className="flex items-center gap-1.5"><Music className="h-3 w-3 text-amber" /> Audio</span></SelectItem>
+                  <SelectItem value="video"><span className="flex items-center gap-1.5"><Video className="h-3 w-3 text-rose" /> Video</span></SelectItem>
+                  <SelectItem value="none"><span className="flex items-center gap-1.5"><FileText className="h-3 w-3" /> Text Only</span></SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                className="h-8 text-xs bg-violet hover:bg-violet/90 text-violet-foreground rounded-lg"
+                onClick={() => setTemplateDialogOpen(true)}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Create Template
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 min-h-0 overflow-auto grid gap-3 content-start">
@@ -758,14 +738,19 @@ export function MobilizationEngine() {
                           <div className="flex items-center gap-2 mb-1.5">
                             <FileText className="h-3.5 w-3.5 text-violet shrink-0" />
                             <span className="text-sm font-medium">{tmpl.name}</span>
-                            {tmpl.isBuiltIn && (
-                              <Badge variant="outline" className="text-[10px] h-5 border-violet/30 text-violet bg-violet/10">
-                                Built-in
-                              </Badge>
-                            )}
                             <Badge variant="outline" className="text-[10px] h-5 border-border text-muted-foreground">
                               {tmpl.category}
                             </Badge>
+                            {tmpl.mediaType !== 'none' && (
+                              <Badge variant="outline" className={cn(
+                                'text-[10px] h-5',
+                                tmpl.mediaType === 'image' ? 'border-sky/30 text-sky bg-sky/10' :
+                                tmpl.mediaType === 'audio' ? 'border-amber/30 text-amber bg-amber/10' :
+                                'border-rose/30 text-rose bg-rose/10',
+                              )}>
+                                {MEDIA_LABELS[tmpl.mediaType]}
+                              </Badge>
+                            )}
                           </div>
                           <p className="text-[11px] text-muted-foreground line-clamp-2 whitespace-pre-line mb-2 leading-relaxed">
                             {tmpl.body}
@@ -1164,6 +1149,36 @@ export function MobilizationEngine() {
               <p className="text-[10px] text-muted-foreground text-right">
                 {templateForm.body.length} / 4096 characters
               </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Media Attachment</Label>
+              <Select value={templateForm.mediaType} onValueChange={v => setTemplateForm(p => ({ ...p, mediaType: v as MediaType }))}>
+                <SelectTrigger className="h-9 text-sm rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="flex items-center gap-2"><FileText className="h-3.5 w-3.5" /> Text Only</span>
+                  </SelectItem>
+                  <SelectItem value="image">
+                    <span className="flex items-center gap-2"><Image className="h-3.5 w-3.5 text-sky" /> Image</span>
+                  </SelectItem>
+                  <SelectItem value="audio">
+                    <span className="flex items-center gap-2"><Music className="h-3.5 w-3.5 text-amber" /> Audio Clip</span>
+                  </SelectItem>
+                  <SelectItem value="video">
+                    <span className="flex items-center gap-2"><Video className="h-3.5 w-3.5 text-rose" /> Video Clip</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {templateForm.mediaType !== 'none' && (
+                <Input
+                  placeholder="e.g. Rally photo at TBS, Candidate speech excerpt"
+                  value={templateForm.mediaDescription}
+                  onChange={e => setTemplateForm(p => ({ ...p, mediaDescription: e.target.value }))}
+                  className="h-9 text-sm rounded-lg"
+                />
+              )}
             </div>
 
             {/* WhatsApp-style preview */}
