@@ -18,6 +18,9 @@ model Tenant {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // Map area configuration (JSON: {minLat, maxLat, minLng, maxLng, label})
+  mapBounds       String   @default("null")
+
   // WhatsApp integration
   whatsappPhone   String?  // linked phone number e.g. "+2348012345678"
   whatsappJid     String?  // JID after linking e.g. "2348012345678@s.whatsapp.net"

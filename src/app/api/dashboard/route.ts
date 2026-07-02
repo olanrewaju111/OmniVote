@@ -7,12 +7,15 @@ export async function GET(req: Request) {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
 
-    // Fetch the active election for this tenant
-    const activeElection = await db.election.findFirst({
+    // Fetch tenant settings (mapBounds) and active election in parallel
+    const [tenant, activeElection] = await Promise.all([
+      db.tenant.findUnique({ where: { id: tenantId }, select: { mapBounds: true } }),
+      db.election.findFirst({
       where: { tenantId, status: { in: ['ACTIVE', 'UPCOMING'] } },
       select: { id: true, title: true, tier: true, status: true, date: true },
       orderBy: { date: 'desc' },
-    });
+    }),
+    ]);
 
     const electionTier = (activeElection?.tier || 'PRESIDENTIAL') as 'LOCAL' | 'STATE' | 'PRESIDENTIAL';
 
@@ -60,7 +63,14 @@ export async function GET(req: Request) {
     // Rename stateAgg for backward compat (frontend uses this key)
     const stateAgg = electionTier === 'LOCAL' ? agg : agg;
 
+    // Parse mapBounds
+    let mapBounds = null;
+    if (tenant?.mapBounds && tenant.mapBounds !== 'null') {
+      try { mapBounds = JSON.parse(tenant.mapBounds); } catch { /* ignore */ }
+    }
+
     return NextResponse.json({
+      mapBounds,
       electionInfo: {
         tier: electionTier,
         title: activeElection?.title || 'No Active Election',

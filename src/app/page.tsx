@@ -43,7 +43,12 @@ export interface Incident {
   pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
 }
 
+interface MapBoundsData {
+  minLat: number; maxLat: number; minLng: number; maxLng: number; label: string;
+}
+
 interface DashboardData {
+  mapBounds?: MapBoundsData | null;
   electionInfo: ElectionInfo;
   kpis: {
     totalAgents: number; onlineAgents: number; totalIncidents: number;
@@ -165,7 +170,7 @@ export default function Home() {
               {activeTab === 'map' && (
                 <div className="h-full p-4">
                   <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-                    <GeoMapView points={dashData?.pollingUnits || []} />
+                    <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} />
                   </div>
                 </div>
               )}
@@ -246,7 +251,7 @@ function OverviewTab({
       {/* Map + Feed: takes remaining space, no scroll overflow */}
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3 rounded-xl border border-border bg-card/40 overflow-hidden">
-          <GeoMapView points={dashData.pollingUnits} />
+          <GeoMapView points={dashData.pollingUnits} bounds={dashData.mapBounds || undefined} />
         </div>
         <div className="lg:col-span-2 rounded-xl border border-border bg-card/40 overflow-hidden">
           <LiveFeed incidents={incidents.slice(0, 25)} />
