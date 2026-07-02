@@ -40,3 +40,40 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch alerts' }, { status: 500 });
   }
 }
+
+// PATCH /api/alerts — mark one or all alerts as read
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
+
+    const body = await req.json();
+    const { alertId, markAllRead } = body;
+
+    if (markAllRead) {
+      await db.alert.updateMany({
+        where: { tenantId, isRead: false },
+        data: { isRead: true },
+      });
+      return NextResponse.json({ success: true, message: 'All alerts marked as read' });
+    }
+
+    if (!alertId) {
+      return NextResponse.json({ error: 'alertId or markAllRead is required' }, { status: 400 });
+    }
+
+    const alert = await db.alert.findUnique({ where: { id: alertId } });
+    if (!alert || alert.tenantId !== tenantId) {
+      return NextResponse.json({ error: 'Alert not found' }, { status: 404 });
+    }
+
+    await db.alert.update({
+      where: { id: alertId },
+      data: { isRead: true },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Failed to update alert' }, { status: 500 });
+  }
+}

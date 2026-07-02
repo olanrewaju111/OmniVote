@@ -27,6 +27,7 @@ import {
   Loader2, FileText, Trash2, Eye, ToggleLeft, X, Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface AgentUser {
@@ -73,7 +74,7 @@ export function AgentRoster() {
       if (search) params.set('search', search);
       if (roleFilter !== 'ALL') params.set('role', roleFilter);
       if (tenantId) params.set('tenantId', tenantId);
-      return fetch(`/api/agents?${params}`).then(r => r.json());
+      return fetchJson(`/api/agents?${params}`);
     },
   });
 
@@ -684,7 +685,7 @@ function AgentReportsPanel({ agentId }: { agentId: string }) {
     pollingUnit: { name: string; state: string; lga: string } | null;
   }>; total: number }>({
     queryKey: ['agent-reports', agentId],
-    queryFn: () => fetch(`/api/incidents?reporterId=${agentId}&limit=50`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/incidents?reporterId=${agentId}&limit=50`),
     enabled: !!agentId,
   });
 

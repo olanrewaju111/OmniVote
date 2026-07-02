@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -484,7 +485,7 @@ export function PvtQuickCount() {
 
   const { data, isLoading } = useQuery<PvtData>({
     queryKey: ['pvt', tenantId],
-    queryFn: () => fetch(`/api/pvt?tenantId=${tenantId}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/pvt?tenantId=${tenantId}`),
     refetchInterval: 15000,
   });
 

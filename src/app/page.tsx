@@ -32,6 +32,7 @@ import { EvidenceDossier } from '@/components/dashboard/evidence-dossier';
 import { FlashpointWargame } from '@/components/dashboard/flashpoint-wargame';
 import { HoneypotBiometrics } from '@/components/dashboard/honeypot-biometrics';
 import { PwaRegistration } from '@/components/pwa-registration';
+import { fetchJson } from '@/lib/api';
 
 // ---- Types ----
 export interface Incident {
@@ -96,7 +97,7 @@ export default function Home() {
   // Fetch dashboard data (only when authenticated)
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard', tenantId],
-    queryFn: () => fetch(`/api/dashboard${tenantParam}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/dashboard${tenantParam}`),
     refetchInterval: 15000,
     enabled: isAuthenticated,
   });
@@ -110,14 +111,14 @@ export default function Home() {
 
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
     queryKey: ['incidents', 'all', tenantId],
-    queryFn: () => fetch(`/api/incidents?limit=50&tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/incidents?limit=50&tenantId=${tenantId}`),
     refetchInterval: 10000,
     enabled: isAuthenticated,
   });
 
   const { data: alertsData, isLoading: alertsLoading } = useQuery<AlertsData>({
     queryKey: ['alerts', 'all', tenantId],
-    queryFn: () => fetch(`/api/alerts?tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
     refetchInterval: 10000,
     enabled: isAuthenticated,
   });

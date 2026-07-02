@@ -55,3 +55,27 @@ Stage Summary:
 - Created 110 rich media-enabled templates covering all election monitoring scenarios
 - Fixed systemic mutation pattern bug in 2 additional mutations in tenant-mgmt.tsx
 - All tasks completed, build passing
+---
+Task ID: 2
+Agent: Main Agent
+Task: Continue development — codebase audit and systematic fixes
+
+Work Log:
+- Ran comprehensive audit of entire codebase
+- Found 27 silent error-swallowing fetch calls across 14 files
+- Created `/src/lib/api.ts` — centralized `fetchJson()` utility with proper `res.ok` checking
+- Fixed all 27 fetch calls to use `fetchJson()`:
+  - page.tsx (3), agent-engagement.tsx (7), field-safety.tsx (2), campaign-monitor.tsx (2)
+  - agent-roster.tsx (2), situation-room.tsx (1), field-submit.tsx (4), login.tsx (1)
+  - evidence-dossier.tsx (2), osint-monitor.tsx (1), pvt-quick-count.tsx (1)
+  - honeypot-biometrics.tsx (2), flashpoint-wargame.tsx (2), field-reports.tsx (1)
+- Removed duplicate `cn()` utility from ai-insights.tsx and media-gallery.tsx, replaced with import from `@/lib/utils`
+- Fixed C2PA placeholder: `incidents.filter(i => true)` → `incidents.filter(i => i.evidenceC2PA === 'VERIFIED')`
+- Added PATCH `/api/alerts` endpoint for mark-as-read (single alert or mark all)
+- Build: 0 errors
+
+Stage Summary:
+- Created shared fetchJson utility eliminating the systemic silent error bug
+- All 14 dashboard components now have proper error propagation
+- C2PA metric now shows actual verified count instead of total incidents
+- Alert mark-as-read API endpoint ready for UI integration

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { useDashboardStore } from '@/store/dashboard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -225,17 +226,17 @@ export function FlashpointWargame() {
   const { data, isLoading, refetch } = useQuery<FlashpointData>({
     queryKey: ['flashpoint', tenantId],
     queryFn: () =>
-      fetch(`/api/flashpoint?tenantId=${tenantId}`).then((r) => r.json()),
+      fetchJson(`/api/flashpoint?tenantId=${tenantId}`),
     refetchInterval: 20000,
   });
 
   const mutation = useMutation({
     mutationFn: (body: any) =>
-      fetch('/api/flashpoint?tenantId=' + tenantId, {
+      fetchJson('/api/flashpoint?tenantId=' + tenantId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashpoint', tenantId] });
     },

@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ export function AgentEngagement() {
       if (msgFilter.triggerType !== 'ALL') p.set('triggerType', msgFilter.triggerType);
       if (msgFilter.channel !== 'ALL') p.set('channel', msgFilter.channel);
       if (msgFilter.status !== 'ALL') p.set('status', msgFilter.status);
-      return fetch(`/api/engagement?${p}`).then(r => r.json());
+      return fetchJson(`/api/engagement?${p}`);
     },
     refetchInterval: 15000,
     enabled: !!tenantId,
@@ -139,11 +140,11 @@ export function AgentEngagement() {
   // Send message mutation
   const sendMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetch('/api/engagement', {
+      fetchJson('/api/engagement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, tenantId }),
-      }).then(r => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
       setComposeOpen(false);
@@ -156,11 +157,11 @@ export function AgentEngagement() {
   // Bulk engage mutation
   const bulkMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetch('/api/engagement', {
+      fetchJson('/api/engagement', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, tenantId }),
-      }).then(r => r.json()),
+      }),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
       toast.success(`Engaged ${result.engaged} agents via ${CHANNEL_LABELS[result.channel] || result.channel}`);
@@ -631,7 +632,7 @@ function ComposeForm({
   // Fetch agents for dropdown
   const { data: agentsData } = useQuery<{ users: { id: string; name: string; email: string; isOnline: boolean }[] }>({
     queryKey: ['agents-list', tenantId],
-    queryFn: () => fetch(`/api/agents?role=FIELD_AGENT&tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/agents?role=FIELD_AGENT&tenantId=${tenantId}`),
     enabled: !!tenantId,
   });
 
@@ -776,18 +777,18 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
 
   const { data: waStatus, isLoading: waLoading, refetch: waRefetch } = useQuery({
     queryKey: ['whatsapp-status', tenantId],
-    queryFn: () => fetch(`/api/whatsapp?tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/whatsapp?tenantId=${tenantId}`),
     refetchInterval: 5000,
     enabled: !!tenantId,
   });
 
   const linkMutation = useMutation({
     mutationFn: (phone: string) =>
-      fetch('/api/whatsapp', {
+      fetchJson('/api/whatsapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, phone }),
-      }).then(r => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
       toast.success('WhatsApp linking initiated');
@@ -797,7 +798,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
 
   const disconnectMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/whatsapp?action=disconnect&tenantId=${tenantId}`, { method: 'PUT' }).then(r => r.json()),
+      fetchJson(`/api/whatsapp?action=disconnect&tenantId=${tenantId}`, { method: 'PUT' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
       toast.success('WhatsApp disconnected');

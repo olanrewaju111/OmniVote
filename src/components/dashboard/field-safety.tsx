@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -202,7 +203,7 @@ export function FieldSafety() {
   // ── Query ──────────────────────────────────────────────────────────
   const { data, isLoading } = useQuery<GeofenceData>({
     queryKey: ['geofence', tenantId],
-    queryFn: () => fetch(`/api/geofence?tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/geofence?tenantId=${tenantId}`),
     refetchInterval: 10000,
     enabled: !!tenantId,
   });
@@ -210,11 +211,11 @@ export function FieldSafety() {
   // ── Mutations ──────────────────────────────────────────────────────
   const mutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetch('/api/geofence', {
+      fetchJson('/api/geofence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, ...body }),
-      }).then(r => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['geofence', tenantId] });
       toast.success('Action completed successfully');

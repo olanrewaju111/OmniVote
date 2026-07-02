@@ -15,6 +15,7 @@ import {
 import { MediaViewer, MediaThumbnailStrip, type MediaFile } from '@/components/dashboard/media-viewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -133,7 +134,7 @@ export function MyReports() {
 
   const { data, isLoading, error, refetch } = useQuery<ReportsData>({
     queryKey: ['reports', isAdmin ? 'all' : user?.id, selectedAgent, tenantId],
-    queryFn: () => fetch(`/api/reports?${queryParams}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/reports?${queryParams}`),
     enabled: !!user?.id && !!tenantId,
     refetchInterval: 15000,
   });

@@ -11,6 +11,7 @@ import {
   AlertTriangle, ShieldAlert, Radio, TrendingUp, Layers, Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { useDashboardStore, TIER_SHORT } from '@/store/dashboard';
 import type { ElectionTier } from '@/store/dashboard';
 
@@ -68,7 +69,7 @@ export function SituationRoom() {
     queryKey: ['situation-room', activeLevel, activeFilter, tenantId],
     queryFn: () => {
       const params = new URLSearchParams({ level: activeLevel, filter: activeFilter, tenantId });
-      return fetch(`/api/situation-room?${params}`).then(r => r.json());
+      return fetchJson(`/api/situation-room?${params}`);
     },
   });
 

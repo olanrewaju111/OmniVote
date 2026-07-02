@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/table';
 import { useDashboardStore } from '@/store/dashboard';
 import { toast } from 'sonner';
+import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -223,18 +224,18 @@ export function EvidenceDossier() {
   const { data, isLoading, refetch } = useQuery<EvidenceData>({
     queryKey: ['evidence', tenantId],
     queryFn: () =>
-      fetch(`/api/evidence?tenantId=${tenantId}`).then((r) => r.json()),
+      fetchJson(`/api/evidence?tenantId=${tenantId}`),
     refetchInterval: 15000,
   });
 
   // Mutation
   const mutation = useMutation({
     mutationFn: (body: any) =>
-      fetch('/api/evidence?tenantId=' + tenantId, {
+      fetchJson('/api/evidence?tenantId=' + tenantId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evidence', tenantId] });
     },

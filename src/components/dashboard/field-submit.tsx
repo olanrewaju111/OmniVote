@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 
 // Nigerian political parties for different election tiers
@@ -98,13 +99,13 @@ export function SubmitReport() {
   // Fetch polling units for the agent (show first 10 as options)
   const { data: puData } = useQuery({
     queryKey: ['my-polling-units'],
-    queryFn: () => fetch(`/api/dashboard?tenantId=${tenantId}`).then(r => r.json()).then(d => d.pollingUnits?.slice(0, 15) || []),
+    queryFn: () => fetchJson(`/api/dashboard?tenantId=${tenantId}`).then(d => d.pollingUnits?.slice(0, 15) || []),
   });
 
   // Fetch agent's report counts for live stats
   const { data: reportCounts } = useQuery({
     queryKey: ['my-report-counts', user?.id],
-    queryFn: () => fetch(`/api/reports?reporterId=${user!.id}`).then(r => r.json()).then(d => d.counts),
+    queryFn: () => fetchJson(`/api/reports?reporterId=${user!.id}`).then(d => d.counts),
     enabled: !!user?.id,
     refetchInterval: 10000,
   });
@@ -143,9 +144,9 @@ export function SubmitReport() {
 
   const resultMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetch('/api/results', {
+      fetchJson('/api/results', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-      }).then(r => r.json()),
+      }),
     onSuccess: (data) => {
       if (data.error) { toast.error(data.error); return; }
       toast.success('Election results submitted successfully!');
@@ -161,9 +162,9 @@ export function SubmitReport() {
 
   const incidentMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetch('/api/incidents', {
+      fetchJson('/api/incidents', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-      }).then(r => r.json()),
+      }),
     onSuccess: (data) => {
       if (data.error) { toast.error(data.error); return; }
       toast.success('Incident report submitted!');

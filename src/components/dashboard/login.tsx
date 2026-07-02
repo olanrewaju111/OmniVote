@@ -12,6 +12,7 @@ import {
   ChevronRight, Loader2, Radio, Vote, Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 
 interface TenantOption {
   id: string;
@@ -57,7 +58,7 @@ export function LoginScreen() {
     users: UserOption[];
   }>({
     queryKey: ['auth-all'],
-    queryFn: () => fetch('/api/auth').then(r => r.json()),
+    queryFn: () => fetchJson('/api/auth'),
   });
 
   const tenants = data?.tenants || [];

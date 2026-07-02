@@ -1,0 +1,1242 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion } from 'framer-motion';
+     6→import {
+     7→  Radar, Fingerprint, Accessibility, Plus, Loader2, ShieldAlert,
+     8→  Shield, AlertTriangle, Eye, EyeOff, CheckCircle2, XCircle,
+     9→  Wifi, WifiOff, Lock, Users, Activity, TrendingDown, Target,
+    10→  Siren, CircleDot, Circle, X,
+    11→} from 'lucide-react';
+    12→import { cn } from '@/lib/utils';
+    13→import { toast } from 'sonner';
+    14→import { useDashboardStore } from '@/store/dashboard';
+    15→import { Card, CardContent } from '@/components/ui/card';
+    16→import { Badge } from '@/components/ui/badge';
+    17→import { Button } from '@/components/ui/button';
+    18→import { Input } from '@/components/ui/input';
+    19→import { Label } from '@/components/ui/label';
+    20→import { Separator } from '@/components/ui/separator';
+    21→import { Checkbox } from '@/components/ui/checkbox';
+    22→import { Slider } from '@/components/ui/slider';
+    23→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+    24→import { ScrollArea } from '@/components/ui/scroll-area';
+    25→import {
+    26→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    27→} from '@/components/ui/table';
+    28→import {
+    29→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    30→  DialogHeader, DialogTitle,
+    31→} from '@/components/ui/dialog';
+    32→import {
+    33→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    34→} from '@/components/ui/select';
+    35→
+    36→// ────────────────────────────────────────────
+    37→// Types
+    38→// ────────────────────────────────────────────
+    39→
+    40→interface HoneypotResult {
+    41→  party: string;
+    42→  votes: number;
+    43→}
+    44→
+    45→interface Honeypot {
+    46→  id: string;
+    47→  name: string;
+    48→  state: string;
+    49→  lga: string | null;
+    50→  isDecoy: boolean;
+    51→  trapType: string;
+    52→  isActive: boolean;
+    53→  expectedResults: HoneypotResult[];
+    54→  officialResults: HoneypotResult[];
+    55→  deviationDetected: boolean;
+    56→  deviationPct: number;
+    57→  alertTriggered: boolean;
+    58→  pollingUnit: { name: string; code: string };
+    59→}
+    60→
+    61→interface AccessibilityReport {
+    62→  id: string;
+    63→  pollingUnit: { name: string; code: string; state: string };
+    64→  features: {
+    65→    rampAccess: boolean;
+    66→    brailleBallots: boolean;
+    67→    signLanguage: boolean;
+    68→    assistiveTech: boolean;
+    69→    accessibleToilet: boolean;
+    70→  };
+    71→  barrierTypes: string[];
+    72→  pwdVotersServed: number;
+    73→  pwdVotersTurnedAway: number;
+    74→  overallScore: number;
+    75→  verified: boolean;
+    76→  createdAt: string;
+    77→}
+    78→
+    79→interface BiometricAgent {
+    80→  id: string;
+    81→  name: string;
+    82→  biometricRiskScore: number;
+    83→  deviceTrustScore: number;
+    84→  isLocked: boolean;
+    85→  biometricProfile: {
+    86→    typingCadence?: number;
+    87→    touchPressure?: number;
+    88→    gyroPattern?: string;
+    89→    lastProfiled?: string;
+    90→  } | null;
+    91→}
+    92→
+    93→interface HoneypotData {
+    94→  honeypots: Honeypot[];
+    95→  accessibility: AccessibilityReport[];
+    96→  stats: {
+    97→    totalHoneypots: number;
+    98→    activeHoneypots: number;
+    99→    byTrapType: Record<string, number>;
+   100→    deviationsDetected: number;
+   101→    alertsTriggered: number;
+   102→    avgDeviationPct: number;
+   103→    totalAccessibilityReports: number;
+   104→    avgAccessibilityScore: number;
+   105→    pwdServed: number;
+   106→    pwdTurnedAway: number;
+   107→  };
+   108→  biometricSummary: {
+   109→    totalProfiled: number;
+   110→    avgRiskScore: number;
+   111→    avgTrustScore: number;
+   112→    highRiskAgents: number;
+   113→    agents: BiometricAgent[];
+   114→  };
+   115→  trapEffectiveness: {
+   116→    totalTraps: number;
+   117→    trapsWithDeviations: number;
+   118→    effectivenessPct: number;
+   119→  };
+   120→}
+   121→
+   122→// ────────────────────────────────────────────
+   123→// Constants
+   124→// ────────────────────────────────────────────
+   125→
+   126→const TRAP_TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+   127→  GHOST_UNIT: { label: 'Ghost Unit', color: 'text-purple', bg: 'bg-purple/10', border: 'border-purple/30' },
+   128→  TAMPER_TRAP: { label: 'Tamper Trap', color: 'text-orange', bg: 'bg-orange/10', border: 'border-orange/30' },
+   129→  REPLAY_DETECTOR: { label: 'Replay Detector', color: 'text-cyan', bg: 'bg-cyan/10', border: 'border-cyan/30' },
+   130→};
+   131→
+   132→const BARRIER_OPTIONS = [
+   133→  'No Ramp', 'Narrow Doorway', 'Missing Signage', 'No Assistive Tech',
+   134→  'Untrained Staff', 'Inaccessible Restroom', 'Poor Lighting',
+   135→  'Uneven Surface', 'No Handrails', 'Language Barrier',
+   136→];
+   137→
+   138→const FEATURE_LABELS: Record<string, string> = {
+   139→  rampAccess: 'Ramp Access',
+   140→  brailleBallots: 'Braille Ballots',
+   141→  signLanguage: 'Sign Language',
+   142→  assistiveTech: 'Assistive Tech',
+   143→  accessibleToilet: 'Accessible Toilet',
+   144→};
+   145→
+   146→// ────────────────────────────────────────────
+   147→// Helper: Stat card
+   148→// ────────────────────────────────────────────
+   149→
+   150→function StatCard({
+   151→  icon, label, value, color, sub,
+   152→}: {
+   153→  icon: React.ReactNode; label: string; value: string | number; color: string; sub?: string;
+   154→}) {
+   155→  const colorMap: Record<string, string> = {
+   156→    emerald: 'text-emerald', cyan: 'text-cyan', amber: 'text-amber',
+   157→    rose: 'text-rose', purple: 'text-purple', foreground: 'text-foreground',
+   158→  };
+   159→  return (
+   160→    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+   161→      <Card className="border-border bg-card/40">
+   162→        <CardContent className="p-3 sm:p-4">
+   163→          <div className="flex items-center gap-1.5 mb-1.5">
+   164→            <span className={colorMap[color] || 'text-muted-foreground'}>{icon}</span>
+   165→            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</span>
+   166→          </div>
+   167→          <p className={cn('text-lg font-bold tabular-nums', colorMap[color] || 'text-foreground')}>{value}</p>
+   168→          {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>}
+   169→        </CardContent>
+   170→      </Card>
+   171→    </motion.div>
+   172→  );
+   173→}
+   174→
+   175→// ────────────────────────────────────────────
+   176→// Helper: Colored progress bar
+   177→// ────────────────────────────────────────────
+   178→
+   179→function ColorBar({ value, max = 100, color }: { value: number; max?: number; color: string }) {
+   180→  const pct = Math.min((value / max) * 100, 100);
+   181→  return (
+   182→    <div className="h-2 bg-secondary rounded-full overflow-hidden w-full min-w-[80px]">
+   183→      <motion.div
+   184→        initial={{ width: 0 }}
+   185→        animate={{ width: `${pct}%` }}
+   186→        transition={{ duration: 0.6, ease: 'easeOut' }}
+   187→        className="h-full rounded-full"
+   188→        style={{ backgroundColor: color }}
+   189→      />
+   190→    </div>
+   191→  );
+   192→}
+   193→
+   194→// ────────────────────────────────────────────
+   195→// Main Component
+   196→// ────────────────────────────────────────────
+   197→
+   198→export function HoneypotBiometrics() {
+   199→  const queryClient = useQueryClient();
+   200→  const { tenantId } = useDashboardStore();
+   201→
+   202→  // Dialog states
+   203→  const [honeypotDialogOpen, setHoneypotDialogOpen] = useState(false);
+   204→  const [accessibilityDialogOpen, setAccessibilityDialogOpen] = useState(false);
+   205→
+   206→  // ── Honeypot form state ──
+   207→  const [hpName, setHpName] = useState('');
+   208→  const [hpState, setHpState] = useState('');
+   209→  const [hpLga, setHpLga] = useState('');
+   210→  const [hpTrapType, setHpTrapType] = useState('');
+   211→  const [hpExpectedResults, setHpExpectedResults] = useState<Array<{ party: string; votes: string }>>([
+   212→    { party: '', votes: '' },
+   213→  ]);
+   214→
+   215→  // ── Accessibility form state ──
+   216→  const [arPollingUnitId, setArPollingUnitId] = useState('');
+   217→  const [arFeatures, setArFeatures] = useState({
+   218→    rampAccess: false, brailleBallots: false, signLanguage: false,
+   219→    assistiveTech: false, accessibleToilet: false,
+   220→  });
+   221→  const [arBarriers, setArBarriers] = useState<string[]>([]);
+   222→  const [arPwdServed, setArPwdServed] = useState('');
+   223→  const [arPwdTurnedAway, setArPwdTurnedAway] = useState('');
+   224→  const [arScore, setArScore] = useState([50]);
+   225→
+   226→  // ── Data fetching ──
+   227→  const { data, isLoading, refetch } = useQuery<HoneypotData>({
+   228→    queryKey: ['honeypot', tenantId],
+   229→    queryFn: () =>
+   230→      fetch(`/api/honeypot?tenantId=${tenantId}`).then((r) => r.json()),
+   231→    refetchInterval: 15000,
+   232→  });
+   233→
+   234→  // ── Mutation ──
+   235→  const mutation = useMutation({
+   236→    mutationFn: (body: Record<string, unknown>) =>
+   237→      fetch(`/api/honeypot?tenantId=${tenantId}`, {
+   238→        method: 'POST',
+   239→        headers: { 'Content-Type': 'application/json' },
+   240→        body: JSON.stringify(body),
+   241→      }).then((r) => r.json()),
+   242→    onSuccess: () => {
+   243→      queryClient.invalidateQueries({ queryKey: ['honeypot', tenantId] });
+   244→      toast.success('Action completed successfully');
+   245→    },
+   246→    onError: () => {
+   247→      toast.error('Failed to complete action');
+   248→    },
+   249→  });
+   250→
+   251→  const isMutating = mutation.isPending;
+   252→
+   253→  // ── Derived data ──
+   254→  const honeypots = data?.honeypots || [];
+   255→  const accessibility = data?.accessibility || [];
+   256→  const stats = data?.stats;
+   257→  const biometricSummary = data?.biometricSummary;
+   258→  const trapEffectiveness = data?.trapEffectiveness;
+   259→  const biometricAgents = useMemo(
+   260→    () =>
+   261→      [...(biometricSummary?.agents || [])].sort(
+   262→        (a, b) => b.biometricRiskScore - a.biometricRiskScore,
+   263→      ),
+   264→    [biometricSummary],
+   265→  );
+   266→
+   267→  // ── Honeypot dialog handlers ──
+   268→  const resetHoneypotForm = () => {
+   269→    setHpName('');
+   270→    setHpState('');
+   271→    setHpLga('');
+   272→    setHpTrapType('');
+   273→    setHpExpectedResults([{ party: '', votes: '' }]);
+   274→  };
+   275→
+   276→  const handleAddResultRow = () => {
+   277→    setHpExpectedResults((prev) => [...prev, { party: '', votes: '' }]);
+   278→  };
+   279→
+   280→  const handleRemoveResultRow = (idx: number) => {
+   281→    setHpExpectedResults((prev) => prev.filter((_, i) => i !== idx));
+   282→  };
+   283→
+   284→  const handleResultChange = (idx: number, field: 'party' | 'votes', value: string) => {
+   285→    setHpExpectedResults((prev) =>
+   286→      prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)),
+   287→    );
+   288→  };
+   289→
+   290→  const handleSubmitHoneypot = () => {
+   291→    if (!hpName.trim() || !hpState.trim() || !hpTrapType) {
+   292→      toast.error('Please fill in name, state, and trap type');
+   293→      return;
+   294→    }
+   295→    const validResults = hpExpectedResults
+   296→      .filter((r) => r.party.trim() && r.votes.trim())
+   297→      .map((r) => ({ party: r.party.trim(), votes: Number(r.votes) }));
+   298→    mutation.mutate(
+   299→      {
+   300→        action: 'CREATE_HONEYPOT',
+   301→        name: hpName.trim(),
+   302→        state: hpState.trim(),
+   303→        lga: hpLga.trim() || null,
+   304→        trapType: hpTrapType,
+   305→        expectedResults: validResults,
+   306→      },
+   307→      {
+   308→        onSuccess: () => {
+   309→          setHoneypotDialogOpen(false);
+   310→          resetHoneypotForm();
+   311→        },
+   312→      },
+   313→    );
+   314→  };
+   315→
+   316→  // ── Accessibility dialog handlers ──
+   317→  const resetAccessibilityForm = () => {
+   318→    setArPollingUnitId('');
+   319→    setArFeatures({
+   320→      rampAccess: false, brailleBallots: false, signLanguage: false,
+   321→      assistiveTech: false, accessibleToilet: false,
+   322→    });
+   323→    setArBarriers([]);
+   324→    setArPwdServed('');
+   325→    setArPwdTurnedAway('');
+   326→    setArScore([50]);
+   327→  };
+   328→
+   329→  const toggleBarrier = (barrier: string) => {
+   330→    setArBarriers((prev) =>
+   331→      prev.includes(barrier) ? prev.filter((b) => b !== barrier) : [...prev, barrier],
+   332→    );
+   333→  };
+   334→
+   335→  const toggleFeature = (key: keyof typeof arFeatures) => {
+   336→    setArFeatures((prev) => ({ ...prev, [key]: !prev[key] }));
+   337→  };
+   338→
+   339→  const handleSubmitAccessibility = () => {
+   340→    if (!arPollingUnitId.trim()) {
+   341→      toast.error('Please enter a polling unit ID');
+   342→      return;
+   343→    }
+   344→    mutation.mutate(
+   345→      {
+   346→        action: 'CREATE_ACCESSIBILITY_REPORT',
+   347→        pollingUnitId: arPollingUnitId.trim(),
+   348→        features: arFeatures,
+   349→        barrierTypes: arBarriers,
+   350→        pwdVotersServed: Number(arPwdServed) || 0,
+   351→        pwdVotersTurnedAway: Number(arPwdTurnedAway) || 0,
+   352→        overallScore: arScore[0],
+   353→      },
+   354→      {
+   355→        onSuccess: () => {
+   356→          setAccessibilityDialogOpen(false);
+   357→          resetAccessibilityForm();
+   358→        },
+   359→      },
+   360→    );
+   361→  };
+   362→
+   363→  // ── Render ──
+   364→  return (
+   365→    <div className="h-full flex flex-col p-4 sm:p-6 gap-4 overflow-hidden">
+   366→      {/* Header */}
+   367→      <div className="flex items-center justify-between flex-wrap gap-3 shrink-0">
+   368→        <div>
+   369→          <h2 className="text-lg font-semibold flex items-center gap-2">
+   370→            <Radar className="h-5 w-5 text-purple" />
+   371→            Honeypot Stations, Biometrics & PWD Tracking
+   372→          </h2>
+   373→          <p className="text-sm text-muted-foreground mt-0.5">
+   374→            Decoy traps, agent biometric verification, and accessibility compliance
+   375→          </p>
+   376→        </div>
+   377→        <Button
+   378→          variant="outline"
+   379→          size="sm"
+   380→          onClick={() => refetch()}
+   381→          className="gap-1.5 text-xs"
+   382→        >
+   383→          <Activity className="h-3.5 w-3.5" />
+   384→          Refresh
+   385→        </Button>
+   386→      </div>
+   387→
+   388→      {isLoading ? (
+   389→        <div className="flex-1 flex items-center justify-center">
+   390→          <Loader2 className="h-6 w-6 animate-spin text-purple" />
+   391→        </div>
+   392→      ) : (
+   393→        <Tabs defaultValue="honeypot" className="flex-1 min-h-0 flex flex-col">
+   394→          <TabsList className="shrink-0">
+   395→            <TabsTrigger value="honeypot" className="gap-1.5 text-xs">
+   396→              <ShieldAlert className="h-3.5 w-3.5" />
+   397→              Honeypot Stations
+   398→            </TabsTrigger>
+   399→            <TabsTrigger value="biometrics" className="gap-1.5 text-xs">
+   400→              <Fingerprint className="h-3.5 w-3.5" />
+   401→              Biometrics
+   402→            </TabsTrigger>
+   403→            <TabsTrigger value="pwd" className="gap-1.5 text-xs">
+   404→              <Accessibility className="h-3.5 w-3.5" />
+   405→              PWD / Accessibility
+   406→            </TabsTrigger>
+   407→          </TabsList>
+   408→
+   409→          {/* ═══════════ TAB 1: Honeypot Stations ═══════════ */}
+   410→          <TabsContent value="honeypot" className="flex-1 min-h-0 flex flex-col gap-4 mt-3">
+   411→            {/* Stats Row */}
+   412→            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 shrink-0">
+   413→              <StatCard
+   414→                icon={<ShieldAlert className="h-3.5 w-3.5" />}
+   415→                label="Total Traps"
+   416→                value={stats?.totalHoneypots ?? 0}
+   417→                color="purple"
+   418→              />
+   419→              <StatCard
+   420→                icon={<CircleDot className="h-3.5 w-3.5" />}
+   421→                label="Active Traps"
+   422→                value={stats?.activeHoneypots ?? 0}
+   423→                color="emerald"
+   424→              />
+   425→              <StatCard
+   426→                icon={<TrendingDown className="h-3.5 w-3.5" />}
+   427→                label="Deviations Detected"
+   428→                value={stats?.deviationsDetected ?? 0}
+   429→                color="rose"
+   430→              />
+   431→              <StatCard
+   432→                icon={<Siren className="h-3.5 w-3.5" />}
+   433→                label="Alerts Triggered"
+   434→                value={stats?.alertsTriggered ?? 0}
+   435→                color="rose"
+   436→                sub="Critical"
+   437→              />
+   438→              <StatCard
+   439→                icon={<Target className="h-3.5 w-3.5" />}
+   440→                label="Trap Effectiveness"
+   441→                value={`${trapEffectiveness?.effectivenessPct ?? 0}%`}
+   442→                color="emerald"
+   443→                sub={`${trapEffectiveness?.trapsWithDeviations ?? 0} of ${trapEffectiveness?.totalTraps ?? 0}`}
+   444→              />
+   445→            </div>
+   446→
+   447→            {/* Create button */}
+   448→            <div className="shrink-0 flex justify-end">
+   449→              <Button
+   450→                size="sm"
+   451→                onClick={() => setHoneypotDialogOpen(true)}
+   452→                className="gap-1.5 text-xs bg-purple hover:bg-purple/90"
+   453→              >
+   454→                <Plus className="h-3.5 w-3.5" />
+   455→                Create Honeypot
+   456→              </Button>
+   457→            </div>
+   458→
+   459→            {/* Honeypot cards grid */}
+   460→            <ScrollArea className="flex-1 min-h-0">
+   461→              {honeypots.length === 0 ? (
+   462→                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+   463→                  <ShieldAlert className="h-8 w-8 mb-2 opacity-40" />
+   464→                  <p className="text-sm">No honeypot stations deployed</p>
+   465→                </div>
+   466→              ) : (
+   467→                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pr-4 pb-4">
+   468→                  {honeypots.map((hp, idx) => (
+   469→                    <motion.div
+   470→                      key={hp.id}
+   471→                      initial={{ opacity: 0, y: 8 }}
+   472→                      animate={{ opacity: 1, y: 0 }}
+   473→                      transition={{ delay: idx * 0.04, duration: 0.25 }}
+   474→                    >
+   475→                      <Card
+   476→                        className={cn(
+   477→                          'border transition-colors',
+   478→                          hp.alertTriggered
+   479→                            ? 'border-rose/50 bg-rose/5'
+   480→                            : hp.deviationDetected
+   481→                              ? 'border-amber/40 bg-amber/5'
+   482→                              : 'border-border bg-card/40',
+   483→                        )}
+   484→                      >
+   485→                        <CardContent className="p-4 space-y-3">
+   486→                          {/* Top: name, status, type */}
+   487→                          <div className="flex items-start justify-between gap-2">
+   488→                            <div className="flex-1 min-w-0">
+   489→                              <div className="flex items-center gap-2 flex-wrap">
+   490→                                <span className="text-sm font-semibold truncate">{hp.name}</span>
+   491→                                {hp.alertTriggered && (
+   492→                                  <Badge className="bg-rose text-white text-[10px] h-5 px-1.5 gap-1">
+   493→                                    <Siren className="h-3 w-3" />
+   494→                                    SOS
+   495→                                  </Badge>
+   496→                                )}
+   497→                              </div>
+   498→                              <p className="text-[11px] text-muted-foreground mt-0.5">
+   499→                                {hp.state}{hp.lga ? ` · ${hp.lga}` : ''}
+   500→                              </p>
+   501→                            </div>
+   502→                            <div className="flex items-center gap-2 shrink-0">
+   503→                              <Badge
+   504→                                variant="outline"
+   505→                                className={cn(
+   506→                                  'text-[10px] h-5 px-1.5',
+   507→                                  TRAP_TYPE_CONFIG[hp.trapType]?.bg,
+   508→                                  TRAP_TYPE_CONFIG[hp.trapType]?.color,
+   509→                                  TRAP_TYPE_CONFIG[hp.trapType]?.border,
+   510→                                )}
+   511→                              >
+   512→                                {TRAP_TYPE_CONFIG[hp.trapType]?.label || hp.trapType}
+   513→                              </Badge>
+   514→                              <div className="flex items-center gap-1">
+   515→                                {hp.isActive ? (
+   516→                                  <>
+   517→                                    <span className="h-2 w-2 rounded-full bg-emerald animate-pulse" />
+   518→                                    <span className="text-[10px] text-emerald">Active</span>
+   519→                                  </>
+   520→                                ) : (
+   521→                                  <>
+   522→                                    <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+   523→                                    <span className="text-[10px] text-muted-foreground">Inactive</span>
+   524→                                  </>
+   525→                                )}
+   526→                              </div>
+   527→                            </div>
+   528→                          </div>
+   529→
+   530→                          {/* Deviation banner */}
+   531→                          {hp.deviationDetected && (
+   532→                            <div className="flex items-center gap-2 rounded-md bg-rose/10 border border-rose/30 px-3 py-1.5">
+   533→                              <AlertTriangle className="h-3.5 w-3.5 text-rose shrink-0" />
+   534→                              <span className="text-xs font-semibold text-rose">DEVIATION DETECTED</span>
+   535→                              <span className="text-xs text-rose/70 ml-auto tabular-nums">{hp.deviationPct.toFixed(1)}%</span>
+   536→                            </div>
+   537→                          )}
+   538→
+   539→                          {/* Results comparison */}
+   540→                          <div className="rounded-md border border-border overflow-hidden">
+   541→                            <div className="grid grid-cols-2 text-[10px] uppercase tracking-wider text-muted-foreground bg-muted/50 px-3 py-1.5 font-medium">
+   542→                              <span>Expected</span>
+   543→                              <span>Official</span>
+   544→                            </div>
+   545→                            {hp.officialResults.length === 0 ? (
+   546→                              <div className="text-xs text-muted-foreground/70 italic px-3 py-2 border-t border-border/50">
+   547→                                No official results received yet
+   548→                              </div>
+   549→                            ) : (
+   550→                              hp.expectedResults.map((er, ri) => {
+   551→                                const or = hp.officialResults.find((o) => o.party === er.party);
+   552→                                return (
+   553→                                  <div
+   554→                                    key={ri}
+   555→                                    className="grid grid-cols-2 text-xs border-t border-border/50 px-3 py-1.5"
+   556→                                  >
+   557→                                    <span className="tabular-nums">
+   558→                                      <span className="text-muted-foreground mr-1.5">{er.party}:</span>
+   559→                                      {er.votes.toLocaleString()}
+   560→                                    </span>
+   561→                                    <span className="tabular-nums">
+   562→                                      <span className="text-muted-foreground mr-1.5">{er.party}:</span>
+   563→                                      {or ? or.votes.toLocaleString() : '—'}
+   564→                                    </span>
+   565→                                  </div>
+   566→                                );
+   567→                              })
+   568→                            )}
+   569→                          </div>
+   570→
+   571→                          {/* Deviation footer */}
+   572→                          <div className="flex items-center justify-between text-xs">
+   573→                            <span className="text-muted-foreground">Deviation</span>
+   574→                            <span
+   575→                              className={cn(
+   576→                                'font-bold tabular-nums',
+   577→                                hp.deviationPct > 5 ? 'text-rose' : 'text-emerald',
+   578→                              )}
+   579→                            >
+   580→                              {hp.deviationPct.toFixed(1)}%
+   581→                            </span>
+   582→                          </div>
+   583→                        </CardContent>
+   584→                      </Card>
+   585→                    </motion.div>
+   586→                  ))}
+   587→                </div>
+   588→              )}
+   589→            </ScrollArea>
+   590→          </TabsContent>
+   591→
+   592→          {/* ═══════════ TAB 2: Biometrics ═══════════ */}
+   593→          <TabsContent value="biometrics" className="flex-1 min-h-0 flex flex-col gap-4 mt-3">
+   594→            {/* Stats Row */}
+   595→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+   596→              <StatCard
+   597→                icon={<Fingerprint className="h-3.5 w-3.5" />}
+   598→                label="Total Profiled"
+   599→                value={biometricSummary?.totalProfiled ?? 0}
+   600→                color="cyan"
+   601→              />
+   602→              <StatCard
+   603→                icon={<TrendingDown className="h-3.5 w-3.5" />}
+   604→                label="Avg Risk Score"
+   605→                value={biometricSummary?.avgRiskScore != null ? biometricSummary.avgRiskScore.toFixed(2) : '0.00'}
+   606→                color="amber"
+   607→              />
+   608→              <StatCard
+   609→                icon={<ShieldAlert className="h-3.5 w-3.5" />}
+   610→                label="High Risk Agents"
+   611→                value={biometricSummary?.highRiskAgents ?? 0}
+   612→                color="rose"
+   613→              />
+   614→              <StatCard
+   615→                icon={<Shield className="h-3.5 w-3.5" />}
+   616→                label="Avg Trust Score"
+   617→                value={biometricSummary?.avgTrustScore != null ? biometricSummary.avgTrustScore.toFixed(2) : '0.00'}
+   618→                color="emerald"
+   619→              />
+   620→            </div>
+   621→
+   622→            {/* Biometrics table */}
+   623→            <ScrollArea className="flex-1 min-h-0">
+   624→              {biometricAgents.length === 0 ? (
+   625→                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+   626→                  <Fingerprint className="h-8 w-8 mb-2 opacity-40" />
+   627→                  <p className="text-sm">No biometric profiles recorded</p>
+   628→                </div>
+   629→              ) : (
+   630→                <Table className="pr-4 pb-4">
+   631→                  <TableHeader>
+   632→                    <TableRow>
+   633→                      <TableHead className="text-xs">Agent Name</TableHead>
+   634→                      <TableHead className="text-xs">Risk Score</TableHead>
+   635→                      <TableHead className="text-xs">Trust Score</TableHead>
+   636→                      <TableHead className="text-xs">Device Status</TableHead>
+   637→                      <TableHead className="text-xs">Locked</TableHead>
+   638→                      <TableHead className="text-xs">Profile Details</TableHead>
+   639→                    </TableRow>
+   640→                  </TableHeader>
+   641→                  <TableBody>
+   642→                    {biometricAgents.map((agent, idx) => {
+   643→                      const riskColor =
+   644→                        agent.biometricRiskScore > 0.7
+   645→                          ? 'text-rose'
+   646→                          : agent.biometricRiskScore > 0.3
+   647→                            ? 'text-amber'
+   648→                            : 'text-emerald';
+   649→                      const riskBarColor =
+   650→                        agent.biometricRiskScore > 0.7
+   651→                          ? 'var(--color-rose)'
+   652→                          : agent.biometricRiskScore > 0.3
+   653→                            ? 'var(--color-amber)'
+   654→                            : 'var(--color-emerald)';
+   655→
+   656→                      return (
+   657→                        <motion.tr
+   658→                          key={agent.id}
+   659→                          initial={{ opacity: 0, x: -6 }}
+   660→                          animate={{ opacity: 1, x: 0 }}
+   661→                          transition={{ delay: idx * 0.03, duration: 0.2 }}
+   662→                          className="border-b transition-colors hover:bg-muted/50"
+   663→                        >
+   664→                          <TableCell className="text-xs font-medium py-2.5">{agent.name}</TableCell>
+   665→                          <TableCell className="py-2.5">
+   666→                            <div className="flex items-center gap-2 min-w-[140px]">
+   667→                              <ColorBar value={agent.biometricRiskScore} max={1} color={riskBarColor} />
+   668→                              <span className={cn('text-xs font-bold tabular-nums shrink-0', riskColor)}>
+   669→                                {agent.biometricRiskScore.toFixed(2)}
+   670→                              </span>
+   671→                            </div>
+   672→                          </TableCell>
+   673→                          <TableCell className="py-2.5">
+   674→                            <span className="text-xs tabular-nums text-cyan font-medium">
+   675→                              {agent.deviceTrustScore.toFixed(2)}
+   676→                            </span>
+   677→                          </TableCell>
+   678→                          <TableCell className="py-2.5">
+   679→                            {agent.isLocked ? (
+   680→                              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+   681→                                <WifiOff className="h-3 w-3" />
+   682→                                Offline
+   683→                              </span>
+   684→                            ) : (
+   685→                              <span className="flex items-center gap-1 text-xs text-emerald">
+   686→                                <Wifi className="h-3 w-3" />
+   687→                                Online
+   688→                              </span>
+   689→                            )}
+   690→                          </TableCell>
+   691→                          <TableCell className="py-2.5">
+   692→                            {agent.isLocked ? (
+   693→                              <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-rose/30 text-rose bg-rose/10 gap-1">
+   694→                                <Lock className="h-2.5 w-2.5" />
+   695→                                Locked
+   696→                              </Badge>
+   697→                            ) : (
+   698→                              <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-emerald/30 text-emerald bg-emerald/10 gap-1">
+   699→                                <CheckCircle2 className="h-2.5 w-2.5" />
+   700→                                Open
+   701→                              </Badge>
+   702→                            )}
+   703→                          </TableCell>
+   704→                          <TableCell className="py-2.5">
+   705→                            {agent.biometricProfile ? (
+   706→                              <div className="flex flex-wrap gap-1">
+   707→                                {agent.biometricProfile.typingCadence != null && (
+   708→                                  <Badge variant="outline" className="text-[9px] h-4 px-1 border-cyan/30 text-cyan">
+   709→                                    TC: {agent.biometricProfile.typingCadence}ms
+   710→                                  </Badge>
+   711→                                )}
+   712→                                {agent.biometricProfile.touchPressure != null && (
+   713→                                  <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber/30 text-amber">
+   714→                                    TP: {agent.biometricProfile.touchPressure}
+   715→                                  </Badge>
+   716→                                )}
+   717→                                {agent.biometricProfile.gyroPattern && (
+   718→                                  <Badge variant="outline" className="text-[9px] h-4 px-1 border-purple/30 text-purple">
+   719→                                    GP: {agent.biometricProfile.gyroPattern}
+   720→                                  </Badge>
+   721→                                )}
+   722→                              </div>
+   723→                            ) : (
+   724→                              <span className="text-[11px] text-muted-foreground">—</span>
+   725→                            )}
+   726→                          </TableCell>
+   727→                        </motion.tr>
+   728→                      );
+   729→                    })}
+   730→                  </TableBody>
+   731→                </Table>
+   732→              )}
+   733→            </ScrollArea>
+   734→          </TabsContent>
+   735→
+   736→          {/* ═══════════ TAB 3: PWD / Accessibility ═══════════ */}
+   737→          <TabsContent value="pwd" className="flex-1 min-h-0 flex flex-col gap-4 mt-3">
+   738→            {/* Stats Row */}
+   739→            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 shrink-0">
+   740→              <StatCard
+   741→                icon={<Accessibility className="h-3.5 w-3.5" />}
+   742→                label="Total Reports"
+   743→                value={stats?.totalAccessibilityReports ?? 0}
+   744→                color="cyan"
+   745→              />
+   746→              <StatCard
+   747→                icon={<Activity className="h-3.5 w-3.5" />}
+   748→                label="Avg Score"
+   749→                value={stats?.avgAccessibilityScore != null ? `${stats.avgAccessibilityScore.toFixed(1)}` : '0'}
+   750→                color="amber"
+   751→              />
+   752→              <StatCard
+   753→                icon={<CheckCircle2 className="h-3.5 w-3.5" />}
+   754→                label="PWD Served"
+   755→                value={stats?.pwdServed ?? 0}
+   756→                color="emerald"
+   757→              />
+   758→              <StatCard
+   759→                icon={<XCircle className="h-3.5 w-3.5" />}
+   760→                label="PWD Turned Away"
+   761→                value={stats?.pwdTurnedAway ?? 0}
+   762→                color="rose"
+   763→              />
+   764→              <StatCard
+   765→                icon={<Eye className="h-3.5 w-3.5" />}
+   766→                label="Verified"
+   767→                value={accessibility.filter((r) => r.verified).length}
+   768→                color="emerald"
+   769→                sub={`of ${accessibility.length}`}
+   770→              />
+   771→            </div>
+   772→
+   773→            {/* Create button */}
+   774→            <div className="shrink-0 flex justify-end">
+   775→              <Button
+   776→                size="sm"
+   777→                onClick={() => setAccessibilityDialogOpen(true)}
+   778→                className="gap-1.5 text-xs bg-cyan hover:bg-cyan/90 text-black"
+   779→              >
+   780→                <Plus className="h-3.5 w-3.5" />
+   781→                Create Report
+   782→              </Button>
+   783→            </div>
+   784→
+   785→            {/* Accessibility table */}
+   786→            <ScrollArea className="flex-1 min-h-0">
+   787→              {accessibility.length === 0 ? (
+   788→                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+   789→                  <Accessibility className="h-8 w-8 mb-2 opacity-40" />
+   790→                  <p className="text-sm">No accessibility reports filed</p>
+   791→                </div>
+   792→              ) : (
+   793→                <Table className="pr-4 pb-4">
+   794→                  <TableHeader>
+   795→                    <TableRow>
+   796→                      <TableHead className="text-xs">Polling Unit</TableHead>
+   797→                      <TableHead className="text-xs">State</TableHead>
+   798→                      <TableHead className="text-xs">Score</TableHead>
+   799→                      <TableHead className="text-xs">PWD Served</TableHead>
+   800→                      <TableHead className="text-xs">Turned Away</TableHead>
+   801→                      <TableHead className="text-xs">Barriers</TableHead>
+   802→                      <TableHead className="text-xs">Verified</TableHead>
+   803→                      <TableHead className="text-xs">Date</TableHead>
+   804→                    </TableRow>
+   805→                  </TableHeader>
+   806→                  <TableBody>
+   807→                    {accessibility.map((report, idx) => {
+   808→                      const scoreColor =
+   809→                        report.overallScore > 80
+   810→                          ? 'text-emerald'
+   811→                          : report.overallScore > 60
+   812→                            ? 'text-cyan'
+   813→                            : report.overallScore > 30
+   814→                              ? 'text-amber'
+   815→                              : 'text-rose';
+   816→                      const scoreBarColor =
+   817→                        report.overallScore > 80
+   818→                          ? 'var(--color-emerald)'
+   819→                          : report.overallScore > 60
+   820→                            ? 'var(--color-cyan)'
+   821→                            : report.overallScore > 30
+   822→                              ? 'var(--color-amber)'
+   823→                              : 'var(--color-rose)';
+   824→
+   825→                      return (
+   826→                        <motion.tr
+   827→                          key={report.id}
+   828→                          initial={{ opacity: 0, x: -6 }}
+   829→                          animate={{ opacity: 1, x: 0 }}
+   830→                          transition={{ delay: idx * 0.03, duration: 0.2 }}
+   831→                          className="border-b transition-colors hover:bg-muted/50"
+   832→                        >
+   833→                          <TableCell className="py-2.5">
+   834→                            <div>
+   835→                              <p className="text-xs font-medium">{report.pollingUnit.name}</p>
+   836→                              <p className="text-[10px] text-muted-foreground">{report.pollingUnit.code}</p>
+   837→                            </div>
+   838→                          </TableCell>
+   839→                          <TableCell className="text-xs text-muted-foreground py-2.5">
+   840→                            {report.pollingUnit.state}
+   841→                          </TableCell>
+   842→                          <TableCell className="py-2.5">
+   843→                            <div className="flex items-center gap-2 min-w-[120px]">
+   844→                              <ColorBar value={report.overallScore} max={100} color={scoreBarColor} />
+   845→                              <span className={cn('text-xs font-bold tabular-nums shrink-0', scoreColor)}>
+   846→                                {report.overallScore}
+   847→                              </span>
+   848→                            </div>
+   849→                          </TableCell>
+   850→                          <TableCell className="text-xs tabular-nums py-2.5 text-emerald font-medium">
+   851→                            {report.pwdVotersServed}
+   852→                          </TableCell>
+   853→                          <TableCell className="text-xs tabular-nums py-2.5 text-rose font-medium">
+   854→                            {report.pwdVotersTurnedAway}
+   855→                          </TableCell>
+   856→                          <TableCell className="py-2.5">
+   857→                            <div className="flex flex-wrap gap-1 max-w-[200px]">
+   858→                              {report.barrierTypes.map((b, bi) => (
+   859→                                <Badge
+   860→                                  key={bi}
+   861→                                  variant="outline"
+   862→                                  className="text-[9px] h-4 px-1 border-amber/30 text-amber"
+   863→                                >
+   864→                                  {b}
+   865→                                </Badge>
+   866→                              ))}
+   867→                              {report.barrierTypes.length === 0 && (
+   868→                                <span className="text-[11px] text-muted-foreground">None</span>
+   869→                              )}
+   870→                            </div>
+   871→                          </TableCell>
+   872→                          <TableCell className="py-2.5">
+   873→                            {report.verified ? (
+   874→                              <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-emerald/30 text-emerald bg-emerald/10 gap-1">
+   875→                                <Eye className="h-2.5 w-2.5" />
+   876→                                Verified
+   877→                              </Badge>
+   878→                            ) : (
+   879→                              <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-muted-foreground/30 text-muted-foreground gap-1">
+   880→                                <EyeOff className="h-2.5 w-2.5" />
+   881→                                Pending
+   882→                              </Badge>
+   883→                            )}
+   884→                          </TableCell>
+   885→                          <TableCell className="text-[11px] text-muted-foreground py-2.5 tabular-nums">
+   886→                            {new Date(report.createdAt).toLocaleDateString()}
+   887→                          </TableCell>
+   888→                        </motion.tr>
+   889→                      );
+   890→                    })}
+   891→                  </TableBody>
+   892→                </Table>
+   893→              )}
+   894→            </ScrollArea>
+   895→          </TabsContent>
+   896→        </Tabs>
+   897→      )}
+   898→
+   899→      {/* ═══════════════════════════════════════════════════ */}
+   900→      {/* DIALOG: Create Honeypot                               */}
+   901→      {/* ═══════════════════════════════════════════════════ */}
+   902→      <Dialog open={honeypotDialogOpen} onOpenChange={(open) => {
+   903→        if (!open) resetHoneypotForm();
+   904→        setHoneypotDialogOpen(open);
+   905→      }}>
+   906→        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+   907→          <DialogHeader>
+   908→            <DialogTitle className="flex items-center gap-2">
+   909→              <ShieldAlert className="h-4 w-4 text-purple" />
+   910→              Create Honeypot Station
+   911→            </DialogTitle>
+   912→            <DialogDescription>
+   913→              Deploy a decoy polling unit to detect result manipulation. Set expected results for comparison.
+   914→            </DialogDescription>
+   915→          </DialogHeader>
+   916→
+   917→          <div className="space-y-4 py-2">
+   918→            <div className="space-y-2">
+   919→              <Label htmlFor="hp-name" className="text-xs">Name</Label>
+   920→              <Input
+   921→                id="hp-name"
+   922→                value={hpName}
+   923→                onChange={(e) => setHpName(e.target.value)}
+   924→                placeholder="e.g. Ghost PU-001"
+   925→                className="text-sm"
+   926→              />
+   927→            </div>
+   928→
+   929→            <div className="grid grid-cols-2 gap-3">
+   930→              <div className="space-y-2">
+   931→                <Label htmlFor="hp-state" className="text-xs">State</Label>
+   932→                <Input
+   933→                  id="hp-state"
+   934→                  value={hpState}
+   935→                  onChange={(e) => setHpState(e.target.value)}
+   936→                  placeholder="e.g. Lagos"
+   937→                  className="text-sm"
+   938→                />
+   939→              </div>
+   940→              <div className="space-y-2">
+   941→                <Label htmlFor="hp-lga" className="text-xs">LGA</Label>
+   942→                <Input
+   943→                  id="hp-lga"
+   944→                  value={hpLga}
+   945→                  onChange={(e) => setHpLga(e.target.value)}
+   946→                  placeholder="e.g. Ikeja"
+   947→                  className="text-sm"
+   948→                />
+   949→              </div>
+   950→            </div>
+   951→
+   952→            <div className="space-y-2">
+   953→              <Label className="text-xs">Trap Type</Label>
+   954→              <Select value={hpTrapType} onValueChange={setHpTrapType}>
+   955→                <SelectTrigger className="text-sm w-full">
+   956→                  <SelectValue placeholder="Select trap type" />
+   957→                </SelectTrigger>
+   958→                <SelectContent>
+   959→                  <SelectItem value="GHOST_UNIT">
+   960→                    <span className="flex items-center gap-2">
+   961→                      <span className="h-2 w-2 rounded-full bg-purple" />
+   962→                      Ghost Unit
+   963→                    </span>
+   964→                  </SelectItem>
+   965→                  <SelectItem value="TAMPER_TRAP">
+   966→                    <span className="flex items-center gap-2">
+   967→                      <span className="h-2 w-2 rounded-full bg-orange" />
+   968→                      Tamper Trap
+   969→                    </span>
+   970→                  </SelectItem>
+   971→                  <SelectItem value="REPLAY_DETECTOR">
+   972→                    <span className="flex items-center gap-2">
+   973→                      <span className="h-2 w-2 rounded-full bg-cyan" />
+   974→                      Replay Detector
+   975→                    </span>
+   976→                  </SelectItem>
+   977→                </SelectContent>
+   978→              </Select>
+   979→            </div>
+   980→
+   981→            <Separator />
+   982→
+   983→            <div className="space-y-2">
+   984→              <div className="flex items-center justify-between">
+   985→                <Label className="text-xs">Expected Results</Label>
+   986→                <Button
+   987→                  type="button"
+   988→                  variant="ghost"
+   989→                  size="sm"
+   990→                  onClick={handleAddResultRow}
+   991→                  className="h-6 text-[10px] gap-1 text-purple"
+   992→                >
+   993→                  <Plus className="h-3 w-3" />
+   994→                  Add Party
+   995→                </Button>
+   996→              </div>
+   997→              {hpExpectedResults.map((row, idx) => (
+   998→                <div key={idx} className="flex items-center gap-2">
+   999→                  <Input
+  1000→                    value={row.party}
+  1001→                    onChange={(e) => handleResultChange(idx, 'party', e.target.value)}
+  1002→                    placeholder="Party name"
+  1003→                    className="text-xs h-8"
+  1004→                  />
+  1005→                  <Input
+  1006→                    value={row.votes}
+  1007→                    onChange={(e) => handleResultChange(idx, 'votes', e.target.value)}
+  1008→                    placeholder="Votes"
+  1009→                    type="number"
+  1010→                    min={0}
+  1011→                    className="text-xs h-8 w-24"
+  1012→                  />
+  1013→                  {hpExpectedResults.length > 1 && (
+  1014→                    <Button
+  1015→                      type="button"
+  1016→                      variant="ghost"
+  1017→                      size="sm"
+  1018→                      onClick={() => handleRemoveResultRow(idx)}
+  1019→                      className="h-8 w-8 p-0 text-muted-foreground hover:text-rose shrink-0"
+  1020→                    >
+  1021→                      <X className="h-3.5 w-3.5" />
+  1022→                    </Button>
+  1023→                  )}
+  1024→                </div>
+  1025→              ))}
+  1026→            </div>
+  1027→          </div>
+  1028→
+  1029→          <DialogFooter>
+  1030→            <Button
+  1031→              variant="outline"
+  1032→              size="sm"
+  1033→              onClick={() => {
+  1034→                resetHoneypotForm();
+  1035→                setHoneypotDialogOpen(false);
+  1036→              }}
+  1037→              className="text-xs"
+  1038→            >
+  1039→              Cancel
+  1040→            </Button>
+  1041→            <Button
+  1042→              size="sm"
+  1043→              onClick={handleSubmitHoneypot}
+  1044→              disabled={isMutating || !hpName.trim() || !hpState.trim() || !hpTrapType}
+  1045→              className="text-xs bg-purple hover:bg-purple/90 gap-1.5"
+  1046→            >
+  1047→              {isMutating ? (
+  1048→                <>
+  1049→                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+  1050→                  Creating...
+  1051→                </>
+  1052→              ) : (
+  1053→                <>
+  1054→                  <ShieldAlert className="h-3.5 w-3.5" />
+  1055→                  Deploy Trap
+  1056→                </>
+  1057→              )}
+  1058→            </Button>
+  1059→          </DialogFooter>
+  1060→        </DialogContent>
+  1061→      </Dialog>
+  1062→
+  1063→      {/* ═══════════════════════════════════════════════════ */}
+  1064→      {/* DIALOG: Create Accessibility Report                   */}
+  1065→      {/* ═══════════════════════════════════════════════════ */}
+  1066→      <Dialog open={accessibilityDialogOpen} onOpenChange={(open) => {
+  1067→        if (!open) resetAccessibilityForm();
+  1068→        setAccessibilityDialogOpen(open);
+  1069→      }}>
+  1070→        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+  1071→          <DialogHeader>
+  1072→            <DialogTitle className="flex items-center gap-2">
+  1073→              <Accessibility className="h-4 w-4 text-cyan" />
+  1074→              Create Accessibility Report
+  1075→            </DialogTitle>
+  1076→            <DialogDescription>
+  1077→              File a PWD accessibility compliance report for a polling unit. Assess features and barriers.
+  1078→            </DialogDescription>
+  1079→          </DialogHeader>
+  1080→
+  1081→          <div className="space-y-4 py-2">
+  1082→            {/* Polling Unit ID */}
+  1083→            <div className="space-y-2">
+  1084→              <Label htmlFor="ar-pu-id" className="text-xs">Polling Unit ID</Label>
+  1085→              <Input
+  1086→                id="ar-pu-id"
+  1087→                value={arPollingUnitId}
+  1088→                onChange={(e) => setArPollingUnitId(e.target.value)}
+  1089→                placeholder="e.g. PU-12-03-005"
+  1090→                className="text-sm"
+  1091→              />
+  1092→            </div>
+  1093→
+  1094→            <Separator />
+  1095→
+  1096→            {/* Features checklist */}
+  1097→            <div className="space-y-2">
+  1098→              <Label className="text-xs">Available Features</Label>
+  1099→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  1100→                {(Object.entries(FEATURE_LABELS) as [keyof typeof arFeatures, string][]).map(([key, label]) => (
+  1101→                  <div key={key} className="flex items-center gap-2">
+  1102→                    <Checkbox
+  1103→                      id={`ar-feat-${key}`}
+  1104→                      checked={arFeatures[key]}
+  1105→                      onCheckedChange={() => toggleFeature(key)}
+  1106→                    />
+  1107→                    <Label htmlFor={`ar-feat-${key}`} className="text-xs font-normal cursor-pointer">
+  1108→                      {label}
+  1109→                    </Label>
+  1110→                  </div>
+  1111→                ))}
+  1112→              </div>
+  1113→            </div>
+  1114→
+  1115→            <Separator />
+  1116→
+  1117→            {/* Barriers multi-select */}
+  1118→            <div className="space-y-2">
+  1119→              <Label className="text-xs">Barrier Types</Label>
+  1120→              <div className="flex flex-wrap gap-1.5">
+  1121→                {BARRIER_OPTIONS.map((barrier) => (
+  1122→                  <Badge
+  1123→                    key={barrier}
+  1124→                    variant="outline"
+  1125→                    className={cn(
+  1126→                      'text-[10px] h-6 px-2 cursor-pointer transition-colors',
+  1127→                      arBarriers.includes(barrier)
+  1128→                        ? 'border-rose/40 text-rose bg-rose/10'
+  1129→                        : 'border-border text-muted-foreground hover:border-rose/30 hover:text-rose',
+  1130→                    )}
+  1131→                    onClick={() => toggleBarrier(barrier)}
+  1132→                  >
+  1133→                    {barrier}
+  1134→                  </Badge>
+  1135→                ))}
+  1136→              </div>
+  1137→            </div>
+  1138→
+  1139→            <Separator />
+  1140→
+  1141→            {/* PWD numbers */}
+  1142→            <div className="grid grid-cols-2 gap-3">
+  1143→              <div className="space-y-2">
+  1144→                <Label htmlFor="ar-served" className="text-xs">PWD Served</Label>
+  1145→                <Input
+  1146→                  id="ar-served"
+  1147→                  value={arPwdServed}
+  1148→                  onChange={(e) => setArPwdServed(e.target.value)}
+  1149→                  placeholder="0"
+  1150→                  type="number"
+  1151→                  min={0}
+  1152→                  className="text-sm"
+  1153→                />
+  1154→              </div>
+  1155→              <div className="space-y-2">
+  1156→                <Label htmlFor="ar-turned" className="text-xs">PWD Turned Away</Label>
+  1157→                <Input
+  1158→                  id="ar-turned"
+  1159→                  value={arPwdTurnedAway}
+  1160→                  onChange={(e) => setArPwdTurnedAway(e.target.value)}
+  1161→                  placeholder="0"
+  1162→                  type="number"
+  1163→                  min={0}
+  1164→                  className="text-sm"
+  1165→                />
+  1166→              </div>
+  1167→            </div>
+  1168→
+  1169→            <Separator />
+  1170→
+  1171→            {/* Score slider */}
+  1172→            <div className="space-y-3">
+  1173→              <div className="flex items-center justify-between">
+  1174→                <Label className="text-xs">Overall Accessibility Score</Label>
+  1175→                <span
+  1176→                  className={cn(
+  1177→                    'text-sm font-bold tabular-nums',
+  1178→                    arScore[0] > 80
+  1179→                      ? 'text-emerald'
+  1180→                      : arScore[0] > 60
+  1181→                        ? 'text-cyan'
+  1182→                        : arScore[0] > 30
+  1183→                          ? 'text-amber'
+  1184→                          : 'text-rose',
+  1185→                  )}
+  1186→                >
+  1187→                  {arScore[0]}
+  1188→                </span>
+  1189→              </div>
+  1190→              <Slider
+  1191→                value={arScore}
+  1192→                onValueChange={setArScore}
+  1193→                min={0}
+  1194→                max={100}
+  1195→                step={1}
+  1196→              />
+  1197→              <div className="flex justify-between text-[10px] text-muted-foreground">
+  1198→                <span>0 — Poor</span>
+  1199→                <span>30</span>
+  1200→                <span>60</span>
+  1201→                <span>80</span>
+  1202→                <span>100 — Excellent</span>
+  1203→              </div>
+  1204→            </div>
+  1205→          </div>
+  1206→
+  1207→          <DialogFooter>
+  1208→            <Button
+  1209→              variant="outline"
+  1210→              size="sm"
+  1211→              onClick={() => {
+  1212→                resetAccessibilityForm();
+  1213→                setAccessibilityDialogOpen(false);
+  1214→              }}
+  1215→              className="text-xs"
+  1216→            >
+  1217→              Cancel
+  1218→            </Button>
+  1219→            <Button
+  1220→              size="sm"
+  1221→              onClick={handleSubmitAccessibility}
+  1222→              disabled={isMutating || !arPollingUnitId.trim()}
+  1223→              className="text-xs bg-cyan hover:bg-cyan/90 text-black gap-1.5"
+  1224→            >
+  1225→              {isMutating ? (
+  1226→                <>
+  1227→                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+  1228→                  Submitting...
+  1229→                </>
+  1230→              ) : (
+  1231→                <>
+  1232→                  <Accessibility className="h-3.5 w-3.5" />
+  1233→                  Submit Report
+  1234→                </>
+  1235→              )}
+  1236→            </Button>
+  1237→          </DialogFooter>
+  1238→        </DialogContent>
+  1239→      </Dialog>
+  1240→    </div>
+  1241→  );
+  1242→}

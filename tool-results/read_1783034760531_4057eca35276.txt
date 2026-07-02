@@ -1,0 +1,925 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { useState, useCallback } from 'react';
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→     6→import {
+     7→     7→  MessageSquare, Send, Phone, Smartphone, Bell, Clock, AlertTriangle, UserX,
+     8→     8→  WifiOff, ShieldAlert, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp,
+     9→     9→  MessageCircle, RefreshCw, Zap, Users, Eye, Radio, Filter, Reply,
+    10→    10→  QrCode, Link2, Unlink,
+    11→    11→} from 'lucide-react';
+    12→    12→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    13→    13→import { Button } from '@/components/ui/button';
+    14→    14→import { Badge } from '@/components/ui/badge';
+    15→    15→import { Input } from '@/components/ui/input';
+    16→    16→import { Textarea } from '@/components/ui/textarea';
+    17→    17→import { useDashboardStore } from '@/store/dashboard';
+    18→    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    19→    19→import {
+    20→    20→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    21→    21→  DialogHeader, DialogTitle,
+    22→    22→} from '@/components/ui/dialog';
+    23→    23→import {
+    24→    24→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    25→    25→} from '@/components/ui/select';
+    26→    26→import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+    27→    27→import { Separator } from '@/components/ui/separator';
+    28→    28→import { toast } from 'sonner';
+    29→    29→import { cn } from '@/lib/utils';
+    30→    30→
+    31→    31→// ─── Types ───────────────────────────────────────────────────────────
+    32→    32→
+    33→    33→interface EngStats {
+    34→    34→  totalAgents: number; onlineAgents: number; idleAgents: number;
+    35→    35→  noDataAgents: number; offlineAgents: number; agentsWithInfractions: number;
+    36→    36→  totalMessages: number; pendingMessages: number; failedMessages: number;
+    37→    37→}
+    38→    38→
+    39→    39→interface AgentBrief {
+    40→    40→  id: string; name: string; email: string; isOnline: boolean;
+    41→    41→  lastSeenAt: string | null;
+    42→    42→  _count: { incidents: number; results: number; agentMessages: number };
+    43→    43→  incidents?: { id: string; type: string; severity: string; submittedAt: string }[];
+    44→    44→}
+    45→    45→
+    46→    46→interface Message {
+    47→    47→  id: string;
+    48→    48→  agentId: string; channel: string; triggerType: string;
+    49→    49→  subject: string; body: string; priority: string; status: string;
+    50→    50→  deliveredAt: string | null; readAt: string | null;
+    51→    51→  responseText: string | null; respondedAt: string | null;
+    52→    52→  createdAt: string;
+    53→    53→  agent: { id: string; name: string; email: string; isOnline: boolean; lastSeenAt: string | null };
+    54→    54→  sentBy: { id: string; name: string; role: string } | null;
+    55→    55→}
+    56→    56→
+    57→    57→interface EngagementData {
+    58→    58→  stats: EngStats;
+    59→    59→  idleAgents: AgentBrief[];
+    60→    60→  noDataAgents: AgentBrief[];
+    61→    61→  offlineAgents: AgentBrief[];
+    62→    62→  agentsWithInfractions: AgentBrief[];
+    63→    63→  messages: Message[];
+    64→    64→  messageStats: Record<string, number>;
+    65→    65→  triggerStats: Record<string, number>;
+    66→    66→  statusStats: Record<string, number>;
+    67→    67→}
+    68→    68→
+    69→    69→// ─── Helpers ─────────────────────────────────────────────────────────
+    70→    70→
+    71→    71→const CHANNEL_ICONS: Record<string, React.ReactNode> = {
+    72→    72→  WHATSAPP: <MessageCircle className="h-3.5 w-3.5 text-green-400" />,
+    73→    73→  SMS: <Phone className="h-3.5 w-3.5 text-blue-400" />,
+    74→    74→  PUSH: <Bell className="h-3.5 w-3.5 text-amber-400" />,
+    75→    75→  IN_APP: <Smartphone className="h-3.5 w-3.5 text-cyan-400" />,
+    76→    76→};
+    77→    77→
+    78→    78→const CHANNEL_LABELS: Record<string, string> = {
+    79→    79→  WHATSAPP: 'WhatsApp', SMS: 'SMS', PUSH: 'Push Notification', IN_APP: 'In-App',
+    80→    80→};
+    81→    81→
+    82→    82→const TRIGGER_LABELS: Record<string, string> = {
+    83→    83→  IDLE_DETECTION: 'Idle Detection', NO_DATA: 'No Data', INCIDENT_FOLLOWUP: 'Incident Follow-up',
+    84→    84→  INFRACTION_REMINDER: 'Infraction Reminder', SCHEDULED_CHECKIN: 'Scheduled Check-in', MANUAL: 'Manual',
+    85→    85→};
+    86→    86→
+    87→    87→const STATUS_STYLES: Record<string, string> = {
+    88→    88→  PENDING: 'bg-amber/15 text-amber border-amber/30',
+    89→    89→  SENT: 'bg-blue/15 text-blue border-blue/30',
+    90→    90→  DELIVERED: 'bg-emerald/15 text-emerald border-emerald/30',
+    91→    91→  READ: 'bg-violet/15 text-violet border-violet/30',
+    92→    92→  FAILED: 'bg-rose/15 text-rose border-rose/30',
+    93→    93→};
+    94→    94→
+    95→    95→const PRIORITY_STYLES: Record<string, string> = {
+    96→    96→  LOW: 'text-muted-foreground', NORMAL: 'text-cyan', HIGH: 'text-amber', URGENT: 'text-rose font-bold',
+    97→    97→};
+    98→    98→
+    99→    99→function timeAgo(dateStr: string | null): string {
+   100→   100→  if (!dateStr) return 'Never';
+   101→   101→  const diff = Date.now() - new Date(dateStr).getTime();
+   102→   102→  const mins = Math.floor(diff / 60000);
+   103→   103→  if (mins < 1) return 'Just now';
+   104→   104→  if (mins < 60) return `${mins}m ago`;
+   105→   105→  const hrs = Math.floor(mins / 60);
+   106→   106→  if (hrs < 24) return `${hrs}h ago`;
+   107→   107→  return `${Math.floor(hrs / 24)}d ago`;
+   108→   108→}
+   109→   109→
+   110→   110→// ─── Component ───────────────────────────────────────────────────────
+   111→   111→
+   112→   112→export function AgentEngagement() {
+   113→   113→  const queryClient = useQueryClient();
+   114→   114→  const { tenantId, user } = useDashboardStore();
+   115→   115→
+   116→   116→  // Filters
+   117→   117→  const [msgFilter, setMsgFilter] = useState<{ triggerType: string; channel: string; status: string }>({
+   118→   118→    triggerType: 'ALL', channel: 'ALL', status: 'ALL',
+   119→   119→  });
+   120→   120→  const [composeOpen, setComposeOpen] = useState(false);
+   121→   121→  const [composeAgent, setComposeAgent] = useState<{ id: string; name: string } | null>(null);
+   122→   122→  const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
+   123→   123→  const [bulkChannel, setBulkChannel] = useState('WHATSAPP');
+   124→   124→
+   125→   125→  // Fetch engagement data
+   126→   126→  const { data, isLoading, refetch } = useQuery<EngagementData>({
+   127→   127→    queryKey: ['engagement', tenantId, msgFilter],
+   128→   128→    queryFn: () => {
+   129→   129→      const p = new URLSearchParams(`?tenantId=${tenantId}&view=messages`);
+   130→   130→      if (msgFilter.triggerType !== 'ALL') p.set('triggerType', msgFilter.triggerType);
+   131→   131→      if (msgFilter.channel !== 'ALL') p.set('channel', msgFilter.channel);
+   132→   132→      if (msgFilter.status !== 'ALL') p.set('status', msgFilter.status);
+   133→   133→      return fetch(`/api/engagement?${p}`).then(r => r.json());
+   134→   134→    },
+   135→   135→    refetchInterval: 15000,
+   136→   136→    enabled: !!tenantId,
+   137→   137→  });
+   138→   138→
+   139→   139→  // Send message mutation
+   140→   140→  const sendMutation = useMutation({
+   141→   141→    mutationFn: (body: Record<string, unknown>) =>
+   142→   142→      fetch('/api/engagement', {
+   143→   143→        method: 'POST',
+   144→   144→        headers: { 'Content-Type': 'application/json' },
+   145→   145→        body: JSON.stringify({ ...body, tenantId }),
+   146→   146→      }).then(r => r.json()),
+   147→   147→    onSuccess: () => {
+   148→   148→      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+   149→   149→      setComposeOpen(false);
+   150→   150→      setComposeAgent(null);
+   151→   151→      toast.success('Message sent successfully');
+   152→   152→    },
+   153→   153→    onError: () => toast.error('Failed to send message'),
+   154→   154→  });
+   155→   155→
+   156→   156→  // Bulk engage mutation
+   157→   157→  const bulkMutation = useMutation({
+   158→   158→    mutationFn: (body: Record<string, unknown>) =>
+   159→   159→      fetch('/api/engagement', {
+   160→   160→        method: 'PATCH',
+   161→   161→        headers: { 'Content-Type': 'application/json' },
+   162→   162→        body: JSON.stringify({ ...body, tenantId }),
+   163→   163→      }).then(r => r.json()),
+   164→   164→    onSuccess: (result) => {
+   165→   165→      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+   166→   166→      toast.success(`Engaged ${result.engaged} agents via ${CHANNEL_LABELS[result.channel] || result.channel}`);
+   167→   167→    },
+   168→   168→    onError: () => toast.error('Bulk engagement failed'),
+   169→   169→  });
+   170→   170→
+   171→   171→  const handleBulkEngage = useCallback((group: string) => {
+   172→   172→    bulkMutation.mutate({
+   173→   173→      action: 'BULK_ENGAGE',
+   174→   174→      targetGroup: group,
+   175→   175→      channel: bulkChannel,
+   176→   176→      sentById: user?.id,
+   177→   177→    });
+   178→   178→  }, [bulkChannel, user?.id, bulkMutation]);
+   179→   179→
+   180→   180→  const handleSendMessage = useCallback((agentId: string, channel: string, subject: string, body: string, priority: string) => {
+   181→   181→    sendMutation.mutate({ agentId, channel, triggerType: 'MANUAL', subject, body, priority, sentById: user?.id });
+   182→   182→  }, [sendMutation, user?.id]);
+   183→   183→
+   184→   184→  if (isLoading) {
+   185→   185→    return (
+   186→   186→      <div className="h-full flex items-center justify-center">
+   187→   187→        <Loader2 className="h-8 w-8 animate-spin text-emerald" />
+   188→   188→      </div>
+   189→   189→    );
+   190→   190→  }
+   191→   191→
+   192→   192→  const stats = data?.stats || {} as EngStats;
+   193→   193→  const messages = data?.messages || [];
+   194→   194→
+   195→   195→  return (
+   196→   196→    <div className="h-full flex flex-col p-4 gap-4 overflow-hidden">
+   197→   197→      {/* ─── Header ──────────────────────────────────────────── */}
+   198→   198→      <div className="flex items-center justify-between shrink-0">
+   199→   199→        <div className="flex items-center gap-3">
+   200→   200→          <div className="w-10 h-10 rounded-lg bg-amber/10 flex items-center justify-center">
+   201→   201→            <MessageSquare className="h-5 w-5 text-amber" />
+   202→   202→          </div>
+   203→   203→          <div>
+   204→   204→            <h2 className="text-lg font-bold">Agent Engagement Center</h2>
+   205→   205→            <p className="text-xs text-muted-foreground">Monitor, engage, and follow up with field agents</p>
+   206→   206→          </div>
+   207→   207→        </div>
+   208→   208→        <Button variant="outline" size="sm" className="gap-2" onClick={() => refetch()}>
+   209→   209→          <RefreshCw className="h-3.5 w-3.5" /> Refresh
+   210→   210→        </Button>
+   211→   211→      </div>
+   212→   212→
+   213→   213→      {/* ─── Stats Cards ─────────────────────────────────────── */}
+   214→   214→      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 shrink-0">
+   215→   215→        <StatCard icon={<Users className="h-4 w-4" />} label="Total Agents" value={stats.totalAgents || 0} color="text-foreground" />
+   216→   216→        <StatCard icon={<Wifi className="h-3.5 w-3.5" />} label="Online" value={stats.onlineAgents || 0} color="text-emerald" />
+   217→   217→        <StatCard icon={<Clock className="h-3.5 w-3.5" />} label="Idle" value={stats.idleAgents || 0} color="text-amber" />
+   218→   218→        <StatCard icon={<UserX className="h-3.5 w-3.5" />} label="No Data" value={stats.noDataAgents || 0} color="text-rose" />
+   219→   219→        <StatCard icon={<WifiOff className="h-3.5 w-3.5" />} label="Offline" value={stats.offlineAgents || 0} color="text-muted-foreground" />
+   220→   220→        <StatCard icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Infractions" value={stats.agentsWithInfractions || 0} color="text-violet" />
+   221→   221→        <StatCard icon={<MessageSquare className="h-3.5 w-3.5" />} label="Messages" value={stats.totalMessages || 0} color="text-cyan" />
+   222→   222→      </div>
+   223→   223→
+   224→   224→      {/* ─── WhatsApp Connection Panel ──────────────────────── */}
+   225→   225→      <WhatsAppPanel tenantId={tenantId} />
+   226→   226→
+   227→   227→      {/* ─── Tabs: Agent Groups | Messages | Compose ──────────── */}
+   228→   228→      <Tabs defaultValue="groups" className="flex-1 min-h-0 flex flex-col">
+   229→   229→        <TabsList className="shrink-0 bg-card/60 border border-border">
+   230→   230→          <TabsTrigger value="groups" className="gap-2 text-xs"><Users className="h-3.5 w-3.5" /> Agent Groups</TabsTrigger>
+   231→   231→          <TabsTrigger value="messages" className="gap-2 text-xs"><MessageSquare className="h-3.5 w-3.5" /> Message Log <Badge variant="secondary" className="ml-1 h-5 text-[10px]">{messages.length}</Badge></TabsTrigger>
+   232→   232→          <TabsTrigger value="compose" className="gap-2 text-xs"><Send className="h-3.5 w-3.5" /> Compose</TabsTrigger>
+   233→   233→        </TabsList>
+   234→   234→
+   235→   235→        {/* ─── Agent Groups Tab ──────────────────────────────── */}
+   236→   236→        <TabsContent value="groups" className="flex-1 overflow-y-auto mt-3 space-y-4">
+   237→   237→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   238→   238→            {/* Idle Agents */}
+   239→   239→            <AgentGroupCard
+   240→   240→              title="Idle Agents"
+   241→   241→              description="Online but no reports in 30+ minutes"
+   242→   242→              icon={<Clock className="h-5 w-5 text-amber" />}
+   243→   243→              badgeColor="bg-amber/10 text-amber border-amber/30"
+   244→   244→              count={stats.idleAgents || 0}
+   245→   245→              agents={data?.idleAgents || []}
+   246→   246→              bulkAction="IDLE"
+   247→   247→              bulkChannel={bulkChannel}
+   248→   248→              onBulkEngage={handleBulkEngage}
+   249→   249→              onSendMessage={(agent) => { setComposeAgent({ id: agent.id, name: agent.name }); setComposeOpen(true); }}
+   250→   250→              isLoading={bulkMutation.isPending}
+   251→   251→            />
+   252→   252→
+   253→   253→            {/* No-Data Agents */}
+   254→   254→            <AgentGroupCard
+   255→   255→              title="No Data Submitted"
+   256→   256→              description="Zero results and zero incidents reported"
+   257→   257→              icon={<UserX className="h-5 w-5 text-rose" />}
+   258→   258→              badgeColor="bg-rose/10 text-rose border-rose/30"
+   259→   259→              count={stats.noDataAgents || 0}
+   260→   260→              agents={data?.noDataAgents || []}
+   261→   261→              bulkAction="NO_DATA"
+   262→   262→              bulkChannel={bulkChannel}
+   263→   263→              onBulkEngage={handleBulkEngage}
+   264→   264→              onSendMessage={(agent) => { setComposeAgent({ id: agent.id, name: agent.name }); setComposeOpen(true); }}
+   265→   265→              isLoading={bulkMutation.isPending}
+   266→   266→            />
+   267→   267→
+   268→   268→            {/* Offline Agents */}
+   269→   269→            <AgentGroupCard
+   270→   270→              title="Offline Agents"
+   271→   271→              description="Not seen in 1+ hour"
+   272→   272→              icon={<WifiOff className="h-5 w-5 text-muted-foreground" />}
+   273→   273→              badgeColor="bg-muted text-muted-foreground border-border"
+   274→   274→              count={stats.offlineAgents || 0}
+   275→   275→              agents={data?.offlineAgents || []}
+   276→   276→              bulkAction="OFFLINE"
+   277→   277→              bulkChannel={bulkChannel}
+   278→   278→              onBulkEngage={handleBulkEngage}
+   279→   279→              onSendMessage={(agent) => { setComposeAgent({ id: agent.id, name: agent.name }); setComposeOpen(true); }}
+   280→   280→              isLoading={bulkMutation.isPending}
+   281→   281→            />
+   282→   282→
+   283→   283→            {/* Infraction Agents */}
+   284→   284→            <AgentGroupCard
+   285→   285→              title="Infraction Flagged"
+   286→   286→              description="Quarantined reports or GPS anomalies"
+   287→   287→              icon={<ShieldAlert className="h-5 w-5 text-violet" />}
+   288→   288→              badgeColor="bg-violet/10 text-violet border-violet/30"
+   289→   289→              count={stats.agentsWithInfractions || 0}
+   290→   290→              agents={data?.agentsWithInfractions || []}
+   291→   291→              bulkAction="INFRACTION"
+   292→   292→              bulkChannel={bulkChannel}
+   293→   293→              onBulkEngage={handleBulkEngage}
+   294→   294→              onSendMessage={(agent) => { setComposeAgent({ id: agent.id, name: agent.name }); setComposeOpen(true); }}
+   295→   295→              isLoading={bulkMutation.isPending}
+   296→   296→              showIncidents
+   297→   297→            />
+   298→   298→          </div>
+   299→   299→
+   300→   300→          {/* Channel selector for bulk actions */}
+   301→   301→          <div className="flex items-center gap-3 px-2">
+   302→   302→            <span className="text-xs text-muted-foreground">Bulk engagement channel:</span>
+   303→   303→            <Select value={bulkChannel} onValueChange={setBulkChannel}>
+   304→   304→              <SelectTrigger className="w-48 h-8 text-xs">
+   305→   305→                <SelectValue />
+   306→   306→              </SelectTrigger>
+   307→   307→              <SelectContent>
+   308→   308→                <SelectItem value="WHATSAPP"><span className="flex items-center gap-2"><MessageCircle className="h-3.5 w-3.5 text-green-400" /> WhatsApp</span></SelectItem>
+   309→   309→                <SelectItem value="SMS"><span className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-blue-400" /> SMS</span></SelectItem>
+   310→   310→                <SelectItem value="PUSH"><span className="flex items-center gap-2"><Bell className="h-3.5 w-3.5 text-amber-400" /> Push Notification</span></SelectItem>
+   311→   311→                <SelectItem value="IN_APP"><span className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-cyan-400" /> In-App Message</span></SelectItem>
+   312→   312→              </SelectContent>
+   313→   313→            </Select>
+   314→   314→          </div>
+   315→   315→        </TabsContent>
+   316→   316→
+   317→   317→        {/* ─── Message Log Tab ────────────────────────────────── */}
+   318→   318→        <TabsContent value="messages" className="flex-1 min-h-0 flex flex-col mt-3 gap-3">
+   319→   319→          {/* Filters */}
+   320→   320→          <div className="flex flex-wrap items-center gap-2 shrink-0">
+   321→   321→            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+   322→   322→            <Select value={msgFilter.triggerType} onValueChange={(v) => setMsgFilter(f => ({ ...f, triggerType: v }))}>
+   323→   323→              <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Trigger" /></SelectTrigger>
+   324→   324→              <SelectContent>
+   325→   325→                <SelectItem value="ALL">All Triggers</SelectItem>
+   326→   326→                <SelectItem value="IDLE_DETECTION">Idle Detection</SelectItem>
+   327→   327→                <SelectItem value="NO_DATA">No Data</SelectItem>
+   328→   328→                <SelectItem value="INCIDENT_FOLLOWUP">Incident Follow-up</SelectItem>
+   329→   329→                <SelectItem value="INFRACTION_REMINDER">Infraction</SelectItem>
+   330→   330→                <SelectItem value="SCHEDULED_CHECKIN">Check-in</SelectItem>
+   331→   331→                <SelectItem value="MANUAL">Manual</SelectItem>
+   332→   332→              </SelectContent>
+   333→   333→            </Select>
+   334→   334→            <Select value={msgFilter.channel} onValueChange={(v) => setMsgFilter(f => ({ ...f, channel: v }))}>
+   335→   335→              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Channel" /></SelectTrigger>
+   336→   336→              <SelectContent>
+   337→   337→                <SelectItem value="ALL">All Channels</SelectItem>
+   338→   338→                <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+   339→   339→                <SelectItem value="SMS">SMS</SelectItem>
+   340→   340→                <SelectItem value="PUSH">Push</SelectItem>
+   341→   341→                <SelectItem value="IN_APP">In-App</SelectItem>
+   342→   342→              </SelectContent>
+   343→   343→            </Select>
+   344→   344→            <Select value={msgFilter.status} onValueChange={(v) => setMsgFilter(f => ({ ...f, status: v }))}>
+   345→   345→              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   346→   346→              <SelectContent>
+   347→   347→                <SelectItem value="ALL">All Status</SelectItem>
+   348→   348→                <SelectItem value="PENDING">Pending</SelectItem>
+   349→   349→                <SelectItem value="SENT">Sent</SelectItem>
+   350→   350→                <SelectItem value="DELIVERED">Delivered</SelectItem>
+   351→   351→                <SelectItem value="READ">Read</SelectItem>
+   352→   352→                <SelectItem value="FAILED">Failed</SelectItem>
+   353→   353→              </SelectContent>
+   354→   354→            </Select>
+   355→   355→
+   356→   356→            {/* Quick stats */}
+   357→   357→            <div className="ml-auto flex items-center gap-3">
+   358→   358→              {data?.statusStats && Object.entries(data.statusStats).map(([k, v]) => (
+   359→   359→                <span key={k} className="text-[10px] text-muted-foreground flex items-center gap-1">
+   360→   360→                  <span className={cn('w-1.5 h-1.5 rounded-full',
+   361→   361→                    k === 'DELIVERED' || k === 'READ' ? 'bg-emerald' :
+   362→   362→                    k === 'FAILED' ? 'bg-rose' :
+   363→   363→                    k === 'PENDING' ? 'bg-amber' : 'bg-blue'
+   364→   364→                  )} />
+   365→   365→                  {k}: {v}
+   366→   366→                </span>
+   367→   367→              ))}
+   368→   368→            </div>
+   369→   369→          </div>
+   370→   370→
+   371→   371→          {/* Message list */}
+   372→   372→          <div className="flex-1 overflow-y-auto space-y-2">
+   373→   373→            {messages.length === 0 ? (
+   374→   374→              <div className="text-center py-12 text-muted-foreground text-sm">
+   375→   375→                <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-40" />
+   376→   376→                No messages matching your filters
+   377→   377→              </div>
+   378→   378→            ) : (
+   379→   379→              messages.map((msg) => (
+   380→   380→                <MessageRow key={msg.id} msg={msg} onClick={() => setSelectedMsg(msg)} />
+   381→   381→              ))
+   382→   382→            )}
+   383→   383→          </div>
+   384→   384→        </TabsContent>
+   385→   385→
+   386→   386→        {/* ─── Compose Tab ───────────────────────────────────── */}
+   387→   387→        <TabsContent value="compose" className="flex-1 min-h-0 mt-3 overflow-y-auto">
+   388→   388→          <ComposeForm
+   389→   389→            preselectedAgent={composeAgent}
+   390→   390→            onSend={handleSendMessage}
+   391→   391→            onClose={() => { setComposeAgent(null); }}
+   392→   392→            isSending={sendMutation.isPending}
+   393→   393→          />
+   394→   394→        </TabsContent>
+   395→   395→      </Tabs>
+   396→   396→
+   397→   397→      {/* ─── Message Detail Dialog ───────────────────────────── */}
+   398→   398→      <Dialog open={!!selectedMsg} onOpenChange={() => setSelectedMsg(null)}>
+   399→   399→        <DialogContent className="max-w-lg">
+   400→   400→          <DialogHeader>
+   401→   401→            <DialogTitle className="text-sm">{selectedMsg?.subject}</DialogTitle>
+   402→   402→            <DialogDescription className="text-xs text-muted-foreground">
+   403→   403→              To: {selectedMsg?.agent.name} ({selectedMsg?.agent.email})
+   404→   404→            </DialogDescription>
+   405→   405→          </DialogHeader>
+   406→   406→          <div className="space-y-3 text-sm">
+   407→   407→            <div className="flex flex-wrap gap-2">
+   408→   408→              <Badge variant="outline" className={cn('text-[10px]', STATUS_STYLES[selectedMsg?.status || ''])}>
+   409→   409→                {selectedMsg?.status}
+   410→   410→              </Badge>
+   411→   411→              <Badge variant="outline" className="text-[10px] flex items-center gap-1">
+   412→   412→                {CHANNEL_ICONS[selectedMsg?.channel || '']} {CHANNEL_LABELS[selectedMsg?.channel || '']}
+   413→   413→              </Badge>
+   414→   414→              <Badge variant="outline" className="text-[10px]">
+   415→   415→                {TRIGGER_LABELS[selectedMsg?.triggerType || '']}
+   416→   416→              </Badge>
+   417→   417→              <Badge variant="outline" className={cn('text-[10px]', PRIORITY_STYLES[selectedMsg?.priority || ''])}>
+   418→   418→                {selectedMsg?.priority}
+   419→   419→              </Badge>
+   420→   420→            </div>
+   421→   421→
+   422→   422→            <Separator />
+   423→   423→
+   424→   424→            <div className="bg-card/60 rounded-lg p-3 border border-border">
+   425→   425→              <p className="text-xs leading-relaxed whitespace-pre-wrap">{selectedMsg?.body}</p>
+   426→   426→            </div>
+   427→   427→
+   428→   428→            <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+   429→   429→              <span>Delivered: {selectedMsg?.deliveredAt ? timeAgo(selectedMsg.deliveredAt) : '—'}</span>
+   430→   430→              <span>Read: {selectedMsg?.readAt ? timeAgo(selectedMsg.readAt) : '—'}</span>
+   431→   431→              <span>Sent by: {selectedMsg?.sentBy ? selectedMsg.sentBy.name : 'System'}</span>
+   432→   432→              <span>Created: {selectedMsg?.createdAt ? timeAgo(selectedMsg.createdAt) : '—'}</span>
+   433→   433→            </div>
+   434→   434→
+   435→   435→            {selectedMsg?.responseText && (
+   436→   436→              <>
+   437→   437→                <Separator />
+   438→   438→                <div className="bg-emerald/5 rounded-lg p-3 border border-emerald/20">
+   439→   439→                  <div className="flex items-center gap-1.5 mb-1.5">
+   440→   440→                    <Reply className="h-3 w-3 text-emerald" />
+   441→   441→                    <span className="text-[10px] font-medium text-emerald">Agent Response</span>
+   442→   442→                    <span className="text-[10px] text-muted-foreground ml-auto">{selectedMsg.respondedAt ? timeAgo(selectedMsg.respondedAt) : ''}</span>
+   443→   443→                  </div>
+   444→   444→                  <p className="text-xs leading-relaxed">{selectedMsg.responseText}</p>
+   445→   445→                </div>
+   446→   446→              </>
+   447→   447→            )}
+   448→   448→          </div>
+   449→   449→          <DialogFooter>
+   450→   450→            <Button variant="outline" size="sm" onClick={() => {
+   451→   451→              if (selectedMsg) {
+   452→   452→                setComposeAgent({ id: selectedMsg.agentId, name: selectedMsg.agent.name });
+   453→   453→                setSelectedMsg(null);
+   454→   454→              }
+   455→   455→            }}>
+   456→   456→              <Send className="h-3.5 w-3.5 mr-1" /> Follow Up
+   457→   457→            </Button>
+   458→   458→            <Button variant="outline" size="sm" onClick={() => setSelectedMsg(null)}>Close</Button>
+   459→   459→          </DialogFooter>
+   460→   460→        </DialogContent>
+   461→   461→      </Dialog>
+   462→   462→    </div>
+   463→   463→  );
+   464→   464→}
+   465→   465→
+   466→   466→// ─── Sub-components ──────────────────────────────────────────────────
+   467→   467→
+   468→   468→function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+   469→   469→  return (
+   470→   470→    <Card className="bg-card/40 border-border py-2.5 px-3">
+   471→   471→      <div className="flex items-center gap-2">
+   472→   472→        <div className={color}>{icon}</div>
+   473→   473→        <div className="flex-1 min-w-0">
+   474→   474→          <p className="text-[10px] text-muted-foreground truncate">{label}</p>
+   475→   475→          <p className={cn('text-lg font-bold tabular-nums leading-tight', color)}>{value}</p>
+   476→   476→        </div>
+   477→   477→      </div>
+   478→   478→    </Card>
+   479→   479→  );
+   480→   480→}
+   481→   481→
+   482→   482→function AgentGroupCard({
+   483→   483→  title, description, icon, badgeColor, count, agents, bulkAction, bulkChannel, onBulkEngage, onSendMessage, isLoading, showIncidents,
+   484→   484→}: {
+   485→   485→  title: string; description: string; icon: React.ReactNode; badgeColor: string;
+   486→   486→  count: number; agents: AgentBrief[];
+   487→   487→  bulkAction: string; bulkChannel: string;
+   488→   488→  onBulkEngage: (group: string) => void;
+   489→   489→  onSendMessage: (agent: AgentBrief) => void;
+   490→   490→  isLoading: boolean; showIncidents?: boolean;
+   491→   491→}) {
+   492→   492→  const [expanded, setExpanded] = useState(false);
+   493→   493→  const displayed = expanded ? agents : agents.slice(0, 5);
+   494→   494→
+   495→   495→  return (
+   496→   496→    <Card className="bg-card/40 border-border">
+   497→   497→      <CardHeader className="pb-2 pt-3 px-3">
+   498→   498→        <div className="flex items-center justify-between">
+   499→   499→          <div className="flex items-center gap-2.5">
+   500→   500→            <div className="w-8 h-8 rounded-md bg-card flex items-center justify-center border border-border">
+   501→   501→              {icon}
+   502→   502→            </div>
+   503→   503→            <div>
+   504→   504→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   505→   505→                {title}
+   506→   506→                <Badge variant="outline" className={cn('text-[10px] h-5', badgeColor)}>{count}</Badge>
+   507→   507→              </CardTitle>
+   508→   508→              <p className="text-[10px] text-muted-foreground mt-0.5">{description}</p>
+   509→   509→            </div>
+   510→   510→          </div>
+   511→   511→          <Button
+   512→   512→            size="sm"
+   513→   513→            variant="outline"
+   514→   514→            className="h-7 text-[10px] gap-1.5"
+   515→   515→            onClick={() => onBulkEngage(bulkAction)}
+   516→   516→            disabled={count === 0 || isLoading}
+   517→   517→          >
+   518→   518→            {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+   519→   519→            Engage All
+   520→   520→          </Button>
+   521→   521→        </div>
+   522→   522→      </CardHeader>
+   523→   523→      <CardContent className="px-3 pb-3">
+   524→   524→        {agents.length === 0 ? (
+   525→   525→          <p className="text-xs text-muted-foreground text-center py-4">No agents in this group</p>
+   526→   526→        ) : (
+   527→   527→          <div className="space-y-1.5">
+   528→   528→            {displayed.map((agent) => (
+   529→   529→              <div key={agent.id} className="flex items-center justify-between rounded-md px-2.5 py-1.5 bg-background/50 border border-border/50 hover:border-border transition-colors">
+   530→   530→                <div className="flex items-center gap-2.5 min-w-0">
+   531→   531→                  <Avatar className="h-6 w-6">
+   532→   532→                    <AvatarFallback className="text-[9px] bg-emerald/15 text-emerald">
+   533→   533→                      {agent.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+   534→   534→                    </AvatarFallback>
+   535→   535→                  </Avatar>
+   536→   536→                  <div className="min-w-0">
+   537→   537→                    <p className="text-xs font-medium truncate">{agent.name}</p>
+   538→   538→                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+   539→   539→                      <span className={cn('w-1.5 h-1.5 rounded-full', agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/40')} />
+   540→   540→                      {timeAgo(agent.lastSeenAt)}
+   541→   541→                      <span className="text-muted-foreground/50">|</span>
+   542→   542→                      <span>{agent._count.results}R {agent._count.incidents}I</span>
+   543→   543→                    </div>
+   544→   544→                  </div>
+   545→   545→                </div>
+   546→   546→                <div className="flex items-center gap-1.5">
+   547→   547→                  {showIncidents && agent.incidents && agent.incidents.length > 0 && (
+   548→   548→                    <Badge variant="outline" className="text-[9px] h-5 text-rose border-rose/30">
+   549→   549→                      {agent.incidents[0].type.replace(/_/g, ' ')}
+   550→   550→                    </Badge>
+   551→   551→                  )}
+   552→   552→                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onSendMessage(agent)}>
+   553→   553→                    <Send className="h-3 w-3" />
+   554→   554→                  </Button>
+   555→   555→                </div>
+   556→   556→              </div>
+   557→   557→            ))}
+   558→   558→            {agents.length > 5 && (
+   559→   559→              <Button variant="ghost" size="sm" className="w-full h-7 text-[10px] gap-1" onClick={() => setExpanded(!expanded)}>
+   560→   560→                {expanded ? <><ChevronUp className="h-3 w-3" /> Show Less</> : <><ChevronDown className="h-3 w-3" /> Show {agents.length - 5} More</>}
+   561→   561→              </Button>
+   562→   562→            )}
+   563→   563→          </div>
+   564→   564→        )}
+   565→   565→      </CardContent>
+   566→   566→    </Card>
+   567→   567→  );
+   568→   568→}
+   569→   569→
+   570→   570→function MessageRow({ msg, onClick }: { msg: Message; onClick: () => void }) {
+   571→   571→  return (
+   572→   572→    <motion.div
+   573→   573→      initial={{ opacity: 0, y: 4 }}
+   574→   574→      animate={{ opacity: 1, y: 0 }}
+   575→   575→      className="flex items-start gap-3 rounded-lg border border-border bg-card/30 px-3 py-2.5 cursor-pointer hover:bg-card/60 hover:border-border transition-colors"
+   576→   576→      onClick={onClick}
+   577→   577→    >
+   578→   578→      {/* Channel icon */}
+   579→   579→      <div className="w-8 h-8 rounded-md bg-background border border-border flex items-center justify-center shrink-0 mt-0.5">
+   580→   580→        {CHANNEL_ICONS[msg.channel] || <MessageSquare className="h-3.5 w-3.5" />}
+   581→   581→      </div>
+   582→   582→
+   583→   583→      {/* Content */}
+   584→   584→      <div className="flex-1 min-w-0">
+   585→   585→        <div className="flex items-center gap-2 mb-0.5">
+   586→   586→          <span className="text-xs font-medium truncate">{msg.subject}</span>
+   587→   587→          <Badge variant="outline" className={cn('text-[9px] h-4 px-1.5 shrink-0', STATUS_STYLES[msg.status])}>
+   588→   588→            {msg.status}
+   589→   589→          </Badge>
+   590→   590→        </div>
+   591→   591→        <p className="text-[11px] text-muted-foreground line-clamp-1">{msg.body}</p>
+   592→   592→        <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground/70">
+   593→   593→          <span>To: {msg.agent.name}</span>
+   594→   594→          <span className="text-muted-foreground/30">|</span>
+   595→   595→          <span>{TRIGGER_LABELS[msg.triggerType] || msg.triggerType}</span>
+   596→   596→          <span className="text-muted-foreground/30">|</span>
+   597→   597→          <span>{timeAgo(msg.createdAt)}</span>
+   598→   598→          {msg.responseText && (
+   599→   599→            <>
+   600→   600→              <span className="text-muted-foreground/30">|</span>
+   601→   601→              <span className="text-emerald flex items-center gap-0.5"><Reply className="h-2.5 w-2.5" /> Replied</span>
+   602→   602→            </>
+   603→   603→          )}
+   604→   604→        </div>
+   605→   605→      </div>
+   606→   606→
+   607→   607→      {/* Priority + Agent status */}
+   608→   608→      <div className="flex flex-col items-end gap-1 shrink-0">
+   609→   609→        <span className={cn('text-[10px]', PRIORITY_STYLES[msg.priority])}>{msg.priority}</span>
+   610→   610→        <span className={cn('w-2 h-2 rounded-full', msg.agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30')} />
+   611→   611→      </div>
+   612→   612→    </motion.div>
+   613→   613→  );
+   614→   614→}
+   615→   615→
+   616→   616→function ComposeForm({
+   617→   617→  preselectedAgent, onSend, onClose, isSending,
+   618→   618→}: {
+   619→   619→  preselectedAgent: { id: string; name: string } | null;
+   620→   620→  onSend: (agentId: string, channel: string, subject: string, body: string, priority: string) => void;
+   621→   621→  onClose: () => void;
+   622→   622→  isSending: boolean;
+   623→   623→}) {
+   624→   624→  const { tenantId } = useDashboardStore();
+   625→   625→  const [agentId, setAgentId] = useState(preselectedAgent?.id || '');
+   626→   626→  const [channel, setChannel] = useState('WHATSAPP');
+   627→   627→  const [subject, setSubject] = useState('');
+   628→   628→  const [body, setBody] = useState('');
+   629→   629→  const [priority, setPriority] = useState('NORMAL');
+   630→   630→
+   631→   631→  // Fetch agents for dropdown
+   632→   632→  const { data: agentsData } = useQuery<{ users: { id: string; name: string; email: string; isOnline: boolean }[] }>({
+   633→   633→    queryKey: ['agents-list', tenantId],
+   634→   634→    queryFn: () => fetch(`/api/agents?role=FIELD_AGENT&tenantId=${tenantId}`).then(r => r.json()),
+   635→   635→    enabled: !!tenantId,
+   636→   636→  });
+   637→   637→
+   638→   638→  const agents = agentsData?.users || [];
+   639→   639→
+   640→   640→  const handleSubmit = () => {
+   641→   641→    if (!agentId || !subject.trim() || !body.trim()) {
+   642→   642→      toast.error('Please fill in all required fields');
+   643→   643→      return;
+   644→   644→    }
+   645→   645→    onSend(agentId, channel, subject, body, priority);
+   646→   646→    setSubject(''); setBody('');
+   647→   647→  };
+   648→   648→
+   649→   649→  return (
+   650→   650→    <div className="max-w-2xl mx-auto space-y-4 pb-4">
+   651→   651→      <Card className="bg-card/40 border-border">
+   652→   652→        <CardHeader className="pb-3">
+   653→   653→          <CardTitle className="text-sm flex items-center gap-2">
+   654→   654→            <Send className="h-4 w-4 text-emerald" />
+   655→   655→            Compose Message to Field Agent
+   656→   656→          </CardTitle>
+   657→   657→          <p className="text-[10px] text-muted-foreground">
+   658→   658→            Send a message via WhatsApp, SMS, Push Notification, or In-App
+   659→   659→          </p>
+   660→   660→        </CardHeader>
+   661→   661→        <CardContent className="space-y-3">
+   662→   662→          {/* Agent select */}
+   663→   663→          <div className="space-y-1.5">
+   664→   664→            <label className="text-xs font-medium">Agent *</label>
+   665→   665→            {preselectedAgent ? (
+   666→   666→              <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+   667→   667→                <Avatar className="h-5 w-5">
+   668→   668→                  <AvatarFallback className="text-[8px] bg-emerald/15 text-emerald">
+   669→   669→                    {preselectedAgent.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+   670→   670→                  </AvatarFallback>
+   671→   671→                </Avatar>
+   672→   672→                <span className="text-xs">{preselectedAgent.name}</span>
+   673→   673→                <Button variant="ghost" size="sm" className="ml-auto h-6 text-[10px]" onClick={onClose}>Change</Button>
+   674→   674→              </div>
+   675→   675→            ) : (
+   676→   676→              <Select value={agentId} onValueChange={setAgentId}>
+   677→   677→                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select agent..." /></SelectTrigger>
+   678→   678→                <SelectContent>
+   679→   679→                  {agents.map(a => (
+   680→   680→                    <SelectItem key={a.id} value={a.id}>
+   681→   681→                      <span className="flex items-center gap-2">
+   682→   682→                        <span className={cn('w-1.5 h-1.5 rounded-full', a.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30')} />
+   683→   683→                        {a.name} ({a.email})
+   684→   684→                      </span>
+   685→   685→                    </SelectItem>
+   686→   686→                  ))}
+   687→   687→                </SelectContent>
+   688→   688→              </Select>
+   689→   689→            )}
+   690→   690→          </div>
+   691→   691→
+   692→   692→          {/* Channel + Priority */}
+   693→   693→          <div className="grid grid-cols-2 gap-3">
+   694→   694→            <div className="space-y-1.5">
+   695→   695→              <label className="text-xs font-medium">Channel</label>
+   696→   696→              <Select value={channel} onValueChange={setChannel}>
+   697→   697→                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+   698→   698→                <SelectContent>
+   699→   699→                  <SelectItem value="WHATSAPP"><span className="flex items-center gap-2"><MessageCircle className="h-3.5 w-3.5 text-green-400" /> WhatsApp</span></SelectItem>
+   700→   700→                  <SelectItem value="SMS"><span className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 text-blue-400" /> SMS</span></SelectItem>
+   701→   701→                  <SelectItem value="PUSH"><span className="flex items-center gap-2"><Bell className="h-3.5 w-3.5 text-amber-400" /> Push Notification</span></SelectItem>
+   702→   702→                  <SelectItem value="IN_APP"><span className="flex items-center gap-2"><Smartphone className="h-3.5 w-3.5 text-cyan-400" /> In-App</span></SelectItem>
+   703→   703→                </SelectContent>
+   704→   704→              </Select>
+   705→   705→            </div>
+   706→   706→            <div className="space-y-1.5">
+   707→   707→              <label className="text-xs font-medium">Priority</label>
+   708→   708→              <Select value={priority} onValueChange={setPriority}>
+   709→   709→                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+   710→   710→                <SelectContent>
+   711→   711→                  <SelectItem value="LOW">Low</SelectItem>
+   712→   712→                  <SelectItem value="NORMAL">Normal</SelectItem>
+   713→   713→                  <SelectItem value="HIGH">High</SelectItem>
+   714→   714→                  <SelectItem value="URGENT">Urgent</SelectItem>
+   715→   715→                </SelectContent>
+   716→   716→              </Select>
+   717→   717→            </div>
+   718→   718→          </div>
+   719→   719→
+   720→   720→          {/* Subject */}
+   721→   721→          <div className="space-y-1.5">
+   722→   722→            <label className="text-xs font-medium">Subject *</label>
+   723→   723→            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Message subject..." className="h-9 text-xs" />
+   724→   724→          </div>
+   725→   725→
+   726→   726→          {/* Body */}
+   727→   727→          <div className="space-y-1.5">
+   728→   728→            <label className="text-xs font-medium">Message *</label>
+   729→   729→            <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your message to the field agent..." rows={5} className="text-xs" />
+   730→   730→          </div>
+   731→   731→
+   732→   732→          {/* Quick templates */}
+   733→   733→          <div className="space-y-1.5">
+   734→   734→            <label className="text-xs font-medium text-muted-foreground">Quick Templates</label>
+   735→   735→            <div className="flex flex-wrap gap-1.5">
+   736→   736→              {[
+   737→   737→                { label: 'Status Check', s: 'Status Check Required', b: 'Please provide your current situation report: voter queue length, BVAS status, any incidents, and security presence at your polling unit.' },
+   738→   738→                { label: 'Urgent Follow-up', s: 'URGENT: Immediate Response Required', b: 'Critical incident reported in your area. Please confirm your safety and provide an immediate update on the situation. If you are in danger, move to a safe location.' },
+   739→   739→                { label: 'Result Reminder', s: 'Election Results Submission', b: 'Voting has concluded at your polling unit. Please submit the official election results immediately, including the result sheet photograph and all party vote counts.' },
+   740→   740→                { label: 'Evidence Request', s: 'Additional Evidence Required', b: 'The incident you reported needs more documentation. Please capture: wide-angle photos, a 30-second video walkthrough, and statements from any witnesses.' },
+   741→   741→              ].map((t) => (
+   742→   742→                <Button key={t.label} variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => { setSubject(t.s); setBody(t.b); }}>
+   743→   743→                  {t.label}
+   744→   744→                </Button>
+   745→   745→              ))}
+   746→   746→            </div>
+   747→   747→          </div>
+   748→   748→
+   749→   749→          {/* Send */}
+   750→   750→          <div className="flex justify-end gap-2 pt-2">
+   751→   751→            <Button variant="outline" size="sm" onClick={() => { setSubject(''); setBody(''); onClose(); }}>Cancel</Button>
+   752→   752→            <Button size="sm" className="gap-2 bg-emerald hover:bg-emerald/90 text-emerald-950" onClick={handleSubmit} disabled={isSending}>
+   753→   753→              {isSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+   754→   754→              Send via {CHANNEL_LABELS[channel]}
+   755→   755→            </Button>
+   756→   756→          </div>
+   757→   757→        </CardContent>
+   758→   758→      </Card>
+   759→   759→    </div>
+   760→   760→  );
+   761→   761→}
+   762→   762→
+   763→   763→// Need Wifi icon
+   764→   764→function Wifi({ className }: { className?: string }) {
+   765→   765→  return (
+   766→   766→    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+   767→   767→      <path d="M12 20h.01" /><path d="M2 8.82a15 15 0 0 1 20 0" /><path d="M5 12.859a10 10 0 0 1 14 0" /><path d="M8.5 16.429a5 5 0 0 1 7 0" />
+   768→   768→    </svg>
+   769→   769→  );
+   770→   770→}
+   771→   771→
+   772→   772→// ─── WhatsApp Connection Panel ──────────────────────────────────
+   773→   773→
+   774→   774→function WhatsAppPanel({ tenantId }: { tenantId: string }) {
+   775→   775→  const queryClient = useQueryClient();
+   776→   776→
+   777→   777→  const { data: waStatus, isLoading: waLoading, refetch: waRefetch } = useQuery({
+   778→   778→    queryKey: ['whatsapp-status', tenantId],
+   779→   779→    queryFn: () => fetch(`/api/whatsapp?tenantId=${tenantId}`).then(r => r.json()),
+   780→   780→    refetchInterval: 5000,
+   781→   781→    enabled: !!tenantId,
+   782→   782→  });
+   783→   783→
+   784→   784→  const linkMutation = useMutation({
+   785→   785→    mutationFn: (phone: string) =>
+   786→   786→      fetch('/api/whatsapp', {
+   787→   787→        method: 'POST',
+   788→   788→        headers: { 'Content-Type': 'application/json' },
+   789→   789→        body: JSON.stringify({ tenantId, phone }),
+   790→   790→      }).then(r => r.json()),
+   791→   791→    onSuccess: () => {
+   792→   792→      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
+   793→   793→      toast.success('WhatsApp linking initiated');
+   794→   794→    },
+   795→   795→    onError: (e) => toast.error('Linking failed'),
+   796→   796→  });
+   797→   797→
+   798→   798→  const disconnectMutation = useMutation({
+   799→   799→    mutationFn: () =>
+   800→   800→      fetch(`/api/whatsapp?action=disconnect&tenantId=${tenantId}`, { method: 'PUT' }).then(r => r.json()),
+   801→   801→    onSuccess: () => {
+   802→   802→      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
+   803→   803→      toast.success('WhatsApp disconnected');
+   804→   804→    },
+   805→   805→  });
+   806→   806→
+   807→   807→  const [linkPhone, setLinkPhone] = useState('');
+   808→   808→
+   809→   809→  const status = waStatus?.status || 'DISCONNECTED';
+   810→   810→  const phone = waStatus?.phone || waStatus?.whatsappPhone || '';
+   811→   811→  const jid = waStatus?.jid || waStatus?.whatsappJid || '';
+   812→   812→  const qrCode = waStatus?.qrCode || '';
+   813→   813→  const mode = waStatus?.mode || (waStatus?.status === 'DISCONNECTED' ? 'OFFLINE' : 'UNKNOWN');
+   814→   814→
+   815→   815→  const isConnected = status === 'CONNECTED';
+   816→   816→  const isQRReady = status === 'QR_READY';
+   817→   817→  const isConnecting = status === 'CONNECTING';
+   818→   818→
+   819→   819→  const statusColor = isConnected ? 'text-green-400' : isQRReady ? 'text-amber' : isConnecting ? 'text-cyan' : 'text-muted-foreground';
+   820→   820→  const statusBg = isConnected ? 'bg-green-500' : isQRReady ? 'bg-amber' : isConnecting ? 'bg-cyan animate-pulse' : 'bg-muted-foreground/30';
+   821→   821→
+   822→   822→  return (
+   823→   823→    <Card className="bg-card/40 border-border shrink-0">
+   824→   824→      <CardContent className="px-4 py-3">
+   825→   825→        <div className="flex items-center justify-between">
+   826→   826→          <div className="flex items-center gap-3">
+   827→   827→            <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+   828→   828→              <MessageCircle className="h-5 w-5 text-green-400" />
+   829→   829→            </div>
+   830→   830→            <div>
+   831→   831→              <div className="flex items-center gap-2">
+   832→   832→                <span className="text-sm font-semibold">WhatsApp Integration</span>
+   833→   833→                <span className={cn('w-2 h-2 rounded-full', statusBg)} />
+   834→   834→                <span className={cn('text-[10px] font-medium', statusColor)}>
+   835→   835→                  {status}
+   836→   836→                </span>
+   837→   837→                {mode === 'MOCK' && (
+   838→   838→                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-amber border-amber/30">DEV MODE</Badge>
+   839→   839→                )}
+   840→   840→              </div>
+   841→   841→              <p className="text-[10px] text-muted-foreground">
+   842→   842→                {isConnected ? (
+   843→   843→                  <>Connected as <span className="font-mono text-[10px]">{jid}</span></>
+   844→   844→                ) : isQRReady ? (
+   845→   845→                  'Scan QR code with WhatsApp to link this tenant'
+   846→   846→                ) : isConnecting ? (
+   847→   847→                  'Generating QR code...'
+   848→   848→                ) : (
+   849→   849→                  'Not connected — link a WhatsApp number to enable agent messaging'
+   850→   850→                )}
+   851→   851→              </p>
+   852→   852→            </div>
+   853→   853→          </div>
+   854→   854→
+   855→   855→          <div className="flex items-center gap-2">
+   856→   856→            {isConnected && (
+   857→   857→              <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1.5 text-rose border-rose/30 hover:bg-rose/10" onClick={() => disconnectMutation.mutate()}>
+   858→   858→                <Unlink className="h-3 w-3" /> Disconnect
+   859→   859→              </Button>
+   860→   860→            )}
+   861→   861→
+   862→   862→            {!isConnected && !isConnecting && !isQRReady && (
+   863→   863→              <div className="flex items-center gap-2">
+   864→   864→                <Input
+   865→   865→                  value={linkPhone}
+   866→   866→                  onChange={(e) => setLinkPhone(e.target.value)}
+   867→   867→                  placeholder="+2348012345678"
+   868→   868→                  className="h-7 w-36 text-[11px]"
+   869→   869→                />
+   870→   870→                <Button
+   871→   871→                  size="sm"
+   872→   872→                  className="h-7 text-[10px] gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+   873→   873→                  onClick={() => { if (linkPhone) linkMutation.mutate(linkPhone); }}
+   874→   874→                  disabled={linkMutation.isPending || !linkPhone}
+   875→   875→                >
+   876→   876→                  {linkMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+   877→   877→                  Link
+   878→   878→                </Button>
+   879→   879→              </div>
+   880→   880→            )}
+   881→   881→
+   882→   882→            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => waRefetch()}>
+   883→   883→              <RefreshCw className="h-3 w-3" />
+   884→   884→            </Button>
+   885→   885→          </div>
+   886→   886→        </div>
+   887→   887→
+   888→   888→        {/* QR Code display */}
+   889→   889→        {isQRReady && qrCode && (
+   890→   890→          <div className="mt-3 flex items-center gap-4 p-3 bg-background/50 rounded-lg border border-border">
+   891→   891→            <div className="w-32 h-32 bg-white rounded-md flex items-center justify-center border border-border shrink-0 p-2">
+   892→   892→              {mode === 'MOCK' ? (
+   893→   893→                <div className="text-center">
+   894→   894→                  <QrCode className="h-8 w-8 text-muted-foreground/40 mx-auto mb-1" />
+   895→   895→                  <p className="text-[9px] text-muted-foreground">MOCK QR</p>
+   896→   896→                  <p className="text-[8px] text-muted-foreground/60 font-mono">{qrCode.substring(0, 20)}...</p>
+   897→   897→                </div>
+   898→   898→              ) : (
+   899→   899→                /* In production, render actual QR code image from the base64 data */
+   900→   900→                <QrCode className="h-24 w-24 text-foreground/20" />
+   901→   901→              )}
+   902→   902→            </div>
+   903→   903→            <div className="text-[11px] text-muted-foreground space-y-1">
+   904→   904→              <p className="font-medium text-foreground">Scan with WhatsApp</p>
+   905→   905→              <p>1. Open WhatsApp on your phone</p>
+   906→   906→              <p>2. Go to Settings → Linked Devices</p>
+   907→   907→              <p>3. Tap "Link a Device"</p>
+   908→   908→              <p>4. Scan this QR code</p>
+   909→   909→              <p className="text-[10px] text-amber pt-1">QR refreshes automatically. Connection will be saved for future sessions.</p>
+   910→   910→            </div>
+   911→   911→          </div>
+   912→   912→        )}
+   913→   913→
+   914→   914→        {/* Connected info */}
+   915→   915→        {isConnected && (
+   916→   916→          <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
+   917→   917→            <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {phone}</span>
+   918→   918→            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-400" /> Bridge Active</span>
+   919→   919→            <span>Messages sent via WhatsApp will use this number. Agent replies are auto-recorded.</span>
+   920→   920→          </div>
+   921→   921→        )}
+   922→   922→      </CardContent>
+   923→   923→    </Card>
+   924→   924→  );
+   925→   925→}

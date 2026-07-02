@@ -10,6 +10,7 @@ import {
   Siren, CircleDot, Circle, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -227,18 +228,18 @@ export function HoneypotBiometrics() {
   const { data, isLoading, refetch } = useQuery<HoneypotData>({
     queryKey: ['honeypot', tenantId],
     queryFn: () =>
-      fetch(`/api/honeypot?tenantId=${tenantId}`).then((r) => r.json()),
+      fetchJson(`/api/honeypot?tenantId=${tenantId}`),
     refetchInterval: 15000,
   });
 
   // ── Mutation ──
   const mutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetch(`/api/honeypot?tenantId=${tenantId}`, {
+      fetchJson(`/api/honeypot?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then((r) => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['honeypot', tenantId] });
       toast.success('Action completed successfully');

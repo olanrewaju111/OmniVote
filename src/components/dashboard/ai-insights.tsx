@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -64,7 +65,7 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
     cibBlocked: incidents.filter(i => i.type === 'CIB_DETECTED').length,
     geoAnomalies: incidents.filter(i => i.type === 'GEO_ANOMALY').length,
     totalQuarantined: incidents.filter(i => i.isQuarantined).length,
-    c2paVerified: incidents.filter(i => true).length, // placeholder
+    c2paVerified: incidents.filter(i => i.evidenceC2PA === 'VERIFIED').length,
   };
 
   return (
@@ -226,6 +227,3 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
   );
 }
 
-function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ');
-}

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -185,7 +186,7 @@ export function CampaignMonitor() {
     error: eventsError,
   } = useQuery<CampaignEventsData>({
     queryKey: ['campaign-events', tenantId],
-    queryFn: () => fetch(`/api/campaign-events?tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/campaign-events?tenantId=${tenantId}`),
     enabled: !!tenantId,
     refetchInterval: 30000,
   });
@@ -197,7 +198,7 @@ export function CampaignMonitor() {
     error: suppressionError,
   } = useQuery<SuppressionData>({
     queryKey: ['voter-suppression', tenantId],
-    queryFn: () => fetch(`/api/voter-suppression?tenantId=${tenantId}`).then(r => r.json()),
+    queryFn: () => fetchJson(`/api/voter-suppression?tenantId=${tenantId}`),
     enabled: !!tenantId,
     refetchInterval: 30000,
   });

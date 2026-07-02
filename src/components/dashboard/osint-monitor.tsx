@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -172,7 +173,7 @@ export function OsintMonitor() {
   // Data fetching
   const { data, isLoading, error } = useQuery<OsintResponse>({
     queryKey: ['osint', tenantId],
-    queryFn: () => fetch(`/api/osint?tenantId=${tenantId}`).then((r) => r.json()),
+    queryFn: () => fetchJson(`/api/osint?tenantId=${tenantId}`),
     refetchInterval: 30_000,
     enabled: !!tenantId,
   });
