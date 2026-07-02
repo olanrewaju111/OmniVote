@@ -33,6 +33,12 @@ model Tenant {
   alerts       Alert[]
   results      ElectionResult[]
   agentMessages AgentMessage[]
+  osintPosts               OsintPost[]
+  campaigns                Campaign[]
+  contactLists             ContactList[]
+  campaignEvents           CampaignEvent[]
+  voterSuppressionReports  VoterSuppressionReport[]
+  campaignMessages         CampaignMessage[]
 }
 
 model User {
@@ -198,4 +204,178 @@ model AgentMessage {
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
   agent         User     @relation(fields: [agentId], references: [id], name: "agentMessages")
   sentBy        User?    @relation(fields: [sentById], references: [id], name: "sentMessages")
+}
+
+// ============================================================
+// MODULE 1: OSINT / Digital Media Monitoring (§4.6)
+// ============================================================
+
+model OsintPost {
+  id              String   @id @default(cuid())
+  tenantId        String
+  platform        String   // X, FACEBOOK, YOUTUBE, TIKTOK, INSTAGRAM, NEWS, WHATSAPP_CHANNEL, RSS
+  postId          String   // platform-native ID
+  author          String   // screen name or outlet name
+  authorFollowers Int      @default(0)
+  content         String   // post text
+  mediaUrls       String   @default("[]") // JSON array of image/video URLs
+  url             String?  // original URL
+  sentiment       String   @default("NEUTRAL") // POSITIVE, NEGATIVE, NEUTRAL, MIXED
+  category        String   @default("GENERAL") // ELECTION_NEWS, DISINFORMATION, HATE_SPEECH, VIOLENCE, RALLY, OPINION_POLL, FACT_CHECK, CIB_SUSPECT, BOT_ACTIVITY
+  isVerified      Boolean  @default(false) // fact-check verified
+  isFakeNews      Boolean  @default(false)
+  isBotSuspect    Boolean  @default(false)
+  cibScore        Float    @default(0) // coordinated inauthentic behavior 0-1
+  aiSummary       String?  // AI-generated summary
+  aiFlags         String   @default("[]") // JSON: ["sentiment_shift", "viral_spike", "copy_paste_cluster", ...]
+  viralityScore   Float    @default(0) // 0-100
+  engagement      String   @default("{}") // JSON: {likes, shares, comments, views}
+  keywords        String   @default("[]") // JSON: extracted keywords
+  location        String?  // geolocated state/region
+  language        String   @default("en")
+  publishedAt     DateTime
+  ingestedAt      DateTime @default(now())
+  reviewedAt      DateTime?
+  reviewedById    String?
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, platform])
+  @@index([tenantId, category])
+  @@index([tenantId, publishedAt])
+}
+
+// ============================================================
+// MODULE 2: Mobilization Engine (§4.7)
+// ============================================================
+
+model ContactList {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String   // e.g. "Ward 5 Volunteers"
+  segment         String?  // e.g. "PARTY_MEMBERS", "POLLING_AGENTS", "VOLUNTEERS"
+  description     String   @default("")
+  contactCount    Int      @default(0)
+  totalUploaded   Int      @default(0)
+  optedOutCount   Int      @default(0)
+  hashAlgorithm   String   @default("SHA256") // PII hashing
+  consentVerified Boolean  @default(false)
+  uploadedById    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  campaigns       Campaign[]
+}
+
+model Campaign {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  templateName    String
+  templateBody    String   // message content
+  templateStatus  String   @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED
+  contactListId   String?
+  segment         String?  // target segment
+  status          String   @default("DRAFT") // DRAFT, SCHEDULED, SENDING, COMPLETED, PAUSED, FAILED
+  channel         String   @default("WHATSAPP") // WHATSAPP, SMS, PUSH
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdBy       String
+  // Rate limiting
+  rateLimitPerMin Int      @default(1000)
+  totalRecipients Int      @default(0)
+  sentCount       Int      @default(0)
+  deliveredCount  Int      @default(0)
+  readCount       Int      @default(0)
+  failedCount     Int      @default(0)
+  optOutCount     Int      @default(0)
+  // Compliance
+  consentEnforced Boolean  @default(true)
+  wabaCompliant   Boolean  @default(true)
+  metadata        String   @default("{}") // JSON for extra config
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  contactList     ContactList? @relation(fields: [contactListId], references: [id])
+  messages        CampaignMessage[]
+}
+
+model CampaignMessage {
+  id              String   @id @default(cuid())
+  tenantId        String
+  campaignId      String
+  phoneNumber     String   // hashed at rest in production
+  status          String   @default("PENDING") // PENDING, QUEUED, SENT, DELIVERED, READ, FAILED, OPTED_OUT
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+  failedReason    String?
+  optOut          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  campaign        Campaign @relation(fields: [campaignId], references: [id])
+  @@index([tenantId, campaignId])
+  @@index([tenantId, status])
+}
+
+// ============================================================
+// MODULE 3: Pre-Election / Campaign Monitoring (§4.5)
+// ============================================================
+
+model CampaignEvent {
+  id              String   @id @default(cuid())
+  tenantId        String
+  eventType       String   // RALLY, TOWN_HALL, DEBATE, PRESS_CONF, DOOR_TO_DOOR
+  title           String
+  description     String   @default("")
+  party           String?  // APC, PDP, LP, NNPP, etc.
+  state           String
+  lga             String?
+  venue           String?
+  latitude        Float?
+  longitude       Float?
+  estimatedCrowd  Int?
+  reportedById    String?
+  tone            String   @default("NEUTRAL") // PEACEFUL, TENSE, HOSTILE, ENTHUSIASTIC
+  mediaUrls       String   @default("[]")
+  aiFlags         String   @default("[]") // JSON: ["hate_speech_detected", "state_resources", ...]
+  incidentCount   Int      @default(0)
+  eventDate       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, eventType])
+  @@index([tenantId, state])
+}
+
+model VoterSuppressionReport {
+  id              String   @id @default(cuid())
+  tenantId        String
+  reportType      String   // FALSE_POLLING_INFO, INTIMIDATION_THREAT, VOTER_ID_BLOCKED, MATERIALS_WITHHELD, FAKE_SCHEDULE
+  title           String
+  description     String
+  state           String
+  lga             String?
+  source          String   @default("FIELD") // FIELD, OSINT, TIP_LINE
+  platform        String?  // if from OSINT
+  severity        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status          String   @default("PENDING") // PENDING, VERIFIED, DISMISSED, ESCALATED
+  isDisinformation Boolean @default(false)
+  affectedArea    String?  // description of affected region
+  affectedVoters  Int?     // estimated number
+  evidenceUrls    String   @default("[]")
+  counterMeasure  String?  // what action was taken
+  aiAnalysis      String?
+  reportedById    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, reportType])
+  @@index([tenantId, state])
+  @@index([tenantId, status])
 }

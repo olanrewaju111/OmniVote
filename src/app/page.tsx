@@ -22,6 +22,9 @@ import { SystemHealth } from '@/components/dashboard/system-health';
 import { TenantManagement } from '@/components/dashboard/tenant-mgmt';
 import { SituationRoom } from '@/components/dashboard/situation-room';
 import { AgentEngagement } from '@/components/dashboard/agent-engagement';
+import { OsintMonitor } from '@/components/dashboard/osint-monitor';
+import { MobilizationEngine } from '@/components/dashboard/mobilization';
+import { CampaignMonitor } from '@/components/dashboard/campaign-monitor';
 
 // ---- Types ----
 export interface Incident {
@@ -189,6 +192,11 @@ export default function Home() {
                   />
                 </div>
               )}
+              {activeTab === 'osint' && (
+                <div className="h-full">
+                  <OsintMonitor />
+                </div>
+              )}
               {activeTab === 'ai' && (
                 <AiInsights
                   incidents={incidentsData?.incidents || []}
@@ -197,6 +205,16 @@ export default function Home() {
               )}
               {activeTab === 'media' && (
                 <MediaGallery />
+              )}
+              {activeTab === 'mobilization' && (
+                <div className="h-full">
+                  <MobilizationEngine />
+                </div>
+              )}
+              {activeTab === 'campaigns' && (
+                <div className="h-full">
+                  <CampaignMonitor />
+                </div>
               )}
               {activeTab === 'submit' && (
                 <SubmitReport />
