@@ -210,3 +210,28 @@ Stage Summary:
 - Live feed shows newest incidents at top with natural scroll position
 - Situation room works for all 3 tenant types (Presidential → national, Governorship → state, Local → lga)
 - Media viewer lightbox functional in Reports tab with keyboard navigation
+---
+Task ID: 3
+Agent: main
+Task: Add platform SUPER_ADMIN tenant management and map area configurability by tenant admin
+
+Work Log:
+- Investigated auth system: no passwords, email-only login, SUPER_ADMIN is per-tenant (not a global platform admin)
+- Identified that there was no UI to create/manage tenants or users across tenants
+- Created `/api/tenants/route.ts` — full CRUD (GET all tenants, POST create, PUT update, DELETE)
+- Created `/api/tenants/users/route.ts` — user management (GET list, POST create, PATCH role change, DELETE remove)
+- Rewrote `tenant-mgmt.tsx` with two distinct views:
+  - SUPER_ADMIN: 3 sub-tabs (All Tenants, My Organization, Map Config) + create tenant dialog + user management
+  - TENANT_ADMIN: Organization settings + user management + map config
+- Map bounds save now auto-invalidates dashboard query so map updates immediately (no manual refresh needed)
+- All APIs tested and verified working
+- Production build compiles successfully
+
+Stage Summary:
+- Platform admin (SUPER_ADMIN) can now see all 3 tenants in a card grid with user/election/incident counts
+- SUPER_ADMIN can create new tenants with auto-generated admin account
+- SUPER_ADMIN can toggle tenant active/disabled status
+- SUPER_ADMIN can delete tenants (with safety checks)
+- Both SUPER_ADMIN and TENANT_ADMIN can add users, change roles, and remove users
+- Map area configuration is available to both admin roles and applies immediately
+- New API routes: /api/tenants, /api/tenants/users
