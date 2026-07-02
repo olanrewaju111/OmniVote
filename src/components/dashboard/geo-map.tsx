@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Maximize2, RotateCcw, MapPin, Crosshair } from 'lucide-react';
 
@@ -18,7 +17,6 @@ import { ZoomIn, ZoomOut, Maximize2, RotateCcw, MapPin, Crosshair } from 'lucide
 //   Southeast:   { minLat: 4.8, maxLat: 7.0, minLng: 6.8, maxLng: 8.2, label: 'Southeast' }
 //   Southwest:   { minLat: 6.0, maxLat: 9.0, minLng: 2.5, maxLng: 5.0, label: 'Southwest' }
 //   Northwest:   { minLat: 10.0, maxLat: 14.0, minLng: 3.0, maxLng: 9.0, label: 'Northwest' }
-//   Full West Africa: { minLat: 3.0, maxLat: 16.0, minLng: -5.0, maxLng: 16.0, label: 'West Africa' }
 
 interface MapBounds {
   minLat: number;
@@ -28,7 +26,6 @@ interface MapBounds {
   label: string;
 }
 
-// Default: full Nigeria view
 const DEFAULT_MAP_BOUNDS: MapBounds = {
   minLat: 4.0,
   maxLat: 14.0,
@@ -37,7 +34,6 @@ const DEFAULT_MAP_BOUNDS: MapBounds = {
   label: 'Nigeria',
 };
 
-// Simplified Nigeria outline polygon (SVG coords in 0-100 space)
 const NIGERIA_OUTLINE = '30,80 35,65 25,55 30,40 40,30 50,20 60,15 70,20 80,25 85,35 75,50 80,60 70,75 55,80 40,85';
 
 // ---- Types ----
@@ -57,8 +53,14 @@ interface MapPoint {
 
 interface GeoMapViewProps {
   points: MapPoint[];
-  /** Override the default map area bounds */
   bounds?: MapBounds;
+}
+
+interface ViewBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
 }
 
 // ---- Helpers ----
@@ -66,15 +68,6 @@ function project(lat: number, lng: number, w: number, h: number, area: MapBounds
   const x = ((lng - area.minLng) / (area.maxLng - area.minLng)) * w;
   const y = ((area.maxLat - lat) / (area.maxLat - area.minLat)) * h;
   return { x, y };
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'OPEN': return 'bg-emerald';
-    case 'CLOSED': return 'bg-muted-foreground/40';
-    case 'FLAGGED': return 'bg-rose';
-    default: return 'bg-amber';
-  }
 }
 
 function getTurnoutColor(turnout: number) {
@@ -92,81 +85,106 @@ function getStatusStroke(status: string) {
   }
 }
 
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 20;
-const ZOOM_STEP = 0.5;
+const FULL_VB: ViewBox = { x: 0, y: 0, w: 100, h: 100 };
+const ZOOM_FACTOR = 1.3;
+const ZOOM_MIN_VB = 5;   // viewBox width/height at max zoom
+const ZOOM_MAX_VB = 100; // full view
 
 // ---- Main Component ----
 export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
   const area = propBounds || DEFAULT_MAP_BOUNDS;
 
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  // SVG viewBox state — controls zoom & pan
+  const [vb, setVb] = useState<ViewBox>({ ...FULL_VB });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [panStart, setPanStart] = useState({ mx: 0, my: 0, vbx: 0, vby: 0 });
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const lastPanRef = useRef({ x: 0, y: 0 });
+  const svgRef = useRef<SVGSVGElement>(null);
 
-  const { bounds, projected } = useMemo(() => {
+  // Project points into 0-100 SVG coordinate space
+  const projected = useMemo(() => {
     const w = 100, h = 100;
-    const proj = points.map(p => {
+    return points.map(p => {
       const { x, y } = project(p.lat, p.lng, w, h, area);
       return { ...p, px: x, py: y };
     });
-    return { bounds: { w, h }, projected: proj };
   }, [points, area]);
 
-  // Derived selected/hovered points
   const selectedPoint = selectedId ? projected.find(p => p.id === selectedId) : null;
   const hoveredPoint = hoveredId ? projected.find(p => p.id === hoveredId) : null;
 
-  // Zoom functions
-  const zoomIn = useCallback(() => setZoom(z => Math.min(z + ZOOM_STEP, ZOOM_MAX)), []);
-  const zoomOut = useCallback(() => setZoom(z => Math.max(z - ZOOM_STEP, ZOOM_MIN)), []);
-  const resetView = useCallback(() => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }, []);
-  const fitAll = useCallback(() => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-    setSelectedId(null);
-  }, []);
+  // Current zoom level (1x = full view, higher = more zoomed)
+  const zoomLevel = Math.round((ZOOM_MAX_VB / vb.w) * 100) / 100;
 
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setZoom(z => {
-      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
-      return Math.min(Math.max(z + delta, ZOOM_MIN), ZOOM_MAX);
+  // ---- Zoom helpers ----
+  const zoomAt = useCallback((cx: number, cy: number, factor: number) => {
+    setVb(prev => {
+      const newW = Math.min(Math.max(prev.w / factor, ZOOM_MIN_VB), ZOOM_MAX_VB);
+      const newH = Math.min(Math.max(prev.h / factor, ZOOM_MIN_VB), ZOOM_MAX_VB);
+      // Keep the point under cursor stable
+      const ratioX = (cx - prev.x) / prev.w;
+      const ratioY = (cy - prev.y) / prev.h;
+      const newX = cx - ratioX * newW;
+      const newY = cy - ratioY * newH;
+      return { x: newX, y: newY, w: newW, h: newH };
     });
   }, []);
 
-  // Pan start
+  const zoomIn = useCallback(() => {
+    zoomAt(vb.x + vb.w / 2, vb.y + vb.h / 2, ZOOM_FACTOR);
+  }, [vb, zoomAt]);
+
+  const zoomOut = useCallback(() => {
+    zoomAt(vb.x + vb.w / 2, vb.y + vb.h / 2, 1 / ZOOM_FACTOR);
+  }, [vb, zoomAt]);
+
+  const resetView = useCallback(() => {
+    setVb({ ...FULL_VB });
+  }, []);
+
+  // ---- Wheel zoom (non-passive listener) ----
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      // Convert mouse position to SVG coordinates
+      const rect = el.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width) * 100;
+      const my = ((e.clientY - rect.top) / rect.height) * 100;
+      // Adjust mx/my for current viewBox
+      const svgX = vb.x + (mx / 100) * vb.w;
+      const svgY = vb.y + (my / 100) * vb.h;
+      const factor = e.deltaY > 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
+      zoomAt(svgX, svgY, factor);
+    };
+
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [vb, zoomAt]);
+
+  // ---- Pan ----
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    // Only start pan on middle-click or if not clicking a point
-    if (e.button === 1 || (e.button === 0 && !(e.target as SVGElement).closest('[data-map-point]'))) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-      lastPanRef.current = pan;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    }
-  }, [pan]);
+    // Don't pan if clicking a map point
+    if ((e.target as Element).closest('[data-map-point]')) return;
+    if (e.button !== 0) return;
 
-  // Pan move
+    setIsPanning(true);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPanStart({
+      mx: e.clientX,
+      my: e.clientY,
+      vbx: vb.x,
+      vby: vb.y,
+    });
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, [vb]);
+
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (isPanning) {
-      setPan({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
-      });
-    }
-
-    // Update tooltip position for hovered point
     if (hoveredId && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       setTooltipPos({
@@ -174,23 +192,25 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
         y: e.clientY - rect.top,
       });
     }
-  }, [isPanning, panStart, hoveredId]);
 
-  // Pan end
+    if (!isPanning) return;
+
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const dx = (e.clientX - panStart.mx) / rect.width * vb.w;
+    const dy = (e.clientY - panStart.my) / rect.height * vb.h;
+
+    setVb(prev => ({
+      ...prev,
+      x: panStart.vbx - dx,
+      y: panStart.vby - dy,
+    }));
+  }, [isPanning, panStart, vb.w, vb.h, hoveredId]);
+
   const handlePointerUp = useCallback(() => {
     setIsPanning(false);
   }, []);
 
-  // Point hover
-  const handlePointEnter = useCallback((id: string) => {
-    setHoveredId(id);
-  }, []);
-
-  const handlePointLeave = useCallback(() => {
-    setHoveredId(null);
-  }, []);
-
-  // Point click — select
+  // Point interactions
   const handlePointClick = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedId(prev => prev === id ? null : id);
@@ -201,14 +221,17 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
     const handler = (e: KeyboardEvent) => {
       if (e.key === '+' || e.key === '=') zoomIn();
       if (e.key === '-') zoomOut();
-      if (e.key === '0' || e.key === 'Escape') resetView();
+      if (e.key === '0') resetView();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [zoomIn, zoomOut, resetView]);
 
-  // CSS transform for the map content
-  const transform = `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`;
+  // SVG viewBox string
+  const vbStr = `${vb.x} ${vb.y} ${vb.w} ${vb.h}`;
+
+  // Dynamic dot radius based on zoom
+  const dotRadius = Math.max(0.5, Math.min(1.2, vb.w / 80));
 
   return (
     <div className="h-full flex flex-col">
@@ -227,9 +250,9 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
           <span className="text-[11px] text-muted-foreground hidden sm:inline">
             {points.length} units
           </span>
-          <Badge className="text-[10px] h-5 bg-card/60 border-border text-muted-foreground">
-            {Math.round(zoom * 100)}%
-          </Badge>
+          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] bg-card/60 border-border text-muted-foreground">
+            {zoomLevel.toFixed(1)}x
+          </span>
         </div>
       </div>
 
@@ -237,102 +260,119 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
       <div
         ref={containerRef}
         className="flex-1 relative map-grid overflow-hidden select-none"
-        onWheel={handleWheel}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
       >
-        {/* Transformable map layer */}
-        <div
-          className="absolute inset-0"
-          style={{
-            transform,
-            transformOrigin: 'center center',
-            transition: isPanning ? 'none' : 'transform 0.15s ease-out',
-          }}
+        {/* Single SVG with viewBox for zoom/pan */}
+        <svg
+          ref={svgRef}
+          viewBox={vbStr}
+          className="absolute inset-0 w-full h-full"
+          preserveAspectRatio="xMidYMid meet"
         >
-          {/* Area outline */}
-          <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-            <polygon
-              points={NIGERIA_OUTLINE}
-              fill="none"
-              stroke="oklch(0.35 0.01 260)"
-              strokeWidth="0.3"
-              strokeDasharray="1 0.5"
-              opacity="0.5"
-            />
-          </svg>
+          {/* Background grid lines */}
+          {[20, 40, 60, 80].map(v => (
+            <g key={v} opacity="0.06">
+              <line x1={v} y1={vb.y - 5} x2={v} y2={vb.y + vb.h + 5} stroke="white" strokeWidth="0.2" />
+              <line x1={vb.x - 5} y1={v} x2={vb.x + vb.w + 5} y2={v} stroke="white" strokeWidth="0.2" />
+            </g>
+          ))}
 
-          {/* Points */}
-          <svg viewBox={`0 0 ${bounds.w} ${bounds.h}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
-            {projected.map((p, i) => {
-              const isHovered = hoveredId === p.id;
-              const isSelected = selectedId === p.id;
-              const r = isHovered || isSelected ? 1.5 : 0.7;
-              return (
-                <g key={p.id} data-map-point="true">
-                  {/* Pulse ring for flagged */}
-                  {p.status === 'FLAGGED' && (
-                    <circle cx={p.px} cy={p.py} r="1.5" fill="none" stroke="oklch(0.65 0.22 25)" strokeWidth="0.15" opacity="0.5">
-                      <animate attributeName="r" values="0.5;2" dur="2s" repeatCount="indefinite" />
-                      <animate attributeName="opacity" values="0.6;0" dur="2s" repeatCount="indefinite" />
-                    </circle>
-                  )}
-                  {/* Selection ring */}
-                  {isSelected && (
-                    <circle cx={p.px} cy={p.py} r="2.2" fill="none" stroke="oklch(0.7 0.15 160)" strokeWidth="0.2" opacity="0.8" />
-                  )}
-                  {/* Hover ring */}
-                  {isHovered && !isSelected && (
-                    <circle cx={p.px} cy={p.py} r="1.8" fill="none" stroke="oklch(0.7 0.1 250)" strokeWidth="0.15" opacity="0.5" />
-                  )}
-                  {/* Main dot */}
+          {/* Nigeria outline */}
+          <polygon
+            points={NIGERIA_OUTLINE}
+            fill="none"
+            stroke="oklch(0.35 0.01 260)"
+            strokeWidth="0.3"
+            strokeDasharray="1 0.5"
+            opacity="0.5"
+          />
+
+          {/* Polling unit dots */}
+          {projected.map((p, i) => {
+            const isHovered = hoveredId === p.id;
+            const isSelected = selectedId === p.id;
+            const r = (isHovered || isSelected) ? dotRadius * 2 : dotRadius;
+
+            return (
+              <g key={p.id} data-map-point="true">
+                {/* Pulse ring for flagged */}
+                {p.status === 'FLAGGED' && (
                   <circle
-                    cx={p.px}
-                    cy={p.py}
-                    r={r}
-                    fill={getTurnoutColor(p.turnout)}
-                    stroke={getStatusStroke(p.status)}
-                    strokeWidth="0.2"
-                    className="cursor-pointer"
-                    opacity={0}
-                    onMouseEnter={() => handlePointEnter(p.id)}
-                    onMouseLeave={handlePointLeave}
-                    onClick={(e) => handlePointClick(p.id, e)}
+                    cx={p.px} cy={p.py} r={r * 2.5}
+                    fill="none" stroke="oklch(0.65 0.22 25)" strokeWidth="0.15" opacity="0.5"
                   >
-                    <animate
-                      attributeName="opacity"
-                      from="0"
-                      to="1"
-                      dur="0.3s"
-                      begin={`${i * 0.003}s`}
-                      fill="freeze"
-                    />
+                    <animate attributeName="r" values={`${r};${r * 3}`} dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.6;0" dur="2s" repeatCount="indefinite" />
                   </circle>
-                </g>
-              );
-            })}
-          </svg>
+                )}
+                {/* Selection ring */}
+                {isSelected && (
+                  <circle
+                    cx={p.px} cy={p.py} r={r * 2}
+                    fill="none" stroke="oklch(0.7 0.15 160)" strokeWidth="0.2" opacity="0.8"
+                  />
+                )}
+                {/* Hover ring */}
+                {isHovered && !isSelected && (
+                  <circle
+                    cx={p.px} cy={p.py} r={r * 1.6}
+                    fill="none" stroke="oklch(0.7 0.1 250)" strokeWidth="0.15" opacity="0.5"
+                  />
+                )}
+                {/* Main dot */}
+                <circle
+                  cx={p.px}
+                  cy={p.py}
+                  r={r}
+                  fill={getTurnoutColor(p.turnout)}
+                  stroke={getStatusStroke(p.status)}
+                  strokeWidth="0.2"
+                  className="cursor-pointer"
+                  opacity={0}
+                  onMouseEnter={() => setHoveredId(p.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  onClick={(e) => handlePointClick(p.id, e)}
+                >
+                  <animate
+                    attributeName="opacity"
+                    from="0"
+                    to="1"
+                    dur="0.3s"
+                    begin={`${i * 0.003}s`}
+                    fill="freeze"
+                  />
+                </circle>
+              </g>
+            );
+          })}
 
-          {/* State labels */}
-          {['Lagos', 'Abuja FCT', 'Kano', 'Rivers', 'Enugu', 'Borno'].map(state => {
+          {/* State labels — only show when zoomed out enough */}
+          {vb.w > 30 && ['Lagos', 'Abuja FCT', 'Kano', 'Rivers', 'Enugu', 'Borno'].map(state => {
             const statePoints = projected.filter(p => p.state === state);
             if (!statePoints.length) return null;
             const avgX = statePoints.reduce((s, p) => s + p.px, 0) / statePoints.length;
             const avgY = statePoints.reduce((s, p) => s + p.py, 0) / statePoints.length;
+            const fontSize = Math.max(0.8, Math.min(1.2, vb.w / 80));
             return (
-              <div
+              <text
                 key={state}
-                className="absolute text-[9px] font-medium text-muted-foreground/50 pointer-events-none"
-                style={{ left: `${avgX}%`, top: `${avgY}%`, transform: 'translate(-50%, -50%)' }}
+                x={avgX}
+                y={avgY - 1.5}
+                textAnchor="middle"
+                fontSize={fontSize}
+                fill="oklch(0.5 0.01 260)"
+                opacity="0.5"
+                style={{ pointerEvents: 'none' }}
               >
                 {state}
-              </div>
+              </text>
             );
           })}
-        </div>
+        </svg>
 
         {/* --- Overlay UI (not affected by zoom/pan) --- */}
 
@@ -342,8 +382,8 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-            onClick={zoomIn}
-            disabled={zoom >= ZOOM_MAX}
+            onClick={(e) => { e.stopPropagation(); zoomIn(); }}
+            disabled={vb.w <= ZOOM_MIN_VB}
             title="Zoom in (+)"
           >
             <ZoomIn className="h-4 w-4" />
@@ -352,8 +392,8 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-            onClick={zoomOut}
-            disabled={zoom <= ZOOM_MIN}
+            onClick={(e) => { e.stopPropagation(); zoomOut(); }}
+            disabled={vb.w >= ZOOM_MAX_VB}
             title="Zoom out (-)"
           >
             <ZoomOut className="h-4 w-4" />
@@ -363,8 +403,8 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-            onClick={fitAll}
-            title="Fit all (Esc)"
+            onClick={(e) => { e.stopPropagation(); resetView(); setSelectedId(null); }}
+            title="Fit all (0)"
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
@@ -372,18 +412,18 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
             variant="outline"
             size="icon"
             className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-            onClick={resetView}
-            title="Reset view (0)"
+            onClick={(e) => { e.stopPropagation(); resetView(); }}
+            title="Reset (Esc)"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Zoom level indicator */}
-        <div className="absolute top-3 left-3 z-10">
+        <div className="absolute top-3 left-3 z-10 pointer-events-none">
           <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg px-2.5 py-1.5 text-[11px] text-muted-foreground flex items-center gap-1.5">
             <Crosshair className="h-3 w-3" />
-            {area.label} · {zoom.toFixed(1)}x
+            {area.label} · {zoomLevel.toFixed(1)}x
           </div>
         </div>
 
@@ -392,7 +432,7 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
           <div
             className="absolute z-20 pointer-events-none bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-lg px-3 py-2 space-y-1 max-w-[200px]"
             style={{
-              left: `${tooltipPos.x + 16}px`,
+              left: `${Math.min(tooltipPos.x + 16, (containerRef.current?.clientWidth || 400) - 220)}px`,
               top: `${tooltipPos.y - 10}px`,
             }}
           >
@@ -414,7 +454,7 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
         )}
 
         {/* Turnout heatmap legend */}
-        <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2.5 space-y-1.5 z-10">
+        <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2.5 space-y-1.5 z-10 pointer-events-none">
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Turnout Heat</p>
           <div className="flex items-center gap-2">
             <div className="flex gap-0.5">
@@ -427,7 +467,7 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
         </div>
 
         {/* Help hint */}
-        <div className="absolute bottom-3 left-3 text-[9px] text-muted-foreground/40 z-10">
+        <div className="absolute bottom-3 left-3 text-[9px] text-muted-foreground/40 z-10 pointer-events-none">
           Scroll to zoom · Drag to pan · Click point to select
         </div>
       </div>
@@ -460,9 +500,4 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
       )}
     </div>
   );
-}
-
-// Inline Badge to avoid import issues
-function Badge({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs', className)}>{children}</span>;
 }
