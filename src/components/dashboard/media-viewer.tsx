@@ -7,8 +7,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  ChevronLeft, ChevronRight, X, Download, Maximize2,
-  Image as ImageIcon, Video, FileAudio,
+  ChevronLeft, ChevronRight, Download, Maximize2,
+  Image as ImageIcon, Video, FileAudio, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +26,7 @@ interface MediaViewerProps {
 }
 
 function getMediaType(url: string): 'image' | 'video' | 'audio' {
+  if (!url) return 'image';
   const lower = url.toLowerCase();
   if (/\.(mp4|mov|avi|webm|mkv)/.test(lower)) return 'video';
   if (/\.(mp3|ogg|wav|m4a|aac|webm)/.test(lower)) return 'audio';
@@ -34,18 +35,33 @@ function getMediaType(url: string): 'image' | 'video' | 'audio' {
 
 export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: MediaViewerProps) {
   const [index, setIndex] = useState(initialIndex);
+  const [loadError, setLoadError] = useState(false);
 
-  // Reset index when files change or dialog opens
+  // Reset index and error state when dialog opens or files change
   useEffect(() => {
-    if (open) setIndex(initialIndex);
+    if (open) {
+      setIndex(initialIndex);
+      setLoadError(false);
+    }
   }, [open, initialIndex, files.length]);
 
+  // Clear error when navigating
+  useEffect(() => {
+    setLoadError(false);
+  }, [index]);
+
+  // Guard: no files or index out of range
+  if (!files || files.length === 0) return null;
   const current = files[index];
-  if (!current) return null;
+  if (!current || !current.url) {
+    // If current file is invalid, don't render the dialog
+    return null;
+  }
 
   const mediaType = current.type || getMediaType(current.url);
   const hasPrev = index > 0;
   const hasNext = index < files.length - 1;
+  const dialogTitle = title || `Media ${index + 1} of ${files.length}`;
 
   const goPrev = useCallback(() => setIndex(i => Math.max(0, i - 1)), []);
   const goNext = useCallback(() => setIndex(i => Math.min(files.length - 1, i + 1)), [files.length]);
@@ -63,8 +79,14 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
   }, [open, goPrev, goNext, onClose]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] p-0 gap-0 bg-background/95 backdrop-blur-xl border-border overflow-hidden">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent
+        className="max-w-4xl w-[95vw] p-0 gap-0 bg-background/95 backdrop-blur-xl border-border overflow-hidden"
+        aria-label={dialogTitle}
+      >
+        {/* REQUIRED: Visually hidden DialogTitle for Radix a11y (v1.1+) */}
+        <DialogTitle className="sr-only">{dialogTitle}</DialogTitle>
+
         {/* Top bar */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0">
           <div className="flex items-center gap-2 min-w-0">
@@ -74,7 +96,7 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
               {mediaType === 'audio' && <FileAudio className="h-4 w-4 text-amber" />}
             </span>
             <span className="text-xs font-medium truncate">
-              {title || `Media ${index + 1} of ${files.length}`}
+              {dialogTitle}
             </span>
             <Badge variant="outline" className="text-[9px] h-4 shrink-0">
               {mediaType.toUpperCase()}
@@ -111,43 +133,56 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
 
           {/* Media content */}
           <div className="w-full h-full flex items-center justify-center p-4">
-            {mediaType === 'image' && (
+            {loadError ? (
+              /* Error fallback */
+              <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
+                <AlertTriangle className="h-10 w-10 text-amber/60" />
+                <p className="text-sm font-medium">Unable to load media</p>
+                <p className="text-xs text-muted-foreground/60 max-w-xs text-center break-all">
+                  {current.url}
+                </p>
+                <a
+                  href={current.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-cyan hover:underline underline-offset-2"
+                >
+                  Open in new tab
+                </a>
+              </div>
+            ) : mediaType === 'image' ? (
               <img
                 src={current.url}
                 alt={title || `Image ${index + 1}`}
                 className="max-w-full max-h-[70vh] object-contain rounded-md"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '';
-                  (e.target as HTMLImageElement).alt = 'Failed to load image';
-                  (e.target as HTMLImageElement).className = 'text-muted-foreground text-sm p-8';
-                }}
+                onError={() => setLoadError(true)}
               />
-            )}
-
-            {mediaType === 'video' && (
+            ) : mediaType === 'video' ? (
               <video
+                key={current.url}
                 src={current.url}
                 controls
                 autoPlay
                 className="max-w-full max-h-[70vh] rounded-md"
                 preload="metadata"
+                onError={() => setLoadError(true)}
               >
                 Your browser does not support the video element.
               </video>
-            )}
-
-            {mediaType === 'audio' && (
+            ) : (
               <div className="flex flex-col items-center gap-4 py-8 w-full max-w-md">
                 <div className="w-24 h-24 rounded-full bg-amber/10 flex items-center justify-center">
                   <FileAudio className="h-10 w-10 text-amber" />
                 </div>
                 <p className="text-xs text-muted-foreground">Audio Recording</p>
                 <audio
+                  key={current.url}
                   src={current.url}
                   controls
                   autoPlay
                   className="w-full"
                   preload="metadata"
+                  onError={() => setLoadError(true)}
                 >
                   Your browser does not support the audio element.
                 </audio>
@@ -182,7 +217,17 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
                   )}
                 >
                   {t === 'image' ? (
-                    <img src={f.url} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={f.url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        // Hide broken thumbnail images, show placeholder
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.currentTarget as HTMLButtonElement).classList.add('bg-muted');
+                      }}
+                    />
                   ) : t === 'video' ? (
                     <div className="w-full h-full bg-violet/20 flex items-center justify-center">
                       <Video className="h-4 w-4 text-violet" />
@@ -237,7 +282,17 @@ export function MediaThumbnailStrip({ mediaUrls, onOpen, maxShow = 4, size = 'sm
             )}
           >
             {type === 'image' ? (
-              <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+              <img
+                src={url}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.currentTarget as HTMLButtonElement).innerHTML =
+                    '<span class="flex items-center justify-center w-full h-full text-muted-foreground/40 text-[9px]">IMG</span>';
+                }}
+              />
             ) : type === 'video' ? (
               <div className="w-full h-full flex flex-col items-center justify-center bg-violet/10 text-violet">
                 <Video className="h-4 w-4" />
