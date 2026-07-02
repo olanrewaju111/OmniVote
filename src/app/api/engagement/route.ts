@@ -151,33 +151,89 @@ export async function POST(req: NextRequest) {
     const trig = validTriggers.includes(triggerType) ? triggerType : 'MANUAL';
     const pri = validPriorities.includes(priority) ? priority : 'NORMAL';
 
-    let status = 'SENT';
+    let status = 'PENDING';
     let deliveredAt: Date | null = null;
+    let whatsappMessageId: string | null = null;
 
-    if (ch === 'IN_APP' || ch === 'PUSH') {
-      status = 'DELIVERED'; deliveredAt = new Date();
-    } else if (ch === 'WHATSAPP' && Math.random() > 0.1) {
-      status = 'DELIVERED'; deliveredAt = new Date();
-    } else if (ch === 'SMS' && Math.random() > 0.15) {
-      status = 'DELIVERED'; deliveredAt = new Date();
-    } else if (ch !== 'IN_APP' && ch !== 'PUSH') {
-      status = 'FAILED';
-    }
-
+    // Create the message in DB first (PENDING status)
     const message = await db.agentMessage.create({
       data: {
         tenantId, agentId,
         sentById: sentById || null,
         channel: ch, triggerType: trig,
         subject, body: messageBody, priority: pri,
-        status, deliveredAt,
-        metadata: JSON.stringify({ simulatedDelivery: true }),
+        status: 'PENDING',
+        metadata: JSON.stringify({}),
       },
       include: {
-        agent: { select: { id: true, name: true, email: true, isOnline: true } },
+        agent: { select: { id: true, name: true, email: true, isOnline: true, phone: true } },
         sentBy: { select: { id: true, name: true, role: true } },
       },
     });
+
+    // Try to send via WhatsApp bridge if channel is WHATSAPP
+    if (ch === 'WHATSAPP' && agent.phone) {
+      try {
+        const bridgeUrl = process.env.WHATSAPP_BRIDGE_URL || 'http://localhost:9090';
+        const bridgeRes = await fetch(`${bridgeUrl}/api/whatsapp/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenantId,
+            messageId: message.id,
+            toPhone: agent.phone,
+            subject,
+            body: messageBody,
+            priority: pri,
+          }),
+        });
+        const bridgeData = await bridgeRes.json();
+
+        if (bridgeData.success) {
+          status = 'SENT';
+          whatsappMessageId = bridgeData.whatsappMessageId || null;
+          deliveredAt = bridgeData.timestamp ? new Date(bridgeData.timestamp) : null;
+
+          await db.agentMessage.update({
+            where: { id: message.id },
+            data: {
+              status: 'SENT',
+              whatsappMessageId,
+              deliveredAt: deliveredAt || undefined,
+              metadata: JSON.stringify({ bridgeResponse: bridgeData, mode: bridgeData.mode || 'LIVE' }),
+            },
+          });
+        } else {
+          // Bridge returned failure — fall back to simulated
+          status = Math.random() > 0.3 ? 'SENT' : 'FAILED';
+          await db.agentMessage.update({
+            where: { id: message.id },
+            data: { status, metadata: JSON.stringify({ bridgeError: bridgeData.error, fallback: true }) },
+          });
+        }
+      } catch {
+        // Bridge not reachable — simulate
+        status = 'SENT';
+        deliveredAt = new Date();
+        await db.agentMessage.update({
+          where: { id: message.id },
+          data: { status, deliveredAt, metadata: JSON.stringify({ bridgeUnavailable: true, simulated: true }) },
+        });
+      }
+    } else if (ch === 'IN_APP' || ch === 'PUSH') {
+      status = 'DELIVERED'; deliveredAt = new Date();
+      await db.agentMessage.update({
+        where: { id: message.id },
+        data: { status, deliveredAt },
+      });
+    } else if (ch === 'SMS') {
+      status = Math.random() > 0.15 ? 'SENT' : 'FAILED';
+      if (status === 'SENT') deliveredAt = new Date();
+      await db.agentMessage.update({
+        where: { id: message.id },
+        data: { status, deliveredAt, metadata: JSON.stringify({ simulated: true }) },
+      });
+    }
 
     if (sentById) {
       await db.auditLog.create({

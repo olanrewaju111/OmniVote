@@ -7,6 +7,7 @@ import {
   MessageSquare, Send, Phone, Smartphone, Bell, Clock, AlertTriangle, UserX,
   WifiOff, ShieldAlert, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp,
   MessageCircle, RefreshCw, Zap, Users, Eye, Radio, Filter, Reply,
+  QrCode, Link2, Unlink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -219,6 +220,9 @@ export function AgentEngagement() {
         <StatCard icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Infractions" value={stats.agentsWithInfractions || 0} color="text-violet" />
         <StatCard icon={<MessageSquare className="h-3.5 w-3.5" />} label="Messages" value={stats.totalMessages || 0} color="text-cyan" />
       </div>
+
+      {/* ─── WhatsApp Connection Panel ──────────────────────── */}
+      <WhatsAppPanel tenantId={tenantId} />
 
       {/* ─── Tabs: Agent Groups | Messages | Compose ──────────── */}
       <Tabs defaultValue="groups" className="flex-1 min-h-0 flex flex-col">
@@ -762,5 +766,160 @@ function Wifi({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h.01" /><path d="M2 8.82a15 15 0 0 1 20 0" /><path d="M5 12.859a10 10 0 0 1 14 0" /><path d="M8.5 16.429a5 5 0 0 1 7 0" />
     </svg>
+  );
+}
+
+// ─── WhatsApp Connection Panel ──────────────────────────────────
+
+function WhatsAppPanel({ tenantId }: { tenantId: string }) {
+  const queryClient = useQueryClient();
+
+  const { data: waStatus, isLoading: waLoading, refetch: waRefetch } = useQuery({
+    queryKey: ['whatsapp-status', tenantId],
+    queryFn: () => fetch(`/api/whatsapp?tenantId=${tenantId}`).then(r => r.json()),
+    refetchInterval: 5000,
+    enabled: !!tenantId,
+  });
+
+  const linkMutation = useMutation({
+    mutationFn: (phone: string) =>
+      fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId, phone }),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
+      toast.success('WhatsApp linking initiated');
+    },
+    onError: (e) => toast.error('Linking failed'),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () =>
+      fetch(`/api/whatsapp?action=disconnect&tenantId=${tenantId}`, { method: 'PUT' }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
+      toast.success('WhatsApp disconnected');
+    },
+  });
+
+  const [linkPhone, setLinkPhone] = useState('');
+
+  const status = waStatus?.status || 'DISCONNECTED';
+  const phone = waStatus?.phone || waStatus?.whatsappPhone || '';
+  const jid = waStatus?.jid || waStatus?.whatsappJid || '';
+  const qrCode = waStatus?.qrCode || '';
+  const mode = waStatus?.mode || (waStatus?.status === 'DISCONNECTED' ? 'OFFLINE' : 'UNKNOWN');
+
+  const isConnected = status === 'CONNECTED';
+  const isQRReady = status === 'QR_READY';
+  const isConnecting = status === 'CONNECTING';
+
+  const statusColor = isConnected ? 'text-green-400' : isQRReady ? 'text-amber' : isConnecting ? 'text-cyan' : 'text-muted-foreground';
+  const statusBg = isConnected ? 'bg-green-500' : isQRReady ? 'bg-amber' : isConnecting ? 'bg-cyan animate-pulse' : 'bg-muted-foreground/30';
+
+  return (
+    <Card className="bg-card/40 border-border shrink-0">
+      <CardContent className="px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+              <MessageCircle className="h-5 w-5 text-green-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">WhatsApp Integration</span>
+                <span className={cn('w-2 h-2 rounded-full', statusBg)} />
+                <span className={cn('text-[10px] font-medium', statusColor)}>
+                  {status}
+                </span>
+                {mode === 'MOCK' && (
+                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-amber border-amber/30">DEV MODE</Badge>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                {isConnected ? (
+                  <>Connected as <span className="font-mono text-[10px]">{jid}</span></>
+                ) : isQRReady ? (
+                  'Scan QR code with WhatsApp to link this tenant'
+                ) : isConnecting ? (
+                  'Generating QR code...'
+                ) : (
+                  'Not connected — link a WhatsApp number to enable agent messaging'
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isConnected && (
+              <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1.5 text-rose border-rose/30 hover:bg-rose/10" onClick={() => disconnectMutation.mutate()}>
+                <Unlink className="h-3 w-3" /> Disconnect
+              </Button>
+            )}
+
+            {!isConnected && !isConnecting && !isQRReady && (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={linkPhone}
+                  onChange={(e) => setLinkPhone(e.target.value)}
+                  placeholder="+2348012345678"
+                  className="h-7 w-36 text-[11px]"
+                />
+                <Button
+                  size="sm"
+                  className="h-7 text-[10px] gap-1.5 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => { if (linkPhone) linkMutation.mutate(linkPhone); }}
+                  disabled={linkMutation.isPending || !linkPhone}
+                >
+                  {linkMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+                  Link
+                </Button>
+              </div>
+            )}
+
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => waRefetch()}>
+              <RefreshCw className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+
+        {/* QR Code display */}
+        {isQRReady && qrCode && (
+          <div className="mt-3 flex items-center gap-4 p-3 bg-background/50 rounded-lg border border-border">
+            <div className="w-32 h-32 bg-white rounded-md flex items-center justify-center border border-border shrink-0 p-2">
+              {mode === 'MOCK' ? (
+                <div className="text-center">
+                  <QrCode className="h-8 w-8 text-muted-foreground/40 mx-auto mb-1" />
+                  <p className="text-[9px] text-muted-foreground">MOCK QR</p>
+                  <p className="text-[8px] text-muted-foreground/60 font-mono">{qrCode.substring(0, 20)}...</p>
+                </div>
+              ) : (
+                /* In production, render actual QR code image from the base64 data */
+                <QrCode className="h-24 w-24 text-foreground/20" />
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">Scan with WhatsApp</p>
+              <p>1. Open WhatsApp on your phone</p>
+              <p>2. Go to Settings → Linked Devices</p>
+              <p>3. Tap "Link a Device"</p>
+              <p>4. Scan this QR code</p>
+              <p className="text-[10px] text-amber pt-1">QR refreshes automatically. Connection will be saved for future sessions.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Connected info */}
+        {isConnected && (
+          <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
+            <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {phone}</span>
+            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-400" /> Bridge Active</span>
+            <span>Messages sent via WhatsApp will use this number. Agent replies are auto-recorded.</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

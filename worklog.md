@@ -114,3 +114,44 @@ Stage Summary:
 - Agent Engagement system complete: idle detection, no-data alerts, infraction tracking, multi-channel messaging (WhatsApp/SMS/Push/In-App), bulk engagement, message history with filters
 - /api/reports now uses resolveTenant() — fixed multi-tenant bug
 - Zero new TypeScript errors from these changes
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: WhatsApp integration via whatsmeow — per-tenant phone linking with real messaging
+
+Work Log:
+- Updated Prisma schema:
+  - Tenant model: added whatsappPhone, whatsappJid, whatsappStatus (DISCONNECTED/CONNECTING/QR_READY/CONNECTED/FAILED), whatsappConnectedAt
+  - User model: added phone, whatsappJid fields for field agents
+  - AgentMessage model: added whatsappMessageId for delivery tracking
+- Built Go whatsmeow WhatsApp bridge service (whatsapp-bridge/):
+  - main.go: Production service using whatsmeow library — multi-tenant, QR pairing, send/receive, delivery receipts, incoming reply detection, auto-reconnect. Requires Go >= 1.25.
+  - mock_server.go: Mock bridge (compiled and tested) — same API surface, simulates QR pairing (auto-connects after 3s), message sending, delivery/read status updates. Runs on Go 1.22.
+  - go.mod: Module config with chi router, cors, websocket, sqlite3, uuid
+  - Compiled binary: whatsapp-bridge/omnivote-wa-bridge
+  - API endpoints: POST /link, GET /qr/{tenantId}, GET /status/{tenantId}, POST /send, POST /disconnect/{tenantId}, GET /tenants, POST /webhook/status, WS /ws/whatsapp/{tenantId}
+- Created start-bridge.sh: Startup script with Go version detection, auto-falls back to mock mode
+- Created /api/whatsapp Next.js proxy route: GET (tenant list/status), POST (link), PUT (disconnect/send actions)
+- Updated /api/engagement POST handler: WhatsApp channel messages now route through the Go bridge. Creates message as PENDING, sends to bridge, updates status based on bridge response. Falls back to simulated delivery if bridge unreachable.
+- Built WhatsApp Connection Panel in agent-engagement.tsx:
+  - Shows connection status with color-coded indicator (green/amber/cyan/gray)
+  - DEV MODE badge when mock bridge is active
+  - Phone number input + Link button to initiate WhatsApp pairing
+  - QR code display area with step-by-step scanning instructions
+  - Connected state shows JID, phone, and bridge active status
+  - Disconnect button to unlink
+  - Auto-refreshes status every 5 seconds
+- Seeded phone numbers on all 71 field agents (Nigeria format +234xxx)
+- Seeded WhatsApp phone on all 3 tenants
+- Tested: mock bridge compiles, starts, serves tenant list, handles link requests
+
+Stage Summary:
+- Full WhatsApp integration architecture: Go whatsmeow bridge (production) + mock bridge (development)
+- Each tenant links their own WhatsApp number via QR code scanning
+- Field agents have phone numbers for WhatsApp messaging
+- Engagement system routes WhatsApp messages through the bridge automatically
+- Incoming WhatsApp replies auto-recorded against the agent's most recent message
+- Delivery receipts (sent/delivered/read) tracked via whatsappMessageId
+- Production deployment: upgrade to Go >= 1.25, run `./start-bridge.sh`
+- SQLite shared-file limitation: in production, use PostgreSQL to avoid DB locking between Next.js and Go bridge

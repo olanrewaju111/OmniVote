@@ -8,15 +8,21 @@ datasource db {
 }
 
 model Tenant {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique
-  logoUrl      String?
-  primaryColor String   @default("#10b981")
-  domain       String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  logoUrl         String?
+  primaryColor    String   @default("#10b981")
+  domain          String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // WhatsApp integration
+  whatsappPhone   String?  // linked phone number e.g. "+2348012345678"
+  whatsappJid     String?  // JID after linking e.g. "2348012345678@s.whatsapp.net"
+  whatsappStatus  String   @default("DISCONNECTED") // DISCONNECTED, CONNECTING, CONNECTED, QR_READY, FAILED
+  whatsappConnectedAt DateTime?
 
   users        User[]
   elections    Election[]
@@ -32,6 +38,8 @@ model User {
   name          String
   role          String    @default("FIELD_AGENT") // FIELD_AGENT, ANALYST, TENANT_ADMIN, SUPER_ADMIN, TRUST_SAFETY
   tenantId      String
+  phone         String?   // WhatsApp number e.g. "+2348012345678"
+  whatsappJid   String?   // resolved JID after first message
   isOnline      Boolean   @default(false)
   lastSeenAt    DateTime?
   deviceFingerprint String?
@@ -179,6 +187,7 @@ model AgentMessage {
   readAt        DateTime?
   responseText  String?  // agent's reply if any
   respondedAt   DateTime?
+  whatsappMessageId String? // WhatsApp server message ID for delivery tracking
   metadata      String   @default("{}") // JSON — e.g. {"idleMinutes": 45, "lastReportDate": "..."}
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
