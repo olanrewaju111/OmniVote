@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   Vote, FileWarning, BarChart3, TrendingUp, Users, Loader2,
   ChevronDown, ChevronUp, CircleDot, UserCircle,
 } from 'lucide-react';
+import { MediaViewer, MediaThumbnailStrip, type MediaFile } from '@/components/dashboard/media-viewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
@@ -266,6 +267,22 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
   setExpandedResult: (id: string | null) => void;
   showReporter: boolean;
 }) {
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerFiles, setViewerFiles] = useState<MediaFile[]>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerTitle, setViewerTitle] = useState('');
+
+  const openMedia = useCallback((urls: string[], index: number, title: string) => {
+    const files: MediaFile[] = urls.map(url => ({
+      url,
+      type: getMediaTypeFromUrl(url),
+    }));
+    setViewerFiles(files);
+    setViewerIndex(index);
+    setViewerTitle(title);
+    setViewerOpen(true);
+  }, []);
+
   if (reports.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -281,6 +298,7 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
   }
 
   return (
+    <>
     <ScrollArea className="h-full">
       <div className="p-3 space-y-2">
         <AnimatePresence>
@@ -468,28 +486,11 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
 
                 {/* Media thumbnails */}
                 {inc.mediaUrls && inc.mediaUrls.length > 0 && (
-                  <div className="flex gap-1.5 overflow-x-auto">
-                    {inc.mediaUrls.slice(0, 4).map((url, mi) => (
-                      <div key={mi} className="w-14 h-14 rounded-md overflow-hidden border border-border shrink-0 bg-muted">
-                        {url.match(/\.(mp4|mov|avi)/i) ? (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
-                            <PlayIcon />
-                          </div>
-                        ) : url.match(/\.(mp3|ogg|wav)/i) ? (
-                          <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground">
-                            <MicIcon />
-                          </div>
-                        ) : (
-                          <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                        )}
-                      </div>
-                    ))}
-                    {inc.mediaUrls.length > 4 && (
-                      <div className="w-14 h-14 rounded-md border border-border shrink-0 bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
-                        +{inc.mediaUrls.length - 4}
-                      </div>
-                    )}
-                  </div>
+                  <MediaThumbnailStrip
+                    mediaUrls={inc.mediaUrls}
+                    onOpen={(i) => openMedia(inc.mediaUrls, i, `${inc.type} — ${inc.pollingUnit?.name || 'Incident'}`)}
+                    size="sm"
+                  />
                 )}
 
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
@@ -513,6 +514,14 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
         </AnimatePresence>
       </div>
     </ScrollArea>
+    <MediaViewer
+      files={viewerFiles}
+      initialIndex={viewerIndex}
+      open={viewerOpen}
+      onClose={() => setViewerOpen(false)}
+      title={viewerTitle}
+    />
+    </>
   );
 }
 
@@ -556,4 +565,11 @@ function MicIcon() {
       <line x1="12" x2="12" y1="19" y2="22" />
     </svg>
   );
+}
+
+function getMediaTypeFromUrl(url: string): 'image' | 'video' | 'audio' {
+  const lower = url.toLowerCase();
+  if (/\.(mp4|mov|avi|webm|mkv)/.test(lower)) return 'video';
+  if (/\.(mp3|ogg|wav|m4a|aac)/.test(lower)) return 'audio';
+  return 'image';
 }

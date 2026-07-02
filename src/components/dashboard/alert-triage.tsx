@@ -121,7 +121,7 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
       </div>
 
       {/* Alert list */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-2">
           {filtered.map((alert, idx) => (
             <motion.div

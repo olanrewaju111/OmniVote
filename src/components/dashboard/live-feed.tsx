@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,6 @@ function formatTime(date: string | Date) {
 export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedProps) {
   const { liveFeedPaused, toggleLiveFeed, incidentFilter, setIncidentFilter } = useDashboardStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const filtered = incidents.filter(i => {
     if (incidentFilter.type !== 'ALL' && i.type !== incidentFilter.type) return false;
@@ -64,12 +63,6 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
     if (incidentFilter.status !== 'ALL' && i.status !== incidentFilter.status) return false;
     return true;
   });
-
-  useEffect(() => {
-    if (!liveFeedPaused && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [filtered.length, liveFeedPaused]);
 
   return (
     <div className="h-full flex flex-col">
@@ -119,7 +112,7 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
       </div>
 
       {/* Feed */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-2">
           <AnimatePresence mode="popLayout">
             {filtered.map((inc, idx) => (
@@ -209,8 +202,6 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
               <ChevronDown className="h-3 w-3 mr-1" /> Load More
             </Button>
           )}
-
-          <div ref={bottomRef} />
         </div>
       </ScrollArea>
     </div>

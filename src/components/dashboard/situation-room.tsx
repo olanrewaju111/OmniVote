@@ -56,9 +56,12 @@ interface Breadcrumb {
 export function SituationRoom() {
   const { electionTier, tenantId } = useDashboardStore();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
+  const [initialLevel, setInitialLevel] = useState<string | null>(null);
 
   const currentCrumb = breadcrumbs[breadcrumbs.length - 1];
-  const activeLevel = currentCrumb?.level || 'national';
+  // Use the API-returned levels[0] once known, otherwise derive from tier
+  const TIER_START: Record<string, string> = { PRESIDENTIAL: 'national', STATE: 'state', LOCAL: 'lga' };
+  const activeLevel = currentCrumb?.level || initialLevel || TIER_START[electionTier] || 'national';
   const activeFilter = currentCrumb?.filter || '';
 
   const { data, isLoading } = useQuery<SituationData>({
@@ -68,6 +71,12 @@ export function SituationRoom() {
       return fetch(`/api/situation-room?${params}`).then(r => r.json());
     },
   });
+
+  // Capture the correct starting level from the API response
+  const apiLevels = data?.levels || [];
+  if (apiLevels.length > 0 && !initialLevel) {
+    setInitialLevel(apiLevels[0]);
+  }
 
   const navigateTo = useCallback((level: string, filter: string, label: string) => {
     setBreadcrumbs(prev => {
@@ -92,11 +101,12 @@ export function SituationRoom() {
 
   const items = data?.items || [];
   const summary = data?.summary;
-  const levels = data?.levels || [];
+  const levels = apiLevels;
 
   // Build the full breadcrumb trail for display
+  const startLabel: Record<string, string> = { national: 'National', state: 'State Overview', lga: 'LGA Overview' };
   const trail: { label: string; level: string; filter: string }[] = [
-    { label: electionTier === 'PRESIDENTIAL' ? 'National' : electionTier === 'STATE' ? 'State Overview' : 'LGA Overview', level: levels[0], filter: '' },
+    { label: startLabel[levels[0]] || `${activeLevel} Overview`, level: levels[0] || activeLevel, filter: '' },
     ...breadcrumbs,
   ];
 

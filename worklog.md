@@ -192,3 +192,21 @@ Stage Summary:
 - Overview page layout is fixed — no more overflow of stats over the map
 - Reports tab is visible to all roles and shows all agent-submitted election results and incidents
 - Admins can filter reports by specific agent using a dropdown
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Fix 3 bugs — overview/feed/triage scrolling, live feed order, situation room empty
+
+Work Log:
+- Fixed ScrollArea overflow: Added `overflow-hidden` to the ScrollArea root component in scroll-area.tsx. Radix ScrollArea requires the root to have overflow-hidden to create a proper scrollable viewport. This fixed scrolling in overview LiveFeed, alert triage, and all other ScrollArea usages.
+- Fixed live feed not showing latest: Removed the auto-scroll-to-bottom behavior (useEffect + bottomRef). Incidents are ordered newest-first (submittedAt desc), so newest items appear at the top naturally. The old scroll-to-bottom was pushing the view to the oldest items, making it appear like "latest not showing".
+- Fixed situation room showing no data: The component hardcoded `activeLevel = 'national'` but the API only supports 'national' for PRESIDENTIAL tier. For STATE tier it expects 'state', for LOCAL tier it expects 'lga'. Added TIER_START mapping, initialLevel state captured from the API response, and a server-side fallback that auto-corrects invalid levels.
+- Fixed duplicate `levels` variable declaration in situation-room.tsx that caused TS2451 error.
+- Completed the media viewer integration in field-reports.tsx (was interrupted in previous session): closed the Fragment, added MediaViewer component with viewerFiles/viewerIndex/viewerTitle state, added getMediaTypeFromUrl helper.
+
+Stage Summary:
+- All ScrollArea-based views now scroll properly (overview feed, alert triage, reports, situation room, engagement)
+- Live feed shows newest incidents at top with natural scroll position
+- Situation room works for all 3 tenant types (Presidential → national, Governorship → state, Local → lga)
+- Media viewer lightbox functional in Reports tab with keyboard navigation

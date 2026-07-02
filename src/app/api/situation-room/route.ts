@@ -53,8 +53,13 @@ export async function GET(req: NextRequest) {
     const levels = TIER_LEVELS[tier] || TIER_LEVELS.PRESIDENTIAL;
 
     const { searchParams } = new URL(req.url);
-    const level = searchParams.get('level') || levels[0]; // default to top level
+    let level = searchParams.get('level') || levels[0];
     const filter = searchParams.get('filter') || ''; // state/lga/zone name for drill-down
+
+    // If the requested level isn't valid for this tier, fall back to the top level
+    if (!levels.includes(level)) {
+      level = levels[0];
+    }
 
     // Fetch all polling units + incident counts for this election
     const pollingUnits = await db.pollingUnit.findMany({
