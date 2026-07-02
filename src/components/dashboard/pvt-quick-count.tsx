@@ -133,7 +133,7 @@ function buildSankeyLayout(
   linkPaths: SankeyLinkPath[];
 } {
   const { nodes, links } = sankeyData;
-  if (!links.length) return { nodeRects: {}, linkPaths: [] };
+  if (!nodes.length || !links.length) return { nodeRects: {}, linkPaths: [] };
 
   const sourceIds = new Set(links.map((l) => l.source));
   const targetIds = new Set(links.map((l) => l.target));
@@ -171,7 +171,7 @@ function buildSankeyLayout(
   // Position left nodes
   let yOff = padTop;
   for (const node of leftNodes) {
-    const h = Math.max(4, (nodeTotals[node.id] || 0) * scale);
+    const h = Math.max(8, (nodeTotals[node.id] || 0) * scale);
     nodeRects[node.id] = { x: leftX, y: yOff, w: nodeW, h, label: node.label, color: node.color, isLeft: true };
     yOff += h + 3;
   }
@@ -179,7 +179,7 @@ function buildSankeyLayout(
   // Position right nodes
   yOff = padTop;
   for (const node of rightNodes) {
-    const h = Math.max(4, (nodeTotals[node.id] || 0) * scale);
+    const h = Math.max(8, (nodeTotals[node.id] || 0) * scale);
     nodeRects[node.id] = {
       x: rightX,
       y: yOff,
@@ -314,7 +314,7 @@ function SankeyDiagram({ data }: { data: PvtData['sankeyData'] }) {
             fill="none"
             stroke={lp.color}
             strokeWidth={lp.linkH}
-            strokeOpacity={tooltip && tooltip.source !== lp.source && tooltip.target !== lp.target ? 0.12 : 0.35}
+            strokeOpacity={tooltip && tooltip.source === lp.source && tooltip.target === lp.target ? 0.8 : 0.4}
             className="cursor-pointer transition-[stroke-opacity] duration-200"
             onMouseEnter={(e) => {
               const rect = (e.currentTarget.closest('svg') as SVGSVGElement).getBoundingClientRect();
@@ -393,10 +393,18 @@ function SankeyDiagram({ data }: { data: PvtData['sankeyData'] }) {
 }
 
 function PartyBarChart({ partyTotals }: { partyTotals: PvtData['partyTotals'] }) {
-  const maxVotes = useMemo(
-    () => Math.max(...partyTotals.map((p) => p.votes), 1),
-    [partyTotals],
-  );
+  const maxVotes = useMemo(() => {
+    if (!partyTotals.length) return 1;
+    return Math.max(...partyTotals.map((p) => p.votes), 1);
+  }, [partyTotals]);
+
+  if (!partyTotals.length) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        No party data available
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-2.5 px-1">
@@ -489,12 +497,17 @@ export function PvtQuickCount() {
     );
   }
 
-  const { stats, coverage, sankeyData, partyTotals, comparisons, pvtSubmissions } = data;
+  const stats = data.stats ?? { totalSubmissions: 0, verifiedCount: 0, unitsWithComparison: 0, anomalyCount: 0, bySource: {}, byState: {} };
+  const coverage = data.coverage ?? { totalPollingUnits: 0, pvtCoveredUnits: 0, coveragePct: 0 };
+  const sankeyData = data.sankeyData ?? { nodes: [], links: [] };
+  const partyTotals = data.partyTotals ?? [];
+  const comparisons = data.comparisons ?? [];
+  const pvtSubmissions = data.pvtSubmissions ?? [];
 
-  // Derived
-  const anomalies = comparisons.filter((c) => c.isAnomaly);
-  const recentSubmissions = pvtSubmissions.slice(0, 20);
-  const topParty = partyTotals[0];
+  // Derived — memoized to avoid re-computing on every render
+  const anomalies = useMemo(() => comparisons.filter((c) => c.isAnomaly), [comparisons]);
+  const recentSubmissions = useMemo(() => pvtSubmissions.slice(0, 20), [pvtSubmissions]);
+  const topParty = useMemo(() => partyTotals[0] ?? null, [partyTotals]);
 
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
@@ -536,10 +549,10 @@ export function PvtQuickCount() {
       <motion.div
         {...fadeUp}
         transition={{ duration: 0.5, delay: 0.1 }}
-        className="min-h-0 flex-1 grid gap-4 lg:grid-cols-[3fr_2fr]"
+        className="min-h-0 flex-1 grid grid-cols-1 gap-4 lg:grid-cols-5"
       >
         {/* Left: Sankey Diagram */}
-        <Card className="flex flex-col overflow-hidden">
+        <Card className="flex flex-col overflow-hidden lg:col-span-3">
           <CardContent className="flex flex-1 flex-col gap-2 overflow-hidden px-4 py-4">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-emerald-400" />
@@ -552,7 +565,7 @@ export function PvtQuickCount() {
         </Card>
 
         {/* Right Column: Party Totals + Anomaly Table */}
-        <div className="flex min-h-0 flex-col gap-4">
+        <div className="flex min-h-0 flex-col gap-4 lg:col-span-2">
           {/* Party Totals */}
           <Card className="flex flex-col">
             <CardContent className="flex flex-1 flex-col gap-2 px-4 py-4">

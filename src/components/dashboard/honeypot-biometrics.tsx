@@ -176,7 +176,7 @@ function StatCard({
 // Helper: Colored progress bar
 // ────────────────────────────────────────────
 
-function ColorBar({ value, max = 100, colorClass }: { value: number; max?: number; colorClass: string }) {
+function ColorBar({ value, max = 100, color }: { value: number; max?: number; color: string }) {
   const pct = Math.min((value / max) * 100, 100);
   return (
     <div className="h-2 bg-secondary rounded-full overflow-hidden w-full min-w-[80px]">
@@ -184,7 +184,8 @@ function ColorBar({ value, max = 100, colorClass }: { value: number; max?: numbe
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
-        className={cn('h-full rounded-full', colorClass)}
+        className="h-full rounded-full"
+        style={{ backgroundColor: color }}
       />
     </div>
   );
@@ -541,24 +542,30 @@ export function HoneypotBiometrics() {
                               <span>Expected</span>
                               <span>Official</span>
                             </div>
-                            {hp.expectedResults.map((er, ri) => {
-                              const or = hp.officialResults.find((o) => o.party === er.party);
-                              return (
-                                <div
-                                  key={ri}
-                                  className="grid grid-cols-2 text-xs border-t border-border/50 px-3 py-1.5"
-                                >
-                                  <span className="tabular-nums">
-                                    <span className="text-muted-foreground mr-1.5">{er.party}:</span>
-                                    {er.votes.toLocaleString()}
-                                  </span>
-                                  <span className="tabular-nums">
-                                    <span className="text-muted-foreground mr-1.5">{er.party}:</span>
-                                    {or ? or.votes.toLocaleString() : '—'}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                            {hp.officialResults.length === 0 ? (
+                              <div className="text-xs text-muted-foreground/70 italic px-3 py-2 border-t border-border/50">
+                                No official results received yet
+                              </div>
+                            ) : (
+                              hp.expectedResults.map((er, ri) => {
+                                const or = hp.officialResults.find((o) => o.party === er.party);
+                                return (
+                                  <div
+                                    key={ri}
+                                    className="grid grid-cols-2 text-xs border-t border-border/50 px-3 py-1.5"
+                                  >
+                                    <span className="tabular-nums">
+                                      <span className="text-muted-foreground mr-1.5">{er.party}:</span>
+                                      {er.votes.toLocaleString()}
+                                    </span>
+                                    <span className="tabular-nums">
+                                      <span className="text-muted-foreground mr-1.5">{er.party}:</span>
+                                      {or ? or.votes.toLocaleString() : '—'}
+                                    </span>
+                                  </div>
+                                );
+                              })
+                            )}
                           </div>
 
                           {/* Deviation footer */}
@@ -617,7 +624,7 @@ export function HoneypotBiometrics() {
               {biometricAgents.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Fingerprint className="h-8 w-8 mb-2 opacity-40" />
-                  <p className="text-sm">No biometric data available</p>
+                  <p className="text-sm">No biometric profiles recorded</p>
                 </div>
               ) : (
                 <Table className="pr-4 pb-4">
@@ -641,10 +648,10 @@ export function HoneypotBiometrics() {
                             : 'text-emerald';
                       const riskBarColor =
                         agent.biometricRiskScore > 0.7
-                          ? 'bg-rose'
+                          ? 'var(--color-rose)'
                           : agent.biometricRiskScore > 0.3
-                            ? 'bg-amber'
-                            : 'bg-emerald';
+                            ? 'var(--color-amber)'
+                            : 'var(--color-emerald)';
 
                       return (
                         <motion.tr
@@ -657,7 +664,7 @@ export function HoneypotBiometrics() {
                           <TableCell className="text-xs font-medium py-2.5">{agent.name}</TableCell>
                           <TableCell className="py-2.5">
                             <div className="flex items-center gap-2 min-w-[140px]">
-                              <ColorBar value={agent.biometricRiskScore} max={1} colorClass={riskBarColor} />
+                              <ColorBar value={agent.biometricRiskScore} max={1} color={riskBarColor} />
                               <span className={cn('text-xs font-bold tabular-nums shrink-0', riskColor)}>
                                 {agent.biometricRiskScore.toFixed(2)}
                               </span>
@@ -808,12 +815,12 @@ export function HoneypotBiometrics() {
                               : 'text-rose';
                       const scoreBarColor =
                         report.overallScore > 80
-                          ? 'bg-emerald'
+                          ? 'var(--color-emerald)'
                           : report.overallScore > 60
-                            ? 'bg-cyan'
+                            ? 'var(--color-cyan)'
                             : report.overallScore > 30
-                              ? 'bg-amber'
-                              : 'bg-rose';
+                              ? 'var(--color-amber)'
+                              : 'var(--color-rose)';
 
                       return (
                         <motion.tr
@@ -834,7 +841,7 @@ export function HoneypotBiometrics() {
                           </TableCell>
                           <TableCell className="py-2.5">
                             <div className="flex items-center gap-2 min-w-[120px]">
-                              <ColorBar value={report.overallScore} max={100} colorClass={scoreBarColor} />
+                              <ColorBar value={report.overallScore} max={100} color={scoreBarColor} />
                               <span className={cn('text-xs font-bold tabular-nums shrink-0', scoreColor)}>
                                 {report.overallScore}
                               </span>

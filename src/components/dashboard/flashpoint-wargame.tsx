@@ -239,6 +239,9 @@ export function FlashpointWargame() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashpoint', tenantId] });
     },
+    onError: () => {
+      toast.error('Flashpoint operation failed. Please try again.');
+    },
   });
 
   /* ---- Derived data ---- */
@@ -379,12 +382,12 @@ export function FlashpointWargame() {
         {/* ================================================================ */}
         {/* TAB 1 — Risk Forecast                                           */}
         {/* ================================================================ */}
-        <TabsContent value="forecast" className="flex-1 min-h-0 overflow-auto">
+        <TabsContent value="forecast" className="flex-1 min-h-0 flex flex-col">
           <motion.div
             variants={staggerContainer}
             initial="initial"
             animate="animate"
-            className="flex flex-col gap-4"
+            className="flex flex-col gap-4 flex-1 min-h-0"
           >
             {/* --- Stats Row --- */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -468,9 +471,9 @@ export function FlashpointWargame() {
                       </Button>
                     </div>
 
-                    {uniqueStates.length === 0 ? (
+                    {uniqueStates.length === 0 || uniqueDates.length === 0 ? (
                       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                        No heatmap data available
+                        No forecast data available
                       </div>
                     ) : (
                       <ScrollArea className="flex-1">
@@ -677,7 +680,7 @@ export function FlashpointWargame() {
         {/* ================================================================ */}
         {/* TAB 2 — Wargame Simulator                                       */}
         {/* ================================================================ */}
-        <TabsContent value="wargame" className="flex-1 min-h-0">
+        <TabsContent value="wargame" className="flex-1 min-h-0 flex flex-col">
           <motion.div
             variants={staggerContainer}
             initial="initial"
@@ -719,7 +722,7 @@ export function FlashpointWargame() {
                         {scenarios.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
                             <Swords className="size-10 opacity-30" />
-                            <p className="text-sm">No scenarios yet. Create one to begin.</p>
+                            <p className="text-sm">Select a scenario from the list or create a new one</p>
                           </div>
                         ) : (
                           <ScrollArea className="h-full">

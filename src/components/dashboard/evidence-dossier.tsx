@@ -157,16 +157,16 @@ function formatDate(dateStr: string) {
 }
 
 const SCRAPE_LOG_ENTRIES = [
-  { ts: '2025-02-14T09:15:02Z', msg: 'Fetched 47 results from INEC portal' },
-  { ts: '2025-02-14T09:14:48Z', msg: 'Parsed Form EC8A for 12 LGAs' },
-  { ts: '2025-02-14T09:14:31Z', msg: 'Validated C2PA signatures on 8 scanned PDFs' },
-  { ts: '2025-02-14T09:14:12Z', msg: 'Detected 2 duplicate entries in ward-level data' },
-  { ts: '2025-02-14T09:13:55Z', msg: 'Scraped presidential results for 3 additional states' },
-  { ts: '2025-02-14T09:13:40Z', msg: 'Portal session refreshed — new auth token acquired' },
-  { ts: '2025-02-14T09:13:22Z', msg: 'Downloaded 31 Form EC8B (senatorial) results' },
-  { ts: '2025-02-14T09:13:05Z', msg: 'Compared scraped totals vs official upload — 0.02% delta' },
-  { ts: '2025-02-14T09:12:48Z', msg: 'Indexed 156 polling unit result images' },
-  { ts: '2025-02-14T09:12:30Z', msg: 'Portal rate-limit hit — backing off 30s before retry' },
+  { relTime: 'Just now', msg: 'Fetched 47 results from INEC portal' },
+  { relTime: '14s ago', msg: 'Parsed Form EC8A for 12 LGAs' },
+  { relTime: '31s ago', msg: 'Validated C2PA signatures on 8 scanned PDFs' },
+  { relTime: '50s ago', msg: 'Detected 2 duplicate entries in ward-level data' },
+  { relTime: '1m ago', msg: 'Scraped presidential results for 3 additional states' },
+  { relTime: '1m ago', msg: 'Portal session refreshed — new auth token acquired' },
+  { relTime: '2m ago', msg: 'Downloaded 31 Form EC8B (senatorial) results' },
+  { relTime: '2m ago', msg: 'Compared scraped totals vs official upload — 0.02% delta' },
+  { relTime: '2m ago', msg: 'Indexed 156 polling unit result images' },
+  { relTime: '3m ago', msg: 'Portal rate-limit hit — backing off 30s before retry' },
 ];
 
 // ─── Stat Card ───────────────────────────────────────────────────────
@@ -237,6 +237,9 @@ export function EvidenceDossier() {
       }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['evidence', tenantId] });
+    },
+    onError: (err) => {
+      toast.error('Operation failed', { description: err instanceof Error ? err.message : 'Unknown error' });
     },
   });
 
@@ -751,7 +754,7 @@ export function EvidenceDossier() {
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <Database className="h-2.5 w-2.5" /> Total Scraped
                   </p>
-                  <p className="text-sm font-medium mt-0.5 tabular-nums">{ecPortal?.totalScraped?.toLocaleString() ?? 0}</p>
+                  <p className="text-sm font-medium mt-0.5 tabular-nums">{(ecPortal?.totalScraped ?? 0).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -781,7 +784,7 @@ export function EvidenceDossier() {
                       className="flex items-start gap-3 py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors"
                     >
                       <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 mt-px">
-                        {new Date(entry.ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        {entry.relTime}
                       </span>
                       <span className="text-[11px] text-foreground/80">{entry.msg}</span>
                     </motion.div>
