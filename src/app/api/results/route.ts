@@ -130,7 +130,9 @@ export async function POST(req: NextRequest) {
           metadata: JSON.stringify({ pollingUnitId, totalVotesCast, accreditedVoters, partyCount: (partyResults || []).length }),
         },
       });
-    } catch { /* non-fatal */ }
+    } catch (e: unknown) {
+      console.error('[results] Non-fatal: failed to create audit log', e instanceof Error ? e.message : e);
+    }
 
     // If violence was reported, auto-create an incident
     if (violenceOccurred) {
@@ -154,7 +156,9 @@ export async function POST(req: NextRequest) {
             description: 'Agent reported violence at their polling unit while submitting results.',
           },
         });
-      } catch { /* non-fatal */ }
+      } catch (e: unknown) {
+        console.error('[results] Non-fatal: failed to create violence incident/alert', e instanceof Error ? e.message : e);
+      }
     }
 
     return NextResponse.json({

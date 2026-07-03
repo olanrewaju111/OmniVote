@@ -15,7 +15,6 @@ import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from '@/components/ui/tabs';
@@ -35,7 +34,7 @@ import {
   Shield, ShieldAlert, ShieldCheck, Lock, Key, Eye, Clock,
   LogIn, Download, Fingerprint, Zap, Activity, User, Users,
   CheckCircle2, XCircle, AlertTriangle, Info, Plus, Trash2,
-  ChevronDown, ChevronUp, Loader2, Settings, FileText, ArrowUpRight,
+  ChevronDown, ChevronUp, Loader2, Settings, FileText,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */

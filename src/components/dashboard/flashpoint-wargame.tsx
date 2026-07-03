@@ -310,7 +310,7 @@ export function FlashpointWargame() {
       toast.error('Title is required');
       return;
     }
-    let parsedParams: any = {};
+    let parsedParams: Record<string, unknown> = {};
     try {
       parsedParams = newParams.trim() ? JSON.parse(newParams) : {};
     } catch {

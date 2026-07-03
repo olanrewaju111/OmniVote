@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import {
   Image as ImageIcon, Video, FileAudio, ShieldCheck, ShieldAlert, AlertTriangle,
-  Eye, Filter, ZoomIn, CheckCircle2, XCircle,
+  Eye, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 

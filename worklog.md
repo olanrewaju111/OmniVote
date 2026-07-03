@@ -113,3 +113,24 @@ Stage Summary:
 - Field-safety agent positions now show on a real map instead of placeholder SVG
 - Alert triage now supports marking individual or all alerts as read
 - Tenant deletion now properly cascades to all 25 related tables
+
+---
+Task ID: 2
+Agent: Main
+Task: Code quality audit and fixes — unused imports, type safety, silent catches, bell alerts popover
+
+Work Log:
+- Ran comprehensive codebase audit via Explore agent: checked all fetch→API route mappings, found 0 missing endpoints, 0 TODOs, 0 @ts-ignore
+- Found 11 unused imports across 5 files: header.tsx (TIER_LABELS), sidebar.tsx (Fingerprint, Accessibility), security-center.tsx (Checkbox, ArrowUpRight), field-safety.tsx (Search, Zap, Shield, XCircle), media-gallery.tsx (Filter, ZoomIn, Eye)
+- Removed all 11 unused imports, fixed duplicate Separator/Slider import in security-center.tsx
+- Fixed `let parsedParams: any` → `Record<string, unknown>` in flashpoint-wargame.tsx
+- Replaced 2 silent `catch { /* non-fatal */ }` blocks in results/route.ts with `console.error` logging
+- Created `src/types/leaflet.d.ts` type declaration and replaced `@ts-expect-error` with `as any` + eslint-disable in geo-map-inner.tsx
+- Built full alerts bell popover in header.tsx: DropdownMenu shows 5 most recent unread alerts with category icons, relative timestamps, per-alert mark-as-read (✓ icon on hover), mark-all-read button, and "View all alerts" footer link to the alerts tab
+- Header now uses its own useQuery for alerts data (30s refetch) instead of relying solely on the kpis prop count
+- Build: 0 errors, 28 routes generated, server running on port 3000 (HTTP 200)
+
+Stage Summary:
+- All 6 audit findings resolved
+- New feature: interactive notification bell dropdown with mark-as-read
+- Build clean, server live

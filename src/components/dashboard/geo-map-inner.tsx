@@ -75,8 +75,8 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
 
   // Fix Leaflet default icon
   useEffect(() => {
-    // @ts-expect-error leaflet default icon fix
-    delete L.Icon.Default.prototype._getIconUrl;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
   }, []);
 
   return (

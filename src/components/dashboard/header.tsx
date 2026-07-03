@@ -1,16 +1,20 @@
 'use client';
 
-import { Activity, Bell, Search, Shield, User, Vote, Calendar } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { useDashboardStore, TIER_SHORT, TIER_LABELS } from '@/store/dashboard';
+import { useDashboardStore, TIER_SHORT } from '@/store/dashboard';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface HeaderProps {
   kpis?: {
@@ -27,8 +31,62 @@ const TIER_STYLES: Record<string, string> = {
   LOCAL: 'border-cyan/30 text-cyan bg-cyan/10',
 };
 
+interface AlertItem {
+  id: string;
+  type: 'OPERATIONAL' | 'SECURITY';
+  category: 'INFO' | 'WARNING' | 'CRITICAL';
+  title: string;
+  description: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+function categoryIcon(cat: string) {
+  switch (cat) {
+    case 'CRITICAL': return <Radio className="h-3.5 w-3.5 text-rose shrink-0" />;
+    case 'WARNING': return <AlertTriangle className="h-3.5 w-3.5 text-amber shrink-0" />;
+    default: return <Info className="h-3.5 w-3.5 text-cyan shrink-0" />;
+  }
+}
+
+function relativeTime(date: string | Date) {
+  const d = new Date(date);
+  const diff = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diff < 1) return 'Just now';
+  if (diff < 60) return `${diff}m ago`;
+  return `${Math.floor(diff / 60)}h ago`;
+}
+
 export function AppHeader({ kpis }: HeaderProps) {
-  const { electionTier, electionInfo, alertFilter, setAlertFilter, setSelectedTab, user, logout } = useDashboardStore();
+  const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout } = useDashboardStore();
+  const queryClient = useQueryClient();
+
+  const { data: alertsRes } = useQuery<{ alerts: AlertItem[] }>({
+    queryKey: ['alerts-header', tenantId],
+    queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
+    refetchInterval: 30_000,
+  });
+
+  const unreadAlerts = (alertsRes?.alerts || []).filter(a => !a.isRead);
+  const recentUnread = unreadAlerts.slice(0, 5);
+
+  const markRead = useMutation({
+    mutationFn: (alertId: string) =>
+      fetchJson(`/api/alerts?tenantId=${tenantId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ alertId }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+  });
+
+  const markAllRead = useMutation({
+    mutationFn: () =>
+      fetchJson(`/api/alerts?tenantId=${tenantId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ markAllRead: true }),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+  });
 
   return (
     <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
@@ -94,20 +152,105 @@ export function AppHeader({ kpis }: HeaderProps) {
           </Button>
         )}
 
-        {/* Notifications */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="relative h-9 w-9 p-0 bg-background border-border"
-          onClick={() => setSelectedTab('alerts')}
-        >
-          <Bell className="h-4 w-4" />
-          {kpis?.unreadAlerts ? (
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-[9px] font-bold flex items-center justify-center text-white">
-              {kpis.unreadAlerts > 9 ? '9+' : kpis.unreadAlerts}
-            </span>
-          ) : null}
-        </Button>
+        {/* Notifications Bell — now with dropdown popover */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="relative h-9 w-9 p-0 bg-background border-border"
+            >
+              <Bell className="h-4 w-4" />
+              {recentUnread.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-[9px] font-bold flex items-center justify-center text-white">
+                  {recentUnread.length > 9 ? '9+' : recentUnread.length}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 p-0">
+            {/* Popover header */}
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+              <DropdownMenuLabel className="p-0 text-xs font-semibold">
+                Notifications
+                {recentUnread.length > 0 && (
+                  <Badge variant="destructive" className="ml-2 text-[9px] h-4 min-w-4 px-1">
+                    {recentUnread.length}
+                  </Badge>
+                )}
+              </DropdownMenuLabel>
+              <div className="flex items-center gap-1">
+                {unreadAlerts.length > 0 && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); markAllRead.mutate(); }}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
+                  >
+                    <CheckCheck className="h-3 w-3" />
+                    Mark all read
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Alert list */}
+            <ScrollArea className="max-h-72">
+              {recentUnread.length > 0 ? (
+                <div className="py-1">
+                  {recentUnread.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/50 transition-colors group"
+                    >
+                      <div className="mt-0.5 shrink-0">{categoryIcon(alert.category)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[9px] h-4 border px-1',
+                              alert.type === 'SECURITY'
+                                ? 'text-rose border-rose/30 bg-rose/10'
+                                : 'text-cyan border-cyan/30 bg-cyan/10'
+                            )}
+                          >
+                            {alert.category}
+                          </Badge>
+                          <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            {relativeTime(alert.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-medium mt-0.5 truncate">{alert.title}</p>
+                        <p className="text-[10px] text-muted-foreground line-clamp-1">{alert.description}</p>
+                      </div>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead.mutate(alert.id); }}
+                        className="shrink-0 mt-1 p-1 rounded text-muted-foreground hover:text-emerald opacity-0 group-hover:opacity-100 transition-all"
+                        title="Mark as read"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-muted-foreground text-xs">
+                  <Bell className="h-5 w-5 mx-auto mb-1.5 opacity-30" />
+                  No new notifications
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Footer — link to full alerts tab */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="justify-center text-[11px] text-muted-foreground py-2 cursor-pointer"
+              onClick={() => setSelectedTab('alerts')}
+            >
+              View all alerts
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <Separator orientation="vertical" className="h-8 bg-border" />
 

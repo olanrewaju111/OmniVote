@@ -29,7 +29,7 @@ import {
   MapPin, ShieldAlert, Radio, Clock, Users, CheckCircle2,
   AlertTriangle, Wifi, WifiOff, Battery, BatteryLow, BatteryWarning,
   BatteryFull, Satellite, Loader2, Plus, Eye, Activity,
-  Signal, Zap, Shield, XCircle, Search,
+  Signal, Zap, Shield,
 } from 'lucide-react';
 
 // ── Types ────────────────────────────────────────────────────────────
