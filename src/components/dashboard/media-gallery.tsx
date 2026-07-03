@@ -11,37 +11,104 @@ import {
 } from '@/components/ui/select';
 import {
   Image as ImageIcon, Video, FileAudio, ShieldCheck, ShieldAlert, AlertTriangle,
-  Eye, CheckCircle2, XCircle,
+  Eye, CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { useDashboardStore } from '@/store/dashboard';
+import { fetchJson } from '@/lib/api';
+
+interface EvidenceItem {
+  id: string;
+  fileName?: string;
+  fileType?: string;
+  fileUrl?: string;
+  description?: string;
+}
+
+interface Dossier {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  c2paSigned: boolean;
+  aiSummary: string | null;
+  aiConfidence: number | null;
+  evidenceItems: EvidenceItem[];
+  incidentId: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+interface StegoScan {
+  id: string;
+  fileName: string;
+  fileType: string;
+  isManipulated: boolean;
+  manipulationType: string | null;
+  confidence: number;
+  elaScore: number;
+  scannedAt: string;
+}
+
+interface MediaGalleryData {
+  dossiers: Dossier[];
+  stegoScans: StegoScan[];
+  stats: {
+    totalDossiers: number;
+    byStatus: Record<string, number>;
+    totalC2paSigned: number;
+    totalStegoScans: number;
+    manipulatedCount: number;
+    manipulationTypes: Record<string, number>;
+    avgAiConfidence: number;
+  };
+}
 
 interface MediaItem {
   id: string;
   type: 'image' | 'video' | 'audio';
   status: 'VERIFIED' | 'UNVERIFIED' | 'QUARANTINED';
   c2paVerified: boolean;
-  incidentType: string;
-  incidentSeverity: string;
-  reporter: string;
-  timestamp: string;
-  description: string;
+  incidentId: string | null;
+  aiConfidence: number | null;
+  aiSummary: string | null;
+  isManipulated: boolean | null;
+  manipulationType: string | null;
+  title: string;
+  description: string | null;
+  createdAt: string;
+  dossierStatus: string;
 }
 
-// Simulated media items
-const MEDIA_ITEMS: MediaItem[] = [
-  { id: 'm1', type: 'image', status: 'QUARANTINED', c2paVerified: false, incidentType: 'DEEPFAKE_SUSPECT', incidentSeverity: 'CRITICAL', reporter: 'Aisha Bello', timestamp: '2h ago', description: 'AI-generated ballot stuffing image — GAN artifacts detected' },
-  { id: 'm2', type: 'video', status: 'VERIFIED', c2paVerified: true, incidentType: 'VIOLENCE', incidentSeverity: 'HIGH', reporter: 'Segun Ogunleye', timestamp: '1h ago', description: 'Live footage of voter intimidation at polling unit' },
-  { id: 'm3', type: 'image', status: 'QUARANTINED', c2paVerified: false, incidentType: 'DEEPFAKE_SUSPECT', incidentSeverity: 'HIGH', reporter: 'Unknown', timestamp: '1.5h ago', description: 'Spliced image — shadow inconsistency detected by CV engine' },
-  { id: 'm4', type: 'image', status: 'VERIFIED', c2paVerified: true, incidentType: 'LOGISTICS', incidentSeverity: 'LOW', reporter: 'Ngozi Chukwu', timestamp: '45m ago', description: 'BVAS device malfunction documentation' },
-  { id: 'm5', type: 'video', status: 'UNVERIFIED', c2paVerified: false, incidentType: 'INTIMIDATION', incidentSeverity: 'MEDIUM', reporter: 'Tolu Adesanya', timestamp: '30m ago', description: 'Armed individuals near polling station — pending T&S review' },
-  { id: 'm6', type: 'audio', status: 'VERIFIED', c2paVerified: true, incidentType: 'OBSERVATION', incidentSeverity: 'LOW', reporter: 'Emeka Eze', timestamp: '20m ago', description: 'Agent voice report: peaceful voting, high turnout' },
-  { id: 'm7', type: 'image', status: 'QUARANTINED', c2paVerified: false, incidentType: 'CIB_DETECTED', incidentSeverity: 'CRITICAL', reporter: 'Unknown', timestamp: '10m ago', description: 'Identical image submitted 12 times from different agents — CIB pattern' },
-  { id: 'm8', type: 'video', status: 'VERIFIED', c2paVerified: true, incidentType: 'VIOLENCE', incidentSeverity: 'CRITICAL', reporter: 'Olumide Balogun', timestamp: '5m ago', description: 'SOS-triggered stealth recording — agent in distress' },
-  { id: 'm9', type: 'image', status: 'UNVERIFIED', c2paVerified: false, incidentType: 'BALLOT_STUFFING', incidentSeverity: 'HIGH', reporter: 'Kola Ahmed', timestamp: '8m ago', description: 'Alleged ballot stuffing — awaiting Trust & Safety review' },
-  { id: 'm10', type: 'audio', status: 'QUARANTINED', c2paVerified: false, incidentType: 'DEEPFAKE_SUSPECT', incidentSeverity: 'HIGH', reporter: 'Unknown', timestamp: '12m ago', description: 'Audio-visual desync detected (0.8s offset) — possible AI-generated audio' },
-  { id: 'm11', type: 'image', status: 'VERIFIED', c2paVerified: true, incidentType: 'OBSERVATION', incidentSeverity: 'LOW', reporter: 'Fatima Abubakar', timestamp: '15m ago', description: 'Long queue documentation at Ward 3 Unit 7' },
-  { id: 'm12', type: 'video', status: 'QUARANTINED', c2paVerified: false, incidentType: 'CIB_DETECTED', incidentSeverity: 'HIGH', reporter: 'Unknown', timestamp: '18m ago', description: 'Coordinated video submissions from same device fingerprint' },
-];
+function deriveMediaType(fileType?: string, title?: string): 'image' | 'video' | 'audio' {
+  if (fileType) {
+    if (fileType === 'MP4' || fileType === 'VIDEO') return 'video';
+    if (fileType === 'WAV' || fileType === 'AUDIO') return 'audio';
+  }
+  if (title) {
+    const t = title.toLowerCase();
+    if (t.includes('video') || t.includes('recording') || t.includes('footage')) return 'video';
+    if (t.includes('audio') || t.includes('voice') || t.includes('recording')) return 'audio';
+  }
+  return 'image';
+}
+
+function deriveStatus(dossier: Dossier, scan?: StegoScan): MediaItem['status'] {
+  if (dossier.status === 'DISMISSED') return 'QUARANTINED';
+  if (scan?.isManipulated) return 'QUARANTINED';
+  if (dossier.status === 'CERTIFIED' || dossier.c2paSigned) return 'VERIFIED';
+  if (dossier.status === 'REVIEWED') return 'VERIFIED';
+  return 'UNVERIFIED';
+}
+
+function relativeTime(date: string | Date) {
+  const d = new Date(date);
+  const diff = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diff < 1) return 'Just now';
+  if (diff < 60) return `${diff}m ago`;
+  return `${Math.floor(diff / 60)}h ago`;
+}
 
 function typeIcon(type: string) {
   switch (type) {
@@ -62,9 +129,9 @@ function statusBadge(status: string) {
   }
 }
 
-// Deterministic gradient based on id
 function getGradient(id: string) {
-  const hash = id.charCodeAt(1) % 6;
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 6;
   const gradients = [
     'from-emerald/20 to-cyan/20',
     'from-amber/20 to-rose/20',
@@ -73,14 +140,52 @@ function getGradient(id: string) {
     'from-amber/20 to-violet/20',
     'from-emerald/20 to-amber/20',
   ];
-  return gradients[hash];
+  return gradients[Math.abs(hash)];
 }
 
 export function MediaGallery() {
+  const { tenantId } = useDashboardStore();
   const [filter, setFilter] = useState<string>('ALL');
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
 
-  const filtered = MEDIA_ITEMS.filter(m => {
+  const { data, isLoading } = useQuery<MediaGalleryData>({
+    queryKey: ['evidence', tenantId],
+    queryFn: () => fetchJson(`/api/evidence?tenantId=${tenantId}`),
+    refetchInterval: 30_000,
+  });
+
+  // Build a map of dossier ID → latest stego scan
+  const stegoByDossier = new Map<string, StegoScan>();
+  if (data?.stegoScans) {
+    for (const scan of data.stegoScans) {
+      if (scan.evidenceDossierId && (!stegoByDossier.has(scan.evidenceDossierId) || new Date(scan.scannedAt) > new Date(stegoByDossier.get(scan.evidenceDossierId)!.scannedAt))) {
+        stegoByDossier.set(scan.evidenceDossierId, scan);
+      }
+    }
+  }
+
+  // Transform dossiers + scans into flat media items
+  const items: MediaItem[] = (data?.dossiers || []).map(d => {
+    const scan = d.id ? stegoByDossier.get(d.id) : undefined;
+    const firstItem = (d.evidenceItems?.[0] as EvidenceItem | undefined);
+    return {
+      id: d.id,
+      type: deriveMediaType(firstItem?.fileType, d.title),
+      status: deriveStatus(d, scan),
+      c2paVerified: d.c2paSigned,
+      incidentId: d.incidentId,
+      aiConfidence: d.aiConfidence,
+      aiSummary: d.aiSummary,
+      isManipulated: scan?.isManipulated ?? null,
+      manipulationType: scan?.manipulationType ?? null,
+      title: d.title,
+      description: d.description,
+      createdAt: d.createdAt,
+      dossierStatus: d.status,
+    };
+  });
+
+  const filtered = items.filter(m => {
     if (filter === 'ALL') return true;
     if (filter === 'QUARANTINED') return m.status === 'QUARANTINED';
     if (filter === 'UNVERIFIED') return m.status === 'UNVERIFIED';
@@ -90,11 +195,19 @@ export function MediaGallery() {
   });
 
   const counts = {
-    all: MEDIA_ITEMS.length,
-    quarantined: MEDIA_ITEMS.filter(m => m.status === 'QUARANTINED').length,
-    unverified: MEDIA_ITEMS.filter(m => m.status === 'UNVERIFIED').length,
-    verified: MEDIA_ITEMS.filter(m => m.status === 'VERIFIED').length,
+    all: items.length,
+    quarantined: items.filter(m => m.status === 'QUARANTINED').length,
+    unverified: items.filter(m => m.status === 'UNVERIFIED').length,
+    verified: items.filter(m => m.status === 'VERIFIED').length,
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -105,13 +218,17 @@ export function MediaGallery() {
             <ImageIcon className="h-4 w-4 text-cyan" />
             Media Vault
           </h3>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-emerald" />C2PA Verified</span>
-            <span>|</span>
-            <span className="flex items-center gap-1"><ShieldAlert className="h-3 w-3 text-rose" />Quarantined</span>
-          </div>
+          {data?.stats && (
+            <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><ShieldCheck className="h-3 w-3 text-emerald" />{data.stats.totalC2paSigned} C2PA</span>
+              <span>|</span>
+              <span className="flex items-center gap-1"><ShieldAlert className="h-3 w-3 text-rose" />{data.stats.manipulatedCount} flagged</span>
+              <span>|</span>
+              <span>{data.stats.totalDossiers} total</span>
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {[
             { key: 'ALL', label: `All (${counts.all})` },
             { key: 'QUARANTINED', label: `Quarantined (${counts.quarantined})` },
@@ -147,29 +264,31 @@ export function MediaGallery() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: idx * 0.03, duration: 0.2 }}
                 className={cn(
-                  'rounded-lg border overflow-hidden cursor-pointer transition-all hover:scale-[1.02]',
+                  'rounded-lg border overflow-hidden cursor-pointer transition-all hover:scale-[1.02] outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   item.status === 'QUARANTINED' ? 'border-rose/30' :
                   item.status === 'UNVERIFIED' ? 'border-amber/25' :
                   'border-border'
                 )}
                 onClick={() => setSelectedItem(item)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedItem(item); }
+                }}
+                tabIndex={0}
+                role="button"
               >
                 {/* Thumbnail placeholder */}
                 <div className={cn('aspect-video bg-gradient-to-br relative', getGradient(item.id))}>
                   <div className="absolute inset-0 flex items-center justify-center">
                     {typeIcon(item.type)}
                   </div>
-                  {/* Status overlay */}
                   <div className="absolute top-1.5 left-1.5">
                     {statusBadge(item.status)}
                   </div>
-                  {/* Type badge */}
                   <div className="absolute top-1.5 right-1.5">
                     <Badge variant="outline" className="bg-black/40 border-white/10 text-white/80 text-[9px] h-4">
                       {item.type.toUpperCase()}
                     </Badge>
                   </div>
-                  {/* Quarantine watermark */}
                   {item.status === 'QUARANTINED' && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <span className="text-rose font-bold text-xs px-3 py-1 rounded border border-rose/50 bg-black/60 transform rotate-[-15deg]">
@@ -178,11 +297,10 @@ export function MediaGallery() {
                     </div>
                   )}
                 </div>
-                {/* Info */}
                 <div className="p-2 bg-card/60 space-y-1">
-                  <p className="text-[11px] font-medium truncate">{item.reporter}</p>
+                  <p className="text-[11px] font-medium truncate">{item.title || 'Untitled'}</p>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-muted-foreground">{item.timestamp}</span>
+                    <span className="text-[10px] text-muted-foreground">{relativeTime(item.createdAt)}</span>
                     {item.c2paVerified ? (
                       <span className="flex items-center gap-0.5 text-[9px] text-emerald"><ShieldCheck className="h-2.5 w-2.5" />C2PA</span>
                     ) : (
@@ -193,44 +311,112 @@ export function MediaGallery() {
               </motion.div>
             ))}
           </div>
+          {!isLoading && filtered.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="font-medium text-foreground/60">No media in this category</p>
+              <p className="text-xs mt-1">Evidence will appear here as dossiers are created.</p>
+            </div>
+          )}
         </ScrollArea>
 
-        {/* Detail panel */}
-        {selectedItem && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="w-80 border-l border-border bg-card/40 p-4 space-y-3 shrink-0 hidden lg:block"
-          >
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold">Media Detail</h4>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedItem(null)}>Close</Button>
-            </div>
-            <div className={cn('aspect-video rounded-lg bg-gradient-to-br flex items-center justify-center', getGradient(selectedItem.id))}>
-              {typeIcon(selectedItem.type)}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                {statusBadge(selectedItem.status)}
-                <Badge variant="outline" className="text-[10px]">{selectedItem.type.toUpperCase()}</Badge>
+        {/* Detail panel — responsive: Dialog on mobile, sidebar on desktop */}
+        <AnimatePresence>
+          {selectedItem && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="w-80 border-l border-border bg-card/40 p-4 space-y-3 shrink-0 hidden lg:flex flex-col"
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">Media Detail</h4>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedItem(null)}>Close</Button>
               </div>
-              <p className="text-xs">{selectedItem.description}</p>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <div><span className="text-muted-foreground">Reporter:</span> {selectedItem.reporter}</div>
-                <div><span className="text-muted-foreground">Time:</span> {selectedItem.timestamp}</div>
-                <div><span className="text-muted-foreground">C2PA:</span> {selectedItem.c2paVerified ? 'Verified' : 'Not Present'}</div>
-                <div><span className="text-muted-foreground">Incident:</span> {selectedItem.incidentType.replace(/_/g, ' ')}</div>
+              <div className={cn('aspect-video rounded-lg bg-gradient-to-br flex items-center justify-center', getGradient(selectedItem.id))}>
+                {typeIcon(selectedItem.type)}
               </div>
-              {selectedItem.status === 'QUARANTINED' && (
-                <div className="p-2 rounded-md bg-rose/5 border border-rose/20 text-[11px] text-rose">
-                  This media has been quarantined by the AI Defense Engine. Trust & Safety review required before release.
+              <div className="space-y-2 flex-1 overflow-y-auto">
+                <div className="flex items-center gap-2">
+                  {statusBadge(selectedItem.status)}
+                  <Badge variant="outline" className="text-[10px]">{selectedItem.type.toUpperCase()}</Badge>
                 </div>
-              )}
-            </div>
-          </motion.div>
+                <p className="text-xs font-medium">{selectedItem.title}</p>
+                {selectedItem.description && <p className="text-xs text-muted-foreground">{selectedItem.description}</p>}
+                {selectedItem.aiSummary && (
+                  <div className="p-2 rounded-md bg-cyan/5 border border-cyan/15 text-[11px] text-cyan">
+                    <p className="font-medium mb-0.5">AI Analysis</p>
+                    {selectedItem.aiSummary}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Time:</span> {relativeTime(selectedItem.createdAt)}</div>
+                  <div><span className="text-muted-foreground">C2PA:</span> {selectedItem.c2paVerified ? 'Verified' : 'Not Present'}</div>
+                  <div><span className="text-muted-foreground">AI Confidence:</span> {selectedItem.aiConfidence != null ? `${Math.round(selectedItem.aiConfidence * 100)}%` : 'N/A'}</div>
+                  <div><span className="text-muted-foreground">Dossier:</span> {selectedItem.dossierStatus}</div>
+                  {selectedItem.isManipulated && (
+                    <div className="col-span-2"><span className="text-muted-foreground">Manipulation:</span> <span className="text-rose">{selectedItem.manipulationType?.replace(/_/g, ' ') || 'Detected'}</span></div>
+                  )}
+                </div>
+                {selectedItem.status === 'QUARANTINED' && (
+                  <div className="p-2 rounded-md bg-rose/5 border border-rose/20 text-[11px] text-rose">
+                    This media has been quarantined by the AI Defense Engine. Trust & Safety review required before release.
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile detail overlay */}
+        {selectedItem && (
+          <div className="lg:hidden fixed inset-0 z-50 bg-black/60 flex items-end" onClick={() => setSelectedItem(null)}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="w-full max-h-[80vh] bg-card rounded-t-xl p-4 space-y-3 overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">Media Detail</h4>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setSelectedItem(null)}>Close</Button>
+              </div>
+              <div className={cn('aspect-video rounded-lg bg-gradient-to-br flex items-center justify-center', getGradient(selectedItem.id))}>
+                {typeIcon(selectedItem.type)}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {statusBadge(selectedItem.status)}
+                  <Badge variant="outline" className="text-[10px]">{selectedItem.type.toUpperCase()}</Badge>
+                </div>
+                <p className="text-xs font-medium">{selectedItem.title}</p>
+                {selectedItem.description && <p className="text-xs text-muted-foreground">{selectedItem.description}</p>}
+                {selectedItem.aiSummary && (
+                  <div className="p-2 rounded-md bg-cyan/5 border border-cyan/15 text-[11px] text-cyan">
+                    <p className="font-medium mb-0.5">AI Analysis</p>
+                    {selectedItem.aiSummary}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div><span className="text-muted-foreground">Time:</span> {relativeTime(selectedItem.createdAt)}</div>
+                  <div><span className="text-muted-foreground">C2PA:</span> {selectedItem.c2paVerified ? 'Verified' : 'Not Present'}</div>
+                  <div><span className="text-muted-foreground">AI Confidence:</span> {selectedItem.aiConfidence != null ? `${Math.round(selectedItem.aiConfidence * 100)}%` : 'N/A'}</div>
+                  <div><span className="text-muted-foreground">Dossier:</span> {selectedItem.dossierStatus}</div>
+                  {selectedItem.isManipulated && (
+                    <div className="col-span-2"><span className="text-muted-foreground">Manipulation:</span> <span className="text-rose">{selectedItem.manipulationType?.replace(/_/g, ' ') || 'Detected'}</span></div>
+                  )}
+                </div>
+                {selectedItem.status === 'QUARANTINED' && (
+                  <div className="p-2 rounded-md bg-rose/5 border border-rose/20 text-[11px] text-rose">
+                    This media has been quarantined by the AI Defense Engine. Trust & Safety review required before release.
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
