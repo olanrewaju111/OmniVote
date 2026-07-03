@@ -89,7 +89,7 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts } = useDashboardStore();
 
   // Build URL with tenantId for all API calls
   const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
@@ -122,6 +122,13 @@ export default function Home() {
     refetchInterval: 10000,
     enabled: isAuthenticated,
   });
+
+  // Sync unread alerts count to store (sidebar badge)
+  useEffect(() => {
+    if (alertsData) {
+      setUnreadAlerts(alertsData.unreadCount);
+    }
+  }, [alertsData, setUnreadAlerts]);
 
   const isLoading = dashLoading || incLoading || alertsLoading;
 

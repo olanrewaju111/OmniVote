@@ -229,12 +229,20 @@ export function SituationRoom() {
                       >
                         <Card
                           className={cn(
-                            'border transition-colors',
+                            'border transition-colors outline-none',
                             nextLevel
-                              ? 'border-border bg-card/50 hover:bg-card/80 cursor-pointer hover:border-emerald/30'
+                              ? 'border-border bg-card/50 hover:bg-card/80 cursor-pointer hover:border-emerald/30 focus-visible:ring-2 focus-visible:ring-ring'
                               : 'border-border/50 bg-card/30'
                           )}
                           onClick={() => nextLevel && navigateTo(nextLevel, item.name, item.name)}
+                          onKeyDown={(e) => {
+                            if (nextLevel && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              navigateTo(nextLevel, item.name, item.name);
+                            }
+                          }}
+                          tabIndex={nextLevel ? 0 : undefined}
+                          role={nextLevel ? 'button' : undefined}
                         >
                           <CardContent className="p-3 sm:p-4">
                             <div className="flex items-start justify-between gap-3">

@@ -70,6 +70,7 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts', tenantId] });
     },
+    onError: () => { /* non-critical — badge updates on next refetch */ },
   });
 
   const markAllReadMutation = useMutation({
@@ -81,6 +82,7 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts', tenantId] });
     },
+    onError: () => { /* non-critical — badge updates on next refetch */ },
   });
 
   const filtered = alerts.filter(a => {

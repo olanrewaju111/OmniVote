@@ -68,11 +68,14 @@ interface DashboardState {
   incidentFilter: { type: string; severity: string; status: string };
   sidebarCollapsed: boolean;
   liveFeedPaused: boolean;
+  globalSearch: string;
   setSelectedTab: (tab: ViewTab) => void;
   setAlertFilter: (filter: 'ALL' | 'OPERATIONAL' | 'SECURITY') => void;
   setIncidentFilter: (filter: { type: string; severity: string; status: string }) => void;
   toggleSidebar: () => void;
   toggleLiveFeed: () => void;
+  setUnreadAlerts: (n: number) => void;
+  setGlobalSearch: (q: string) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -83,7 +86,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     const defaultTab = ROLE_TABS[user.role]?.[0] || 'overview';
     set({ user, isAuthenticated: true, activeTab: defaultTab, alertFilter: 'ALL' });
   },
-  logout: () => set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL', tenantId: '' }),
+  logout: () => set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL', tenantId: '', unreadAlerts: 0, globalSearch: '' }),
 
   // Election — server-driven, one tier per tenant
   electionTier: 'PRESIDENTIAL',
@@ -101,9 +104,12 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   incidentFilter: { type: 'ALL', severity: 'ALL', status: 'ALL' },
   sidebarCollapsed: false,
   liveFeedPaused: false,
+  globalSearch: '',
   setSelectedTab: (tab) => set({ activeTab: tab }),
   setAlertFilter: (filter) => set({ alertFilter: filter }),
   setIncidentFilter: (filter) => set({ incidentFilter: filter }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   toggleLiveFeed: () => set((s) => ({ liveFeedPaused: !s.liveFeedPaused })),
+  setUnreadAlerts: (n) => set({ unreadAlerts: n }),
+  setGlobalSearch: (q) => set({ globalSearch: q }),
 }));

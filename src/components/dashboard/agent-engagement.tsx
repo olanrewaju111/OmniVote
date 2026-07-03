@@ -803,6 +803,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
       toast.success('WhatsApp disconnected');
     },
+    onError: (e: Error) => toast.error(e.message || 'Failed to disconnect'),
   });
 
   const [linkPhone, setLinkPhone] = useState('');

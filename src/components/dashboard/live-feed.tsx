@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import {
   Pause, Play, Filter, MapPin, Clock, User, AlertTriangle,
-  ShieldAlert, ShieldCheck, Eye, ChevronDown, Loader2,
+  ShieldAlert, ShieldCheck, Eye, ChevronDown, Loader2, Radio,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
@@ -123,7 +123,7 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
                 exit={{ opacity: 0, x: 12 }}
                 transition={{ delay: idx * 0.02, duration: 0.2 }}
                 className={cn(
-                  'rounded-lg border p-3 cursor-pointer transition-colors',
+                  'rounded-lg border p-3 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   inc.isQuarantined
                     ? 'bg-violet/5 border-violet/25 hover:bg-violet/10'
                     : inc.severity === 'CRITICAL'
@@ -131,6 +131,15 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
                     : 'bg-card/60 border-border hover:bg-card/80'
                 )}
                 onClick={() => setExpandedId(expandedId === inc.id ? null : inc.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setExpandedId(expandedId === inc.id ? null : inc.id);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-expanded={expandedId === inc.id}
               >
                 <div className="flex items-start gap-2.5">
                   <div className="mt-0.5 shrink-0">{typeIcon(inc.type)}</div>
@@ -190,6 +199,18 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
               </motion.div>
             ))}
           </AnimatePresence>
+
+          {!loading && filtered.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground text-sm">
+              <Radio className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="font-medium text-foreground/60">No incidents in the feed</p>
+              <p className="text-xs mt-1">
+                {incidents.length === 0
+                  ? 'Incidents will appear here as field agents submit reports.'
+                  : 'Try adjusting the filters above to see more results.'}
+              </p>
+            </div>
+          )}
 
           {loading && (
             <div className="flex items-center justify-center py-4">

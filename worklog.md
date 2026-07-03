@@ -134,3 +134,27 @@ Stage Summary:
 - All 6 audit findings resolved
 - New feature: interactive notification bell dropdown with mark-as-read
 - Build clean, server live
+
+---
+Task ID: 3
+Agent: Main
+Task: Deep UX audit fixes — search, profile, store sync, accessibility, empty states
+
+Work Log:
+- Ran deep UX/feature audit via Explore agent: found 8 categories of issues
+- Fixed stale `unreadAlerts` in store: added `setUnreadAlerts` action, wired from page.tsx useEffect after alertsData query (fixed temporal dead zone bug — useEffect must be after the variable declaration)
+- Added `globalSearch` + `setGlobalSearch` to store with proper reset on logout
+- Wired header search input: controlled component with value/onChange, Enter submits (auto-navigates to relevant tab based on keyword inference), Escape clears, Ctrl/Cmd+K keyboard shortcut, clear X button, keyboard hint badge
+- Added Profile dialog: Dialog component triggered from user dropdown, shows avatar, name, role, email, tenant name/ID
+- Added `onError` to 5 mutations: header markRead/markAllRead (non-critical), alert-triage markReadMutation/markAllReadMutation (non-critical), agent-engagement disconnectMutation (shows toast error)
+- Added empty state to live-feed.tsx: Radio icon + contextual message distinguishing "no incidents yet" vs "no matches for current filters"
+- Fixed keyboard accessibility: Situation Room drill-down cards (tabIndex, role="button", onKeyDown for Enter/Space, focus-visible ring), Live Feed incident cards (same pattern + aria-expanded)
+- Fixed duplicate Separator/Slider imports in security-center.tsx (leftover from previous session)
+- Build: 0 errors, 28 routes, server running port 3000 (HTTP 200)
+
+Stage Summary:
+- Search bar now functional with smart tab navigation and keyboard shortcuts
+- Profile dialog shows user details from store
+- Sidebar alert badge now syncs with real API data
+- All interactive divs now keyboard-accessible
+- 5 mutations now have proper error handling
