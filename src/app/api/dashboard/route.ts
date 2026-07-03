@@ -1,11 +1,19 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 export async function GET(req: Request) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     // Fetch tenant settings (mapBounds) and active election in parallel
     const [tenant, activeElection] = await Promise.all([
@@ -60,6 +68,36 @@ export async function GET(req: Request) {
       agg[s].turnout = Math.round((agg[s].votes / agg[s].registered) * 10000) / 100;
     }
 
+    // ── Trend computation (hour-over-hour deltas) ─────────────────────
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    const [prevOnlineAgents, prevIncidents, prevVotes] = await Promise.all([
+      db.user.count({ where: { tenantId, role: 'FIELD_AGENT', isOnline: true, lastSeenAt: { gte: oneHourAgo } } }),
+      db.incident.count({ where: { tenantId, createdAt: { lt: oneHourAgo } } }),
+      db.pollingUnit.aggregate({
+        where: activeElection ? { electionId: activeElection.id } : {},
+        _sum: { totalVotes: true, registeredVoters: true },
+      }),
+    ]);
+
+    const currentOnlineAgents = onlineAgents;
+    const trendOnlineAgents = prevOnlineAgents > 0
+      ? Math.round(((currentOnlineAgents - prevOnlineAgents) / prevOnlineAgents) * 1000) / 10
+      : currentOnlineAgents > 0 ? 100 : 0;
+
+    const trendIncidents = prevIncidents > 0
+      ? Math.round(((totalIncidents - prevIncidents) / prevIncidents) * 1000) / 10
+      : totalIncidents > 0 ? 100 : 0;
+
+    const prevTotalVotes = prevVotes._sum.totalVotes || 0;
+    const prevTotalRegistered = prevVotes._sum.registeredVoters || 0;
+    const prevAvgTurnout = prevTotalRegistered > 0
+      ? Math.round((prevTotalVotes / prevTotalRegistered) * 10000) / 100
+      : 0;
+    const trendTurnout = prevAvgTurnout > 0
+      ? Math.round(((avgTurnout - prevAvgTurnout) / prevAvgTurnout) * 1000) / 10
+      : avgTurnout > 0 ? 100 : 0;
+
     // Rename stateAgg for backward compat (frontend uses this key)
     const stateAgg = agg;
 
@@ -81,6 +119,11 @@ export async function GET(req: Request) {
         totalAgents, onlineAgents, totalIncidents, pendingIncidents,
         criticalIncidents, quarantinedIncidents, securityAlerts, operationalAlerts,
         unreadAlerts, sosCount,
+      },
+      trends: {
+        onlineAgents: { value: Math.abs(trendOnlineAgents), up: trendOnlineAgents >= 0 },
+        incidents: { value: Math.abs(trendIncidents), up: trendIncidents >= 0 },
+        turnout: { value: Math.abs(trendTurnout), up: trendTurnout >= 0 },
       },
       election: {
         totalPollingUnits: pollingUnits.length,

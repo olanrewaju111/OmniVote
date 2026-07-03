@@ -85,6 +85,11 @@ interface DashboardData {
     totalRegistered: number; totalVotes: number; avgTurnout: number;
     stateAgg: Record<string, { units: number; votes: number; registered: number; turnout: number }>;
   };
+  trends?: {
+    onlineAgents?: { value: number; up: boolean };
+    incidents?: { value: number; up: boolean };
+    turnout?: { value: number; up: boolean };
+  };
   pollingUnits: {
     id: string; name: string; code: string; state: string; lga: string;
     lat: number; lng: number; registered: number; votes: number;
@@ -317,6 +322,7 @@ function OverviewTab({
         <KpiGrid
           data={dashData.kpis}
           election={dashData.election}
+          trends={dashData.trends}
           extraStats={alertsData ? [
             { label: 'Threats Intercepted', value: dashData.kpis.quarantinedIncidents, color: 'rose' },
             { label: 'C2PA Verified Media', value: incidents.filter(i => i.c2paVerified).length, color: 'emerald' },

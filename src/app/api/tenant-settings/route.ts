@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 // GET /api/tenant-settings — fetch current tenant settings
 export async function GET(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const tenant = await db.tenant.findUnique({
       where: { id: tenantId },
@@ -48,6 +56,12 @@ export async function PUT(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const body = await req.json();
     const { mapBounds } = body;

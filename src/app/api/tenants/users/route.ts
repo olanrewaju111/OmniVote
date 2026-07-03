@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
 
 const VALID_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'];
 
 // GET /api/tenants/users?tenantId=X — list users in a tenant
 export async function GET(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const tenantId = searchParams.get('tenantId');
     if (!tenantId) return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
@@ -28,6 +34,11 @@ export async function GET(req: NextRequest) {
 // POST /api/tenants/users — create a new user in a tenant
 export async function POST(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { tenantId, name, email, role, phone } = body;
 
@@ -64,6 +75,11 @@ export async function POST(req: NextRequest) {
 // PATCH /api/tenants/users — update a user's role or name
 export async function PATCH(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { id, role, name, phone } = body;
 
@@ -99,6 +115,11 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/tenants/users?id=X — remove a user from a tenant
 export async function DELETE(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'User id is required' }, { status: 400 });

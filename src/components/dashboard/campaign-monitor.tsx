@@ -1022,7 +1022,7 @@ function SuppressionTab({
                             {formatTime(report.createdAt)}
                           </td>
                           <td className="py-2 px-3 text-center">
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground">
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" aria-label="View event details">
                               <Eye className="h-3 w-3" />
                             </Button>
                           </td>

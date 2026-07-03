@@ -144,6 +144,8 @@ export function AppSidebar() {
           size="sm"
           onClick={toggleSidebar}
           className="w-full justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground"
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!sidebarCollapsed}
         >
           {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>

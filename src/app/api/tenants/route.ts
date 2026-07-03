@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getAuthUser } from '@/lib/auth';
 
 // GET /api/tenants — list all tenants (SUPER_ADMIN only in practice)
 export async function GET() {
   try {
+    const authUser = await getAuthUser(new Request(''));
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const tenants = await db.tenant.findMany({
       select: {
         id: true, name: true, slug: true, primaryColor: true,
@@ -31,6 +37,11 @@ export async function GET() {
 // POST /api/tenants — create a new tenant
 export async function POST(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { name, slug, primaryColor, adminName, adminEmail } = body;
 
@@ -91,6 +102,11 @@ export async function POST(req: NextRequest) {
 // PUT /api/tenants — update a tenant (name, color, active status)
 export async function PUT(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { id, name, primaryColor, isActive } = body;
 
@@ -121,6 +137,11 @@ export async function PUT(req: NextRequest) {
 // DELETE /api/tenants?id=X — delete a tenant and all its data
 export async function DELETE(req: NextRequest) {
   try {
+    const authUser = await getAuthUser(req);
+    if (!authUser || authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Tenant id is required' }, { status: 400 });

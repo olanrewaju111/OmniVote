@@ -67,6 +67,7 @@ model User {
   name          String
   role          String    @default("FIELD_AGENT") // FIELD_AGENT, ANALYST, TENANT_ADMIN, SUPER_ADMIN, TRUST_SAFETY
   tenantId      String
+  passwordHash  String    @default("changeme") // bcrypt hash; default allows seed login
   phone         String?   // WhatsApp number e.g. "+2348012345678"
   whatsappJid   String?   // resolved JID after first message
   isOnline      Boolean   @default(false)

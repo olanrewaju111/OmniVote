@@ -1,0 +1,734 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { useQuery } from '@tanstack/react-query';
+     5→import { Card, CardContent } from '@/components/ui/card';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { ScrollArea } from '@/components/ui/scroll-area';
+     8→import {
+     9→  Table,
+    10→  TableHeader,
+    11→  TableBody,
+    12→  TableHead,
+    13→  TableRow,
+    14→  TableCell,
+    15→} from '@/components/ui/table';
+    16→import { useDashboardStore } from '@/store/dashboard';
+    17→import { Button } from '@/components/ui/button';
+    18→import {
+    19→  Loader2,
+    20→  BarChart3,
+    21→  GitCompareArrows,
+    22→  Percent,
+    23→  Trophy,
+    24→  Clock,
+    25→  MapPin,
+    26→  Smartphone,
+    27→  MessageCircle,
+    28→  FileText,
+    29→  CheckCircle2,
+    30→  AlertTriangle,
+    31→  AlertCircle,
+    32→} from 'lucide-react';
+    33→import { motion } from 'framer-motion';
+    34→import { cn } from '@/lib/utils';
+    35→import { fetchJson } from '@/lib/api';
+    36→
+    37→// ─── Types ───────────────────────────────────────────────────────────────────
+    38→
+    39→interface PvtData {
+    40→  pvtSubmissions: Array<{
+    41→    id: string;
+    42→    pollingUnit: { name: string; code: string; state: string; lga: string };
+    43→    partyResults: Array<{ party: string; votes: number }>;
+    44→    accreditedVoters: number;
+    45→    totalValidVotes: number;
+    46→    rejectedBallots: number;
+    47→    totalVotesCast: number;
+    48→    source: string;
+    49→    isVerified: boolean;
+    50→    submittedAt: string;
+    51→  }>;
+    52→  comparisons: Array<{
+    53→    id: string;
+    54→    pollingUnit: { name: string; code: string; state: string };
+    55→    totalPvtVotes: number;
+    56→    totalOfficialVotes: number;
+    57→    totalDelta: number;
+    58→    deltaPct: number;
+    59→    isAnomaly: boolean;
+    60→    anomalyReason: string | null;
+    61→    partyDeltas: Array<{
+    62→      party: string;
+    63→      pvtVotes: number;
+    64→      officialVotes: number;
+    65→      delta: number;
+    66→      deltaPct: number;
+    67→    }>;
+    68→  }>;
+    69→  stats: {
+    70→    totalSubmissions: number;
+    71→    verifiedCount: number;
+    72→    unitsWithComparison: number;
+    73→    anomalyCount: number;
+    74→    bySource: Record<string, number>;
+    75→    byState: Record<string, number>;
+    76→  };
+    77→  sankeyData: {
+    78→    nodes: Array<{ id: string; label: string; color: string }>;
+    79→    links: Array<{
+    80→      source: string;
+    81→      target: string;
+    82→      value: number;
+    83→      state: string;
+    84→    }>;
+    85→  };
+    86→  partyTotals: Array<{ party: string; votes: number }>;
+    87→  coverage: {
+    88→    totalPollingUnits: number;
+    89→    pvtCoveredUnits: number;
+    90→    coveragePct: number;
+    91→  };
+    92→}
+    93→
+    94→interface SankeyLinkPath {
+    95→  source: string;
+    96→  target: string;
+    97→  value: number;
+    98→  state: string;
+    99→  color: string;
+   100→  path: string;
+   101→  x1: number;
+   102→  y1: number;
+   103→  x2: number;
+   104→  y2: number;
+   105→  linkH: number;
+   106→}
+   107→
+   108→// ─── Constants ───────────────────────────────────────────────────────────────
+   109→
+   110→const PARTY_COLORS: Record<string, string> = {
+   111→  APC: '#00A651',
+   112→  PDP: '#E21A2B',
+   113→  LP: '#008751',
+   114→  NNPP: '#FF6B00',
+   115→};
+   116→const DEFAULT_PARTY_COLOR = '#6B7280';
+   117→
+   118→function getPartyColor(party: string): string {
+   119→  return PARTY_COLORS[party] || DEFAULT_PARTY_COLOR;
+   120→}
+   121→
+   122→const SOURCE_STYLES: Record<string, { label: string; className: string }> = {
+   123→  MOBILE: { label: 'Mobile', className: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
+   124→  WHATSAPP: { label: 'WhatsApp', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+   125→  PAPER: { label: 'Paper', className: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+   126→};
+   127→
+   128→// ─── Sankey Layout Engine ────────────────────────────────────────────────────
+   129→
+   130→function buildSankeyLayout(
+   131→  sankeyData: PvtData['sankeyData'],
+   132→  svgW: number,
+   133→  svgH: number,
+   134→): {
+   135→  nodeRects: Record<string, { x: number; y: number; w: number; h: number; label: string; color: string; isLeft: boolean }>;
+   136→  linkPaths: SankeyLinkPath[];
+   137→} {
+   138→  const { nodes, links } = sankeyData;
+   139→  if (!nodes.length || !links.length) return { nodeRects: {}, linkPaths: [] };
+   140→
+   141→  const sourceIds = new Set(links.map((l) => l.source));
+   142→  const targetIds = new Set(links.map((l) => l.target));
+   143→  const leftNodes = nodes.filter((n) => sourceIds.has(n.id));
+   144→  const rightNodes = nodes.filter((n) => targetIds.has(n.id));
+   145→
+   146→  // Total flow per node
+   147→  const nodeTotals: Record<string, number> = {};
+   148→  for (const link of links) {
+   149→    nodeTotals[link.source] = (nodeTotals[link.source] || 0) + link.value;
+   150→    nodeTotals[link.target] = (nodeTotals[link.target] || 0) + link.value;
+   151→  }
+   152→
+   153→  // Scale: total flow on one side (they should be equal)
+   154→  const totalLeftFlow = leftNodes.reduce((s, n) => s + (nodeTotals[n.id] || 0), 0);
+   155→  const totalRightFlow = rightNodes.reduce((s, n) => s + (nodeTotals[n.id] || 0), 0);
+   156→  const maxFlow = Math.max(totalLeftFlow, totalRightFlow, 1);
+   157→
+   158→  const padTop = 16;
+   159→  const padBot = 16;
+   160→  const availH = svgH - padTop - padBot;
+   161→  const nodeW = 14;
+   162→  const labelLeftW = 130;
+   163→  const labelRightW = 130;
+   164→  const leftX = labelLeftW;
+   165→  const rightX = svgW - labelRightW - nodeW;
+   166→
+   167→  const scale = availH / maxFlow;
+   168→
+   169→  const nodeRects: Record<
+   170→    string,
+   171→    { x: number; y: number; w: number; h: number; label: string; color: string; isLeft: boolean }
+   172→  > = {};
+   173→
+   174→  // Position left nodes
+   175→  let yOff = padTop;
+   176→  for (const node of leftNodes) {
+   177→    const h = Math.max(8, (nodeTotals[node.id] || 0) * scale);
+   178→    nodeRects[node.id] = { x: leftX, y: yOff, w: nodeW, h, label: node.label, color: node.color, isLeft: true };
+   179→    yOff += h + 3;
+   180→  }
+   181→
+   182→  // Position right nodes
+   183→  yOff = padTop;
+   184→  for (const node of rightNodes) {
+   185→    const h = Math.max(8, (nodeTotals[node.id] || 0) * scale);
+   186→    nodeRects[node.id] = {
+   187→      x: rightX,
+   188→      y: yOff,
+   189→      w: nodeW,
+   190→      h,
+   191→      label: node.label,
+   192→      color: node.color,
+   193→      isLeft: false,
+   194→    };
+   195→    yOff += h + 3;
+   196→  }
+   197→
+   198→  // Build link paths — track vertical offsets per node
+   199→  const linkOffsets: Record<string, number> = {};
+   200→  const nodeColorMap: Record<string, string> = {};
+   201→  for (const n of nodes) nodeColorMap[n.id] = n.color;
+   202→
+   203→  const linkPaths: SankeyLinkPath[] = [];
+   204→  for (const link of links) {
+   205→    const src = nodeRects[link.source];
+   206→    const tgt = nodeRects[link.target];
+   207→    if (!src || !tgt) continue;
+   208→
+   209→    const linkH = Math.max(1.5, link.value * scale);
+   210→    const srcOff = linkOffsets[link.source] || 0;
+   211→    const tgtOff = linkOffsets[link.target] || 0;
+   212→
+   213→    linkOffsets[link.source] = srcOff + linkH;
+   214→    linkOffsets[link.target] = tgtOff + linkH;
+   215→
+   216→    const x1 = src.x + src.w;
+   217→    const y1 = src.y + srcOff + linkH / 2;
+   218→    const x2 = tgt.x;
+   219→    const y2 = tgt.y + tgtOff + linkH / 2;
+   220→    const cx = (x1 + x2) / 2;
+   221→
+   222→    const path = `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2} ${y2}`;
+   223→
+   224→    linkPaths.push({
+   225→      ...link,
+   226→      color: nodeColorMap[link.source] || '#6B7280',
+   227→      path,
+   228→      x1,
+   229→      y1,
+   230→      x2,
+   231→      y2,
+   232→      linkH,
+   233→    });
+   234→  }
+   235→
+   236→  return { nodeRects, linkPaths };
+   237→}
+   238→
+   239→// ─── Sub-components ──────────────────────────────────────────────────────────
+   240→
+   241→function StatCard({
+   242→  icon: Icon,
+   243→  label,
+   244→  value,
+   245→  subValue,
+   246→  subColor,
+   247→  delay,
+   248→}: {
+   249→  icon: React.ElementType;
+   250→  label: string;
+   251→  value: string | number;
+   252→  subValue?: string;
+   253→  subColor?: string;
+   254→  delay: number;
+   255→}) {
+   256→  return (
+   257→    <motion.div
+   258→      initial={{ opacity: 0, y: 12 }}
+   259→      animate={{ opacity: 1, y: 0 }}
+   260→      transition={{ duration: 0.4, delay }}
+   261→    >
+   262→      <Card className="py-4">
+   263→        <CardContent className="flex items-start gap-3 px-4 py-0">
+   264→          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+   265→            <Icon className="h-4.5 w-4.5" />
+   266→          </div>
+   267→          <div className="min-w-0 flex-1">
+   268→            <p className="text-xs font-medium text-muted-foreground">{label}</p>
+   269→            <p className="mt-0.5 text-xl font-bold tabular-nums text-foreground">{value}</p>
+   270→            {subValue && (
+   271→              <p className={cn('mt-0.5 text-xs', subColor ?? 'text-muted-foreground')}>{subValue}</p>
+   272→            )}
+   273→          </div>
+   274→        </CardContent>
+   275→      </Card>
+   276→    </motion.div>
+   277→  );
+   278→}
+   279→
+   280→function SankeyDiagram({ data }: { data: PvtData['sankeyData'] }) {
+   281→  const [tooltip, setTooltip] = useState<{
+   282→    x: number;
+   283→    y: number;
+   284→    source: string;
+   285→    target: string;
+   286→    value: number;
+   287→  } | null>(null);
+   288→
+   289→  const svgW = 680;
+   290→  const svgH = 380;
+   291→
+   292→  const { nodeRects, linkPaths } = useMemo(() => buildSankeyLayout(data, svgW, svgH), [data]);
+   293→
+   294→  if (!linkPaths.length) {
+   295→    return (
+   296→      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+   297→        No Sankey data available
+   298→      </div>
+   299→    );
+   300→  }
+   301→
+   302→  const leftNodes = Object.values(nodeRects).filter((n) => n.isLeft);
+   303→  const rightNodes = Object.values(nodeRects).filter((n) => !n.isLeft);
+   304→
+   305→  return (
+   306→    <div className="relative h-full w-full">
+   307→      <svg
+   308→        viewBox={`0 0 ${svgW} ${svgH}`}
+   309→        className="h-full w-full"
+   310→        preserveAspectRatio="xMidYMid meet"
+   311→      >
+   312→        {/* Links */}
+   313→        {linkPaths.map((lp, i) => (
+   314→          <path
+   315→            key={`${lp.source}-${lp.target}-${i}`}
+   316→            d={lp.path}
+   317→            fill="none"
+   318→            stroke={lp.color}
+   319→            strokeWidth={lp.linkH}
+   320→            strokeOpacity={tooltip && tooltip.source === lp.source && tooltip.target === lp.target ? 0.8 : 0.4}
+   321→            className="cursor-pointer transition-[stroke-opacity] duration-200"
+   322→            onMouseEnter={(e) => {
+   323→              const rect = (e.currentTarget.closest('svg') as SVGSVGElement).getBoundingClientRect();
+   324→              const svgEl = e.currentTarget.closest('svg') as SVGSVGElement;
+   325→              const pt = svgEl.createSVGPoint();
+   326→              pt.x = e.clientX - rect.left;
+   327→              pt.y = e.clientY - rect.top;
+   328→              const ctm = svgEl.getScreenCTM();
+   329→              if (ctm) {
+   330→                const svgPt = pt.matrixTransform(ctm.inverse());
+   331→                setTooltip({ x: svgPt.x, y: svgPt.y, source: lp.source, target: lp.target, value: lp.value });
+   332→              }
+   333→            }}
+   334→            onMouseLeave={() => setTooltip(null)}
+   335→          />
+   336→        ))}
+   337→
+   338→        {/* Left node labels */}
+   339→        {leftNodes.map((n) => (
+   340→          <g key={n.label}>
+   341→            <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={3} fill={n.color} opacity={0.85} />
+   342→            <text
+   343→              x={n.x - 8}
+   344→              y={n.y + n.h / 2}
+   345→              textAnchor="end"
+   346→              dominantBaseline="central"
+   347→              className="fill-foreground text-[11px] font-medium"
+   348→            >
+   349→              {n.label}
+   350→            </text>
+   351→          </g>
+   352→        ))}
+   353→
+   354→        {/* Right node labels */}
+   355→        {rightNodes.map((n) => (
+   356→          <g key={n.label}>
+   357→            <rect x={n.x} y={n.y} width={n.w} height={n.h} rx={3} fill={n.color} opacity={0.85} />
+   358→            <text
+   359→              x={n.x + n.w + 8}
+   360→              y={n.y + n.h / 2}
+   361→              textAnchor="start"
+   362→              dominantBaseline="central"
+   363→              className="fill-foreground text-[11px] font-medium"
+   364→            >
+   365→              {n.label}
+   366→            </text>
+   367→          </g>
+   368→        ))}
+   369→
+   370→        {/* Tooltip */}
+   371→        {tooltip && (
+   372→          <g>
+   373→            <rect
+   374→              x={tooltip.x - 90}
+   375→              y={tooltip.y - 36}
+   376→              width={180}
+   377→              height={30}
+   378→              rx={6}
+   379→              className="fill-popover stroke-border"
+   380→              strokeWidth={1}
+   381→            />
+   382→            <text
+   383→              x={tooltip.x}
+   384→              y={tooltip.y - 16}
+   385→              textAnchor="middle"
+   386→              dominantBaseline="central"
+   387→              className="fill-foreground text-[10px]"
+   388→            >
+   389→              {tooltip.source} → {tooltip.target}: {tooltip.value.toLocaleString()}
+   390→            </text>
+   391→          </g>
+   392→        )}
+   393→      </svg>
+   394→    </div>
+   395→  );
+   396→}
+   397→
+   398→function PartyBarChart({ partyTotals }: { partyTotals: PvtData['partyTotals'] }) {
+   399→  const maxVotes = useMemo(() => {
+   400→    if (!partyTotals.length) return 1;
+   401→    return Math.max(...partyTotals.map((p) => p.votes), 1);
+   402→  }, [partyTotals]);
+   403→
+   404→  if (!partyTotals.length) {
+   405→    return (
+   406→      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+   407→        No party data available
+   408→      </div>
+   409→    );
+   410→  }
+   411→
+   412→  return (
+   413→    <div className="space-y-2.5 px-1">
+   414→      {partyTotals.map((pt, idx) => {
+   415→        const pct = (pt.votes / maxVotes) * 100;
+   416→        const color = getPartyColor(pt.party);
+   417→        return (
+   418→          <div key={pt.party} className="flex items-center gap-3">
+   419→            <span className="w-12 shrink-0 text-right text-xs font-semibold text-foreground">
+   420→              {pt.party}
+   421→            </span>
+   422→            <div className="relative h-5 flex-1 rounded bg-muted">
+   423→              <motion.div
+   424→                className="absolute inset-y-0 left-0 rounded"
+   425→                style={{ backgroundColor: color }}
+   426→                initial={{ width: 0 }}
+   427→                animate={{ width: `${pct}%` }}
+   428→                transition={{ duration: 0.7, delay: idx * 0.08, ease: 'easeOut' }}
+   429→              />
+   430→            </div>
+   431→            <span className="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+   432→              {pt.votes.toLocaleString()}
+   433→            </span>
+   434→          </div>
+   435→        );
+   436→      })}
+   437→    </div>
+   438→  );
+   439→}
+   440→
+   441→function DeltaBadge({ pct }: { pct: number }) {
+   442→  const abs = Math.abs(pct);
+   443→  const colorClass =
+   444→    abs > 10
+   445→      ? 'text-rose-400 bg-rose-500/15'
+   446→      : abs >= 5
+   447→        ? 'text-amber-400 bg-amber-500/15'
+   448→        : 'text-emerald-400 bg-emerald-500/15';
+   449→  return (
+   450→    <span className={cn('inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium', colorClass)}>
+   451→      {pct > 0 ? '+' : ''}
+   452→      {pct.toFixed(1)}%
+   453→    </span>
+   454→  );
+   455→}
+   456→
+   457→function SourceBadge({ source }: { source: string }) {
+   458→  const style = SOURCE_STYLES[source] || {
+   459→    label: source,
+   460→    className: 'bg-muted text-muted-foreground border-border',
+   461→  };
+   462→  return (
+   463→    <Badge variant="outline" className={cn('text-[10px] font-medium', style.className)}>
+   464→      {style.label}
+   465→    </Badge>
+   466→  );
+   467→}
+   468→
+   469→function formatTime(iso: string): string {
+   470→  try {
+   471→    const d = new Date(iso);
+   472→    return d.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true });
+   473→  } catch {
+   474→    return '—';
+   475→  }
+   476→}
+   477→
+   478→// ─── Main Component ──────────────────────────────────────────────────────────
+   479→
+   480→const fadeUp = {
+   481→  initial: { opacity: 0, y: 16 },
+   482→  animate: { opacity: 1, y: 0 },
+   483→};
+   484→
+   485→export function PvtQuickCount() {
+   486→  const { tenantId } = useDashboardStore();
+   487→
+   488→  const { data, isLoading, isError } = useQuery<PvtData>({
+   489→    queryKey: ['pvt', tenantId],
+   490→    queryFn: () => fetchJson(`/api/pvt?tenantId=${tenantId}`),
+   491→    refetchInterval: 15000,
+   492→  });
+   493→
+   494→  // Loading state
+   495→  if (isLoading || !data) {
+   496→    return (
+   497→      <div className="flex h-full items-center justify-center">
+   498→        <Loader2 className="h-7 w-7 animate-spin text-emerald-400" />
+   499→      </div>
+   500→    );
+   501→  }
+   502→
+   503→  if (isError) {
+   504→    return (
+   505→      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+   506→        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+   507→        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+   508→        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+   509→          Retry
+   510→        </Button>
+   511→      </div>
+   512→    );
+   513→  }
+   514→
+   515→  const stats = data.stats ?? { totalSubmissions: 0, verifiedCount: 0, unitsWithComparison: 0, anomalyCount: 0, bySource: {}, byState: {} };
+   516→  const coverage = data.coverage ?? { totalPollingUnits: 0, pvtCoveredUnits: 0, coveragePct: 0 };
+   517→  const sankeyData = data.sankeyData ?? { nodes: [], links: [] };
+   518→  const partyTotals = data.partyTotals ?? [];
+   519→  const comparisons = data.comparisons ?? [];
+   520→  const pvtSubmissions = data.pvtSubmissions ?? [];
+   521→
+   522→  // Derived — memoized to avoid re-computing on every render
+   523→  const anomalies = useMemo(() => comparisons.filter((c) => c.isAnomaly), [comparisons]);
+   524→  const recentSubmissions = useMemo(() => pvtSubmissions.slice(0, 20), [pvtSubmissions]);
+   525→  const topParty = useMemo(() => partyTotals[0] ?? null, [partyTotals]);
+   526→
+   527→  return (
+   528→    <div className="h-full flex flex-col gap-4 overflow-hidden">
+   529→      {/* ── Top Stats Bar ──────────────────────────────────────────────── */}
+   530→      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+   531→        <StatCard
+   532→          icon={BarChart3}
+   533→          label="Total PVT Submissions"
+   534→          value={stats.totalSubmissions.toLocaleString()}
+   535→          subValue={`${stats.verifiedCount.toLocaleString()} verified`}
+   536→          subColor="text-emerald-400"
+   537→          delay={0}
+   538→        />
+   539→        <StatCard
+   540→          icon={GitCompareArrows}
+   541→          label="Units Compared"
+   542→          value={stats.unitsWithComparison.toLocaleString()}
+   543→          subValue={`${stats.anomalyCount} anomalies detected`}
+   544→          subColor="text-rose-400"
+   545→          delay={0.07}
+   546→        />
+   547→        <StatCard
+   548→          icon={Percent}
+   549→          label="Coverage"
+   550→          value={`${coverage.coveragePct.toFixed(1)}%`}
+   551→          subValue={`${coverage.pvtCoveredUnits.toLocaleString()} of ${coverage.totalPollingUnits.toLocaleString()} units`}
+   552→          delay={0.14}
+   553→        />
+   554→        <StatCard
+   555→          icon={Trophy}
+   556→          label="Party Leader"
+   557→          value={topParty?.party ?? '—'}
+   558→          subValue={topParty ? `${topParty.votes.toLocaleString()} votes` : undefined}
+   559→          delay={0.21}
+   560→        />
+   561→      </div>
+   562→
+   563→      {/* ── Main Area: Sankey + Right Column ────────────────────────────── */}
+   564→      <motion.div
+   565→        {...fadeUp}
+   566→        transition={{ duration: 0.5, delay: 0.1 }}
+   567→        className="min-h-0 flex-1 grid grid-cols-1 gap-4 lg:grid-cols-5"
+   568→      >
+   569→        {/* Left: Sankey Diagram */}
+   570→        <Card className="flex flex-col overflow-hidden lg:col-span-3">
+   571→          <CardContent className="flex flex-1 flex-col gap-2 overflow-hidden px-4 py-4">
+   572→            <div className="flex items-center gap-2">
+   573→              <BarChart3 className="h-4 w-4 text-emerald-400" />
+   574→              <h3 className="text-sm font-semibold text-foreground">Vote Flow: States → Parties</h3>
+   575→            </div>
+   576→            <div className="min-h-0 flex-1">
+   577→              <SankeyDiagram data={sankeyData} />
+   578→            </div>
+   579→          </CardContent>
+   580→        </Card>
+   581→
+   582→        {/* Right Column: Party Totals + Anomaly Table */}
+   583→        <div className="flex min-h-0 flex-col gap-4 lg:col-span-2">
+   584→          {/* Party Totals */}
+   585→          <Card className="flex flex-col">
+   586→            <CardContent className="flex flex-1 flex-col gap-2 px-4 py-4">
+   587→              <div className="flex items-center gap-2">
+   588→                <Trophy className="h-4 w-4 text-emerald-400" />
+   589→                <h3 className="text-sm font-semibold text-foreground">Party Totals</h3>
+   590→              </div>
+   591→              <div className="flex-1 overflow-y-auto py-1">
+   592→                <PartyBarChart partyTotals={partyTotals} />
+   593→              </div>
+   594→            </CardContent>
+   595→          </Card>
+   596→
+   597→          {/* Anomaly Table */}
+   598→          <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+   599→            <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-4">
+   600→              <div className="flex items-center gap-2">
+   601→                <AlertTriangle className="h-4 w-4 text-rose-400" />
+   602→                <h3 className="text-sm font-semibold text-foreground">Anomalies</h3>
+   603→                <Badge variant="destructive" className="ml-auto text-[10px]">
+   604→                  {anomalies.length}
+   605→                </Badge>
+   606→              </div>
+   607→              <ScrollArea className="min-h-0 flex-1">
+   608→                <Table>
+   609→                  <TableHeader>
+   610→                    <TableRow>
+   611→                      <TableHead className="text-xs">Polling Unit</TableHead>
+   612→                      <TableHead className="text-xs">State</TableHead>
+   613→                      <TableHead className="text-right text-xs">PVT</TableHead>
+   614→                      <TableHead className="text-right text-xs">Official</TableHead>
+   615→                      <TableHead className="text-center text-xs">Delta</TableHead>
+   616→                      <TableHead className="text-xs">Reason</TableHead>
+   617→                    </TableRow>
+   618→                  </TableHeader>
+   619→                  <TableBody>
+   620→                    {anomalies.length === 0 && (
+   621→                      <TableRow>
+   622→                        <TableCell colSpan={6} className="h-16 text-center text-xs text-muted-foreground">
+   623→                          No anomalies detected
+   624→                        </TableCell>
+   625→                      </TableRow>
+   626→                    )}
+   627→                    {anomalies.map((a) => (
+   628→                      <TableRow key={a.id}>
+   629→                        <TableCell className="max-w-[120px] truncate text-xs" title={a.pollingUnit.name}>
+   630→                          {a.pollingUnit.name}
+   631→                        </TableCell>
+   632→                        <TableCell className="text-xs">{a.pollingUnit.state}</TableCell>
+   633→                        <TableCell className="text-right text-xs tabular-nums">
+   634→                          {a.totalPvtVotes.toLocaleString()}
+   635→                        </TableCell>
+   636→                        <TableCell className="text-right text-xs tabular-nums">
+   637→                          {a.totalOfficialVotes.toLocaleString()}
+   638→                        </TableCell>
+   639→                        <TableCell className="text-center">
+   640→                          <DeltaBadge pct={a.deltaPct} />
+   641→                        </TableCell>
+   642→                        <TableCell className="max-w-[130px] truncate text-xs text-muted-foreground" title={a.anomalyReason ?? ''}>
+   643→                          {a.anomalyReason ?? '—'}
+   644→                        </TableCell>
+   645→                      </TableRow>
+   646→                    ))}
+   647→                  </TableBody>
+   648→                </Table>
+   649→              </ScrollArea>
+   650→            </CardContent>
+   651→          </Card>
+   652→        </div>
+   653→      </motion.div>
+   654→
+   655→      {/* ── Bottom: Recent PVT Submissions ──────────────────────────────── */}
+   656→      <motion.div
+   657→        {...fadeUp}
+   658→        transition={{ duration: 0.5, delay: 0.2 }}
+   659→        className="flex min-h-0 flex-col"
+   660→        style={{ flex: '0 0 auto', maxHeight: '260px' }}
+   661→      >
+   662→        <Card className="flex flex-1 flex-col overflow-hidden">
+   663→          <CardContent className="flex min-h-0 flex-1 flex-col gap-2 px-4 py-4">
+   664→            <div className="flex items-center gap-2">
+   665→              <Clock className="h-4 w-4 text-emerald-400" />
+   666→              <h3 className="text-sm font-semibold text-foreground">Recent PVT Submissions</h3>
+   667→              <span className="ml-auto text-xs text-muted-foreground">
+   668→                Latest {recentSubmissions.length}
+   669→              </span>
+   670→            </div>
+   671→            <ScrollArea className="min-h-0 flex-1">
+   672→              <Table>
+   673→                <TableHeader>
+   674→                  <TableRow>
+   675→                    <TableHead className="text-xs">Time</TableHead>
+   676→                    <TableHead className="text-xs">Polling Unit</TableHead>
+   677→                    <TableHead className="text-xs">State</TableHead>
+   678→                    <TableHead className="text-xs">Source</TableHead>
+   679→                    <TableHead className="text-right text-xs">Total Votes</TableHead>
+   680→                    <TableHead className="text-center text-xs">Status</TableHead>
+   681→                  </TableRow>
+   682→                </TableHeader>
+   683→                <TableBody>
+   684→                  {recentSubmissions.length === 0 && (
+   685→                    <TableRow>
+   686→                      <TableCell colSpan={6} className="h-14 text-center text-xs text-muted-foreground">
+   687→                        No submissions yet
+   688→                      </TableCell>
+   689→                    </TableRow>
+   690→                  )}
+   691→                  {recentSubmissions.map((sub) => (
+   692→                    <TableRow key={sub.id}>
+   693→                      <TableCell className="text-xs tabular-nums text-muted-foreground">
+   694→                        <div className="flex items-center gap-1.5">
+   695→                          <Clock className="h-3 w-3" />
+   696→                          {formatTime(sub.submittedAt)}
+   697→                        </div>
+   698→                      </TableCell>
+   699→                      <TableCell className="max-w-[160px] truncate text-xs" title={sub.pollingUnit.name}>
+   700→                        <div className="flex items-center gap-1.5">
+   701→                          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+   702→                          {sub.pollingUnit.name}
+   703→                        </div>
+   704→                      </TableCell>
+   705→                      <TableCell className="text-xs">{sub.pollingUnit.state}</TableCell>
+   706→                      <TableCell>
+   707→                        <SourceBadge source={sub.source} />
+   708→                      </TableCell>
+   709→                      <TableCell className="text-right text-xs tabular-nums font-medium">
+   710→                        {sub.totalVotesCast.toLocaleString()}
+   711→                      </TableCell>
+   712→                      <TableCell className="text-center">
+   713→                        {sub.isVerified ? (
+   714→                          <Badge className="gap-1 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+   715→                            <CheckCircle2 className="h-3 w-3" />
+   716→                            Verified
+   717→                          </Badge>
+   718→                        ) : (
+   719→                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+   720→                            Pending
+   721→                          </Badge>
+   722→                        )}
+   723→                      </TableCell>
+   724→                    </TableRow>
+   725→                  ))}
+   726→                </TableBody>
+   727→              </Table>
+   728→            </ScrollArea>
+   729→          </CardContent>
+   730→        </Card>
+   731→      </motion.div>
+   732→    </div>
+   733→  );
+   734→}

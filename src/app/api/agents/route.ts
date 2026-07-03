@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 // GET /api/agents — list all users with details
 export async function GET(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
@@ -55,6 +63,12 @@ export async function POST(req: NextRequest) {
     // Resolve tenant from request
     const { id: tenantId, error: tenantError } = await resolveTenant(req);
     if (tenantError) return tenantError;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     // Check for duplicate email
     const existing = await db.user.findFirst({

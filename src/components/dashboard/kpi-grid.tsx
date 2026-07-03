@@ -84,6 +84,11 @@ interface KpiGridProps {
     totalRegistered: number;
     totalVotes: number;
   };
+  trends?: {
+    onlineAgents?: { value: number; up: boolean };
+    incidents?: { value: number; up: boolean };
+    turnout?: { value: number; up: boolean };
+  };
   extraStats?: { label: string; value: number; color: 'emerald' | 'amber' | 'rose' | 'cyan' | 'violet' }[];
 }
 
@@ -94,7 +99,7 @@ const EXTRA_ICONS: Record<string, React.ReactNode> = {
   amber: <AlertTriangle className="h-4 w-4 text-amber" />,
 };
 
-export function KpiGrid({ data, election, extraStats }: KpiGridProps) {
+export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
   const agentPct = data.totalAgents ? Math.round((data.onlineAgents / data.totalAgents) * 100) : 0;
 
   return (
@@ -105,7 +110,7 @@ export function KpiGrid({ data, election, extraStats }: KpiGridProps) {
         sub={`${data.totalAgents} total (${agentPct}%)`}
         icon={<Users className="h-5 w-5 text-emerald" />}
         color="emerald"
-        trend={{ value: 4, up: true }}
+        trend={trends?.onlineAgents}
         className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard
@@ -122,7 +127,7 @@ export function KpiGrid({ data, election, extraStats }: KpiGridProps) {
         sub={`${(election.totalVotes / 1000).toFixed(1)}K of ${(election.totalRegistered / 1000).toFixed(1)}K voters`}
         icon={<Vote className="h-5 w-5 text-emerald" />}
         color="emerald"
-        trend={{ value: 2.3, up: true }}
+        trend={trends?.turnout}
         className="md:col-span-1 xl:col-span-2"
       />
       <KpiCard

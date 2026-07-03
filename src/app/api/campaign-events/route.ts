@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 // GET /api/campaign-events?tenantId=X&eventType=X&party=X&state=X
 export async function GET(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const url = new URL(req.url);
     const eventType = url.searchParams.get('eventType');
@@ -115,6 +123,12 @@ export async function POST(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const body = await req.json();
     const {

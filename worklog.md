@@ -202,3 +202,53 @@ Stage Summary:
 - Added error state UI to 10 components (previously only security-center had it)
 - Code-split 21 components — significantly reduces initial bundle for field agents
 - Total: 47 individual code quality fixes across 20+ files
+
+---
+Task ID: 2
+Agent: Main
+Task: Fix hardcoded KPI trends (M5), aria-label accessibility (H4), and implement auth/middleware
+
+Work Log:
+- **M5 — Hardcoded KPI Trends**: Removed 6 hardcoded trend values across 2 files
+  - Added hour-over-hour trend computation to `/api/dashboard` route (onlineAgents, incidents, turnout)
+  - Added hour-over-hour trend computation to `/api/osint` route (total, fakeNews, botSuspect, viralityAlerts)
+  - Updated `KpiGrid` component to accept optional `trends` prop
+  - Updated `OsintMonitor` component to accept `trends` from API response
+  - Updated `DashboardData` type in `page.tsx` to include `trends`
+  - All 6 KPI cards now show real computed trends or "No prior data" fallback
+- **H4 — aria-label Accessibility**: Fixed 14 icon-only buttons and 4 custom SVGs
+  - header.tsx: 3 fixes (clear search, notifications bell with count, mark-as-read)
+  - sidebar.tsx: 1 fix (collapse button with aria-expanded)
+  - media-viewer.tsx: 4 fixes (download, open in new tab, prev, next)
+  - geo-map-inner.tsx: 3 fixes (zoom in, zoom out, fit all)
+  - agent-engagement.tsx: 2 fixes (send message, refresh WhatsApp)
+  - campaign-monitor.tsx: 1 fix (view event details)
+  - alert-triage.tsx: 1 fix (mark alert as read)
+  - security-center.tsx, field-reports.tsx, agent-engagement.tsx: 4 custom SVGs got `aria-hidden="true"`
+- **Authentication System**:
+  - Added `jose` and `bcryptjs` dependencies
+  - Added `passwordHash` field to User model in Prisma schema
+  - Created `src/lib/auth.ts` — JWT creation/verification, password hashing, cookie management, getAuthUser()
+  - Created `src/lib/rbac.ts` — requireAuth(), requireRole(), requireTenantMatch() guards
+  - Rewrote `/api/auth` route: POST requires email+password, GET only returns tenant list (no user leak), DELETE for logout
+  - Updated `fetchJson()` in `src/lib/api.ts` to always send credentials (cookies) and handle 401 auto-logout
+  - Rewrote `login.tsx` from user-picker to proper email/password form with 2-step flow (tenant → credentials)
+  - Updated logout in Zustand store to call DELETE /api/auth
+- **Middleware** (`src/middleware.ts`):
+  - JWT verification on all /api/* routes (except /api/auth)
+  - Security headers: X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy, HSTS
+  - Invalid/expired tokens get 401 + cookie cleared
+- **Backend RBAC Enforcement**: Added tenant isolation to all 25 API route files
+  - 21 routes with resolveTenant() now check requireTenantMatch()
+  - 4 routes (tenants, tenants/users, root api) require SUPER_ADMIN role
+  - SUPER_ADMIN bypasses tenant isolation (can access any tenant)
+- Build verified: `next build` passes with zero errors
+
+Stage Summary:
+- 6 hardcoded trends replaced with real hour-over-hour API computed values
+- 14 icon-only buttons + 4 custom SVGs fixed for accessibility
+- Full JWT authentication system implemented (login, session cookies, logout)
+- Edge middleware protecting all API routes
+- 25 API routes with tenant isolation/RBAC enforcement
+- Security headers added globally
+- Login screen redesigned from user-picker to secure email/password form

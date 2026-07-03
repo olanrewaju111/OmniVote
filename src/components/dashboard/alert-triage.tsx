@@ -203,6 +203,7 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
                         }}
                         className="ml-auto shrink-0 p-0.5 rounded text-muted-foreground hover:text-emerald transition-colors"
                         title="Mark as read"
+                        aria-label="Mark alert as read"
                       >
                         <Check className="h-3.5 w-3.5" />
                       </button>

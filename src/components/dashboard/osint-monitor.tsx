@@ -68,9 +68,20 @@ interface OsintCounts {
   viralityAlerts: number;
 }
 
+interface OsintTrend {
+  value: number;
+  up: boolean;
+}
+
 interface OsintResponse {
   posts: OsintPost[];
   counts: OsintCounts;
+  trends?: {
+    total?: OsintTrend;
+    fakeNews?: OsintTrend;
+    botSuspect?: OsintTrend;
+    viralityAlerts?: OsintTrend;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -183,6 +194,7 @@ export function OsintMonitor() {
     total: 0, byCategory: {}, bySentiment: {}, byPlatform: {},
     fakeNews: 0, botSuspect: 0, viralityAlerts: 0,
   };
+  const trends = data?.trends;
 
   // Filtered posts
   const filteredPosts = useMemo(() => {
@@ -297,11 +309,19 @@ export function OsintMonitor() {
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Posts Ingested</p>
                   <p className="text-2xl font-bold tabular-nums text-cyan">{formatNumber(counts.total)}</p>
-                  <div className="flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-emerald" />
-                    <span className="text-[11px] font-medium text-emerald">+12.4%</span>
-                    <span className="text-[10px] text-muted-foreground">vs last hr</span>
-                  </div>
+                  {trends?.total ? (() => {
+                    const t = trends.total;
+                    const Icon = t.up ? TrendingUp : TrendingDown;
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Icon className="h-3 w-3 text-emerald" />
+                        <span className="text-[11px] font-medium text-emerald">{t.up ? '+' : '-'}{t.value}%</span>
+                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+                      </div>
+                    );
+                  })() : (
+                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+                  )}
                 </div>
                 <div className="p-2.5 rounded-lg bg-cyan/10">
                   <BarChart3 className="h-5 w-5 text-cyan" />
@@ -319,11 +339,19 @@ export function OsintMonitor() {
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Disinformation Detected</p>
                   <p className="text-2xl font-bold tabular-nums text-rose">{formatNumber(counts.fakeNews)}</p>
-                  <div className="flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-rose" />
-                    <span className="text-[11px] font-medium text-rose">+8.1%</span>
-                    <span className="text-[10px] text-muted-foreground">vs last hr</span>
-                  </div>
+                  {trends?.fakeNews ? (() => {
+                    const t = trends.fakeNews;
+                    const Icon = t.up ? TrendingUp : TrendingDown;
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Icon className={"h-3 w-3 text-rose"} />
+                        <span className="text-[11px] font-medium text-rose">{t.up ? '+' : '-'}{t.value}%</span>
+                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+                      </div>
+                    );
+                  })() : (
+                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+                  )}
                 </div>
                 <div className="p-2.5 rounded-lg bg-rose/10">
                   <FileWarning className="h-5 w-5 text-rose" />
@@ -341,11 +369,19 @@ export function OsintMonitor() {
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Bot / CIB Suspects</p>
                   <p className="text-2xl font-bold tabular-nums text-amber">{formatNumber(counts.botSuspect)}</p>
-                  <div className="flex items-center gap-1">
-                    <TrendingDown className="h-3 w-3 text-emerald" />
-                    <span className="text-[11px] font-medium text-emerald">-3.2%</span>
-                    <span className="text-[10px] text-muted-foreground">vs last hr</span>
-                  </div>
+                  {trends?.botSuspect ? (() => {
+                    const t = trends.botSuspect;
+                    const Icon = t.up ? TrendingUp : TrendingDown;
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Icon className={"h-3 w-3 text-emerald"} />
+                        <span className="text-[11px] font-medium text-emerald">{t.up ? '+' : '-'}{t.value}%</span>
+                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+                      </div>
+                    );
+                  })() : (
+                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+                  )}
                 </div>
                 <div className="p-2.5 rounded-lg bg-amber/10">
                   <Bot className="h-5 w-5 text-amber" />
@@ -363,11 +399,19 @@ export function OsintMonitor() {
                 <div className="space-y-1.5">
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Virality Alerts</p>
                   <p className="text-2xl font-bold tabular-nums text-violet">{formatNumber(counts.viralityAlerts)}</p>
-                  <div className="flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-violet" />
-                    <span className="text-[11px] font-medium text-violet">+21.7%</span>
-                    <span className="text-[10px] text-muted-foreground">vs last hr</span>
-                  </div>
+                  {trends?.viralityAlerts ? (() => {
+                    const t = trends.viralityAlerts;
+                    const Icon = t.up ? TrendingUp : TrendingDown;
+                    return (
+                      <div className="flex items-center gap-1">
+                        <Icon className={"h-3 w-3 text-violet"} />
+                        <span className="text-[11px] font-medium text-violet">{t.up ? '+' : '-'}{t.value}%</span>
+                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+                      </div>
+                    );
+                  })() : (
+                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+                  )}
                 </div>
                 <div className="p-2.5 rounded-lg bg-violet/10">
                   <Flame className="h-5 w-5 text-violet" />

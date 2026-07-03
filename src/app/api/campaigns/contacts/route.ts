@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 // POST /api/campaigns/contacts — upload a contact list
 export async function POST(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const body = await req.json();
     const { name, segment, contacts, consentVerified } = body;
@@ -54,6 +62,12 @@ export async function GET(req: NextRequest) {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
 
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
+
     const contactLists = await db.contactList.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
@@ -70,6 +84,12 @@ export async function DELETE(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id');

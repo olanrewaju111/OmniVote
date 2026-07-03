@@ -562,7 +562,7 @@ function AgentGroupCard({
                       {agent.incidents[0].type.replace(/_/g, ' ')}
                     </Badge>
                   )}
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onSendMessage(agent)}>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onSendMessage(agent)} aria-label="Send message">
                     <Send className="h-3 w-3" />
                   </Button>
                 </div>
@@ -776,7 +776,7 @@ function ComposeForm({
 // Need Wifi icon
 function Wifi({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 20h.01" /><path d="M2 8.82a15 15 0 0 1 20 0" /><path d="M5 12.859a10 10 0 0 1 14 0" /><path d="M8.5 16.429a5 5 0 0 1 7 0" />
     </svg>
   );
@@ -893,7 +893,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
               </div>
             )}
 
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => waRefetch()}>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => waRefetch()} aria-label="Refresh WhatsApp status">
               <RefreshCw className="h-3 w-3" />
             </Button>
           </div>

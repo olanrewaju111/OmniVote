@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 const BRIDGE_URL = process.env.WHATSAPP_BRIDGE_URL || 'http://localhost:9090';
 
@@ -52,6 +54,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
     }
 
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
+
     // Try bridge first
     const bridgeAlive = await isBridgeAlive();
     if (bridgeAlive) {
@@ -96,6 +104,12 @@ export async function POST(req: NextRequest) {
 
     if (!tenantId || !phone) {
       return NextResponse.json({ error: 'tenantId and phone are required' }, { status: 400 });
+    }
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
     }
 
     // Validate tenant exists
@@ -185,6 +199,12 @@ export async function PUT(req: NextRequest) {
         return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
       }
 
+      const authUser = await getAuthUser(req);
+      if (authUser) {
+        const tenantErr = requireTenantMatch(authUser, tenantId);
+        if (tenantErr) return tenantErr;
+      }
+
       // Try bridge first
       const bridgeAlive = await isBridgeAlive();
       if (bridgeAlive) {
@@ -208,6 +228,12 @@ export async function PUT(req: NextRequest) {
     if (action === 'send') {
       const body = await req.json();
       const { tenantId, messageId, toPhone, subject, body: msgBody } = body;
+
+      const authUser = await getAuthUser(req);
+      if (authUser && tenantId) {
+        const tenantErr = requireTenantMatch(authUser, tenantId);
+        if (tenantErr) return tenantErr;
+      }
 
       // Try bridge first
       const bridgeAlive = await isBridgeAlive();

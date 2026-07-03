@@ -106,12 +106,12 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
             </Badge>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Download media" asChild>
               <a href={current.url} target="_blank" rel="noopener noreferrer" download>
                 <Download className="h-3.5 w-3.5" />
               </a>
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" asChild>
+            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Open in new tab" asChild>
               <a href={current.url} target="_blank" rel="noopener noreferrer">
                 <Maximize2 className="h-3.5 w-3.5" />
               </a>
@@ -126,6 +126,7 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
             <button
               onClick={goPrev}
               className="absolute left-2 z-10 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
+              aria-label="Previous media"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -195,6 +196,7 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
             <button
               onClick={goNext}
               className="absolute right-2 z-10 w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
+              aria-label="Next media"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

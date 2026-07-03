@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
+import { getAuthUser } from '@/lib/auth';
+import { requireTenantMatch } from '@/lib/rbac';
 
 // GET /api/osint?tenantId=X&platform=X&category=X&limit=50&offset=0
 export async function GET(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
+    }
 
     const url = new URL(req.url);
     const platform = url.searchParams.get('platform');
@@ -51,6 +59,34 @@ export async function GET(req: NextRequest) {
         db.osintPost.count({ where: { tenantId, isBotSuspect: true } }),
       ]);
 
+    // ── Trend computation (hour-over-hour deltas) ─────────────────────
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const [prevTotal, prevFakeNews, prevBotSuspect] = await Promise.all([
+      db.osintPost.count({ where: { tenantId, publishedAt: { lt: oneHourAgo } } }),
+      db.osintPost.count({ where: { tenantId, isFakeNews: true, publishedAt: { lt: oneHourAgo } } }),
+      db.osintPost.count({ where: { tenantId, isBotSuspect: true, publishedAt: { lt: oneHourAgo } } }),
+    ]);
+
+    const trendTotal = prevTotal > 0
+      ? Math.round(((total - prevTotal) / prevTotal) * 1000) / 10
+      : total > 0 ? 100 : 0;
+    const trendFakeNews = prevFakeNews > 0
+      ? Math.round(((fakeNewsCount - prevFakeNews) / prevFakeNews) * 1000) / 10
+      : fakeNewsCount > 0 ? 100 : 0;
+    const trendBotSuspect = prevBotSuspect > 0
+      ? Math.round(((botSuspectCount - prevBotSuspect) / prevBotSuspect) * 1000) / 10
+      : botSuspectCount > 0 ? 100 : 0;
+    // Virality: posts with engagement reach > 1000 in the last hour
+    const viralityAlerts = await db.osintPost.count({
+      where: {
+        tenantId,
+        publishedAt: { gte: oneHourAgo },
+      },
+    });
+    const trendVirality = prevTotal > 0
+      ? Math.round(((viralityAlerts - prevTotal) / prevTotal) * 1000) / 10
+      : viralityAlerts > 0 ? 100 : 0;
+
     // Parse JSON string fields on each post
     const parsedPosts = posts.map((p) => ({
       ...p,
@@ -69,6 +105,13 @@ export async function GET(req: NextRequest) {
         byPlatform: Object.fromEntries(byPlatform.map((g) => [g.platform, g._count.platform])),
         fakeNews: fakeNewsCount,
         botSuspect: botSuspectCount,
+        viralityAlerts,
+      },
+      trends: {
+        total: { value: Math.abs(trendTotal), up: trendTotal >= 0 },
+        fakeNews: { value: Math.abs(trendFakeNews), up: trendFakeNews >= 0 },
+        botSuspect: { value: Math.abs(trendBotSuspect), up: trendBotSuspect >= 0 },
+        viralityAlerts: { value: Math.abs(trendVirality), up: trendVirality >= 0 },
       },
     });
   } catch (err) {

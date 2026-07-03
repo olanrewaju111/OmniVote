@@ -163,6 +163,7 @@ export function AppHeader({ kpis }: HeaderProps) {
             <button
               onClick={handleSearchClear}
               className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear search"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -231,6 +232,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                 variant="outline"
                 size="sm"
                 className="relative h-9 w-9 p-0 bg-background border-border"
+                aria-label={recentUnread.length > 0 ? `Notifications, ${recentUnread.length} unread` : 'Notifications'}
               >
                 <Bell className="h-4 w-4" />
                 {recentUnread.length > 0 && (
@@ -294,6 +296,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead.mutate(alert.id); }}
                           className="shrink-0 mt-1 p-1 rounded text-muted-foreground hover:text-emerald opacity-0 group-hover:opacity-100 transition-all"
                           title="Mark as read"
+                          aria-label="Mark notification as read"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>

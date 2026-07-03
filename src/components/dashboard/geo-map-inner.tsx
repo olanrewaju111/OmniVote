@@ -158,6 +158,7 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
           className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
           onClick={(e) => { e.stopPropagation(); }}
           title="Zoom in"
+          aria-label="Zoom in"
         >
           <ZoomIn className="h-4 w-4" />
         </Button>
@@ -166,6 +167,7 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
           className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
           onClick={(e) => { e.stopPropagation(); }}
           title="Zoom out"
+          aria-label="Zoom out"
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
@@ -175,6 +177,7 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
           className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
           onClick={(e) => { e.stopPropagation(); }}
           title="Fit all"
+          aria-label="Fit all markers"
         >
           <Maximize2 className="h-4 w-4" />
         </Button>
