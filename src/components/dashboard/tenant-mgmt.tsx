@@ -786,6 +786,7 @@ function SuperAdminTenantsView({
                   size="sm"
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-rose"
                   title="Delete tenant"
+                  aria-label={`Delete tenant ${t.name}`}
                   onClick={() => onDelete({ id: t.id, name: t.name })}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -897,6 +898,7 @@ function TenantUsersView({
                       className="p-1.5 rounded-md text-muted-foreground hover:text-amber hover:bg-amber/10 transition-colors"
                       onClick={() => onRoleChange({ id: u.id, name: u.name, role: u.role })}
                       title="Change role"
+                      aria-label={`Change role for ${u.name}`}
                     >
                       <Pencil className="h-3 w-3" />
                     </button>
@@ -904,6 +906,7 @@ function TenantUsersView({
                       className="p-1.5 rounded-md text-muted-foreground hover:text-rose hover:bg-rose/10 transition-colors"
                       onClick={() => onDeleteUser({ id: u.id, name: u.name })}
                       title="Remove user"
+                      aria-label={`Remove user ${u.name}`}
                     >
                       <Trash2 className="h-3 w-3" />
                     </button>

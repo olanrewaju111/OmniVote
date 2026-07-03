@@ -286,3 +286,30 @@ Stage Summary:
 - Login brute-force protection active
 - WCAG 2.1 AA improvements: skip link, aria-labels, aria-current, aria-hidden, aria-live, role attributes
 ---
+---
+Task ID: 2
+Agent: Main Agent
+Task: Continue development — error boundaries, accessibility, CSP, password change, dependency cleanup
+
+Work Log:
+- Created ErrorBoundary class component (src/components/error-boundary.tsx)
+- Wrapped all 22 dashboard tabs in page.tsx with ErrorBoundary
+- Fixed 4 icon-only buttons in agent-roster.tsx (Edit/View Reports/Remote Wipe/Remove — all now have dynamic aria-label with agent name)
+- Fixed 3 icon-only buttons in tenant-mgmt.tsx (Delete tenant/Change role/Remove user — all with dynamic names)
+- Fixed 1 icon-only button in field-submit.tsx (Remove party row)
+- Added aria-label to 4 Switch components in field-submit.tsx (BVAS, Materials, Security, Violence)
+- Added sr-only labels + ids for agent-roster search and OSINT search inputs
+- Added Content-Security-Policy header to middleware (default-src, script-src, style-src, img-src, font-src, connect-src with ws/wss, frame-ancestors, base-uri, form-action)
+- Added Permissions-Policy header (camera=(), microphone=(), geolocation=(self), payment=())
+- Removed next-auth package (25 transitive packages removed, zero imports existed)
+- Created PUT /api/auth/password endpoint (current password verification, min 8 char, bcrypt hash)
+- Final build: all 28 routes compile, zero errors
+
+Stage Summary:
+- 8 files modified, 3 files created (error-boundary.tsx, password/route.ts, middleware updated)
+- next-auth dependency removed (was completely unused)
+- All CRITICAL and HIGH accessibility issues from audit now resolved
+- CSP blocks frame embedding, restricts resource loading origins
+- Users can now change their password from the default "changeme" seed value
+- Error boundaries prevent single-tab crashes from killing the entire dashboard
+---

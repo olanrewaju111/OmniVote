@@ -12,6 +12,7 @@ import { AppHeader } from '@/components/dashboard/header';
 import { useDashboardStore, type ElectionInfo } from '@/store/dashboard';
 import { KpiGrid } from '@/components/dashboard/kpi-grid';
 import { PwaRegistration } from '@/components/pwa-registration';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { fetchJson } from '@/lib/api';
 
 // ---- Code-split heavy tab components ----
@@ -236,110 +237,154 @@ export default function Home() {
               aria-label={`${activeTab.replace(/-/g, ' ')} panel`}
             >
               {activeTab === 'situation' && (
-                <div className="h-full">
-                  <SituationRoom />
-                </div>
+                <ErrorBoundary title="Situation Room">
+                  <div className="h-full">
+                    <SituationRoom />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'overview' && (
-                <OverviewTab
-                  dashData={dashData!}
-                  incidents={incidentsData?.incidents || []}
-                  alertsData={alertsData}
-                />
+                <ErrorBoundary title="Overview">
+                  <OverviewTab
+                    dashData={dashData!}
+                    incidents={incidentsData?.incidents || []}
+                    alertsData={alertsData}
+                  />
+                </ErrorBoundary>
               )}
               {activeTab === 'map' && (
-                <div className="h-full p-4">
-                  <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-                    <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} />
+                <ErrorBoundary title="Geo Map">
+                  <div className="h-full p-4">
+                    <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
+                      <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} />
+                    </div>
                   </div>
-                </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'feed' && (
-                <div className="h-full">
-                  <LiveFeed incidents={incidentsData?.incidents || []} hasMore={incidentsData?.hasMore} />
-                </div>
+                <ErrorBoundary title="Live Feed">
+                  <div className="h-full">
+                    <LiveFeed incidents={incidentsData?.incidents || []} hasMore={incidentsData?.hasMore} />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'alerts' && (
-                <div className="h-full">
-                  <AlertTriage
-                    alerts={alertsData?.alerts || []}
-                    operationalCount={alertsData?.operationalCount || 0}
-                    securityCount={alertsData?.securityCount || 0}
-                    criticalCount={alertsData?.criticalCount || 0}
-                  />
-                </div>
+                <ErrorBoundary title="Alert Triage">
+                  <div className="h-full">
+                    <AlertTriage
+                      alerts={alertsData?.alerts || []}
+                      operationalCount={alertsData?.operationalCount || 0}
+                      securityCount={alertsData?.securityCount || 0}
+                      criticalCount={alertsData?.criticalCount || 0}
+                    />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'osint' && (
-                <div className="h-full">
-                  <OsintMonitor />
-                </div>
+                <ErrorBoundary title="OSINT Monitor">
+                  <div className="h-full">
+                    <OsintMonitor />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'ai' && (
-                <AiInsights
-                  incidents={incidentsData?.incidents || []}
-                  stateAgg={dashData?.election.stateAgg || {}}
-                />
+                <ErrorBoundary title="AI Insights">
+                  <AiInsights
+                    incidents={incidentsData?.incidents || []}
+                    stateAgg={dashData?.election.stateAgg || {}}
+                  />
+                </ErrorBoundary>
               )}
               {activeTab === 'media' && (
-                <MediaGallery />
+                <ErrorBoundary title="Media Gallery">
+                  <MediaGallery />
+                </ErrorBoundary>
               )}
               {activeTab === 'mobilization' && (
-                <div className="h-full">
-                  <MobilizationEngine />
-                </div>
+                <ErrorBoundary title="Mobilization Engine">
+                  <div className="h-full">
+                    <MobilizationEngine />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'campaigns' && (
-                <div className="h-full">
-                  <CampaignMonitor />
-                </div>
+                <ErrorBoundary title="Campaign Monitor">
+                  <div className="h-full">
+                    <CampaignMonitor />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'security' && (
-                <div className="h-full">
-                  <SecurityCenter />
-                </div>
+                <ErrorBoundary title="Security Center">
+                  <div className="h-full">
+                    <SecurityCenter />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'field-safety' && (
-                <div className="h-full">
-                  <FieldSafety />
-                </div>
+                <ErrorBoundary title="Field Safety">
+                  <div className="h-full">
+                    <FieldSafety />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'pvt' && (
-                <div className="h-full">
-                  <PvtQuickCount />
-                </div>
+                <ErrorBoundary title="PVT Quick Count">
+                  <div className="h-full">
+                    <PvtQuickCount />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'evidence' && (
-                <div className="h-full">
-                  <EvidenceDossier />
-                </div>
+                <ErrorBoundary title="Evidence Dossier">
+                  <div className="h-full">
+                    <EvidenceDossier />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'flashpoint' && (
-                <div className="h-full">
-                  <FlashpointWargame />
-                </div>
+                <ErrorBoundary title="Flashpoint Wargame">
+                  <div className="h-full">
+                    <FlashpointWargame />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'honeypot' && (
-                <div className="h-full">
-                  <HoneypotBiometrics />
-                </div>
+                <ErrorBoundary title="Honeypot Biometrics">
+                  <div className="h-full">
+                    <HoneypotBiometrics />
+                  </div>
+                </ErrorBoundary>
               )}
               {activeTab === 'submit' && (
-                <SubmitReport />
+                <ErrorBoundary title="Submit Report">
+                  <SubmitReport />
+                </ErrorBoundary>
               )}
               {activeTab === 'my-reports' && (
-                <MyReports />
+                <ErrorBoundary title="My Reports">
+                  <MyReports />
+                </ErrorBoundary>
               )}
               {activeTab === 'agents' && (
-                <AgentRoster />
+                <ErrorBoundary title="Agent Roster">
+                  <AgentRoster />
+                </ErrorBoundary>
               )}
               {activeTab === 'engagement' && (
-                <AgentEngagement />
+                <ErrorBoundary title="Agent Engagement">
+                  <AgentEngagement />
+                </ErrorBoundary>
               )}
               {activeTab === 'system' && (
-                <SystemHealth />
+                <ErrorBoundary title="System Health">
+                  <SystemHealth />
+                </ErrorBoundary>
               )}
               {activeTab === 'tenants' && (
-                <TenantManagement />
+                <ErrorBoundary title="Tenant Management">
+                  <TenantManagement />
+                </ErrorBoundary>
               )}
             </motion.div>
           </AnimatePresence>

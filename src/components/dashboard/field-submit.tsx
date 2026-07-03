@@ -410,7 +410,7 @@ export function SubmitReport() {
                               className="w-28 h-8 text-sm tabular-nums text-right"
                             />
                             {partyVotes.length > 2 && (
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-rose" onClick={() => removePartyRow(idx)}>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-rose" aria-label="Remove party row" onClick={() => removePartyRow(idx)}>
                                 <X className="h-3.5 w-3.5" />
                               </Button>
                             )}
@@ -505,6 +505,7 @@ export function SubmitReport() {
                         <Switch
                           checked={item.value}
                           onCheckedChange={item.setter}
+                          aria-label={item.label}
                           className={cn(
                             item.value && item.label === 'Violence occurred' ? 'data-[state=checked]:bg-rose' : ''
                           )}

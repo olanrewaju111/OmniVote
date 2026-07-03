@@ -68,6 +68,27 @@ export async function middleware(req: NextRequest) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
+  // Content Security Policy
+  response.headers.set('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-inline/eval needed for Next.js runtime
+    "style-src 'self' 'unsafe-inline'",                   // unsafe-inline needed for Tailwind/inline styles
+    "img-src 'self' data: blob: https://z-cdn.chatglm.cn",
+    "font-src 'self' https://fonts.gstatic.com",
+    "connect-src 'self' ws: wss:",                         // allow WebSocket connections
+    "frame-ancestors 'none'",                               // same as X-Frame-Options: DENY
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; '));
+
+  // Permission Policy — restrict browser features
+  response.headers.set('Permissions-Policy', [
+    'camera=()',          // no camera unless explicitly granted
+    'microphone=()',      // no microphone
+    'geolocation=(self)', // allow geolocation from same origin (needed for field agents)
+    'payment=()',         // no payment API
+  ].join(', '));
+
   // ─── Skip auth for non-API routes and public endpoints ──────────────────
   // API auth routes and health check are public
   const isPublicApi = pathname === '/api/auth' || pathname === '/api/health';

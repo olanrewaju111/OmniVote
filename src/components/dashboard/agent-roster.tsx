@@ -305,8 +305,10 @@ export function AgentRoster() {
             </CardTitle>
             <div className="flex items-center gap-2">
               <div className="relative">
+                <label htmlFor="agent-search" className="sr-only">Search agents</label>
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
+                  id="agent-search"
                   placeholder="Search agents..."
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
@@ -422,6 +424,7 @@ export function AgentRoster() {
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-cyan"
                               title="Edit Details"
+                              aria-label={`Edit details for ${agent.name}`}
                               onClick={() => openEditDialog(agent)}
                               disabled={agent.role === 'SUPER_ADMIN'}
                             >
@@ -432,6 +435,7 @@ export function AgentRoster() {
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                               title="View Reports"
+                              aria-label={`View reports for ${agent.name}`}
                               onClick={() => setReportsPanel({ agent, open: true })}
                             >
                               <Eye className="h-3.5 w-3.5" />
@@ -441,6 +445,7 @@ export function AgentRoster() {
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-amber"
                               title="Remote Wipe Device"
+                              aria-label={`Remote wipe device for ${agent.name}`}
                               onClick={() => setConfirmAction({ type: 'REMOTE_WIPE', agent })}
                               disabled={actionMutation.isPending}
                             >
@@ -451,6 +456,7 @@ export function AgentRoster() {
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-rose"
                               title="Remove Agent"
+                              aria-label={`Remove agent ${agent.name}`}
                               onClick={() => setConfirmAction({ type: 'DELETE', agent })}
                               disabled={actionMutation.isPending || agent.role === 'SUPER_ADMIN'}
                             >

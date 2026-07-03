@@ -264,8 +264,10 @@ export function OsintMonitor() {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Search */}
           <div className="relative">
+            <label htmlFor="osint-search" className="sr-only">Search posts, authors</label>
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
+              id="osint-search"
               placeholder="Search posts, authors..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
