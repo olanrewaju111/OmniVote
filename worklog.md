@@ -79,3 +79,37 @@ Stage Summary:
 - All 14 dashboard components now have proper error propagation
 - C2PA metric now shows actual verified count instead of total incidents
 - Alert mark-as-read API endpoint ready for UI integration
+---
+Task ID: 3
+Agent: Main Agent
+Task: Continue development — Leaflet maps, alert mark-as-read, delete cascade
+
+Work Log:
+- Installed leaflet, react-leaflet, @types/leaflet
+- Rewrote geo-map.tsx: replaced entire static SVG with real Leaflet/OpenStreetMap dark tiles
+  - Used CARTO dark basemap tiles (free, no API key)
+  - Created geo-map-inner.tsx with actual Leaflet components
+  - Used next/dynamic with ssr:false to prevent window reference errors
+  - Preserved all existing UI: tooltip, selection, legend, info bar, zoom controls
+  - CircleMarkers with turnout-based color coding and status-based stroke
+  - Click-to-select, popup with PU details
+- Replaced field-safety agent map placeholder with real Leaflet map
+  - Created field-safety-map.tsx with CircleMarkers for geofence zones
+  - Color-coded: green=checked in, red=SOS, amber=overdue, gray=offline
+  - FitBounds to active zones, click for popup details
+- Added alert mark-as-read feature to alert-triage.tsx
+  - Per-alert "Mark read" button (Check icon)
+  - "Mark all read" button in header (CheckCheck icon)
+  - Both use PATCH /api/alerts endpoint with fetchJson
+- Fixed DELETE /api/tenants cascade: added 16 missing table deletions
+  - Now properly deletes: campaignMessage, stegoScanResult, agentCheckIn, pvtSubmission,
+    resultComparison, honeypotUnit, accessibilityReport, deadMansSwitch, securityEvent,
+    evidenceDossier, geofenceZone, campaignEvent, voterSuppressionReport, osintPost,
+    flashpointForecast, wargameScenario, campaign, contactList
+- Build: 0 errors
+
+Stage Summary:
+- Geo-map upgraded from hand-drawn SVG to real interactive Leaflet map with dark tiles
+- Field-safety agent positions now show on a real map instead of placeholder SVG
+- Alert triage now supports marking individual or all alerts as read
+- Tenant deletion now properly cascades to all 25 related tables

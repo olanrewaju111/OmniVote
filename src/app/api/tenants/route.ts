@@ -135,14 +135,41 @@ export async function DELETE(req: NextRequest) {
     }
 
     await db.$transaction(async (tx) => {
+      // Tier 1: Leaf / child records (reference other tenant-scoped tables via FK)
+      await tx.campaignMessage.deleteMany({ where: { tenantId: id } });     // → Campaign
+      await tx.stegoScanResult.deleteMany({ where: { tenantId: id } });     // → EvidenceDossier
+      await tx.agentCheckIn.deleteMany({ where: { tenantId: id } });        // → GeofenceZone, User
+      await tx.pvtSubmission.deleteMany({ where: { tenantId: id } });       // → PollingUnit
+      await tx.resultComparison.deleteMany({ where: { tenantId: id } });    // → PollingUnit
+      await tx.honeypotUnit.deleteMany({ where: { tenantId: id } });        // → PollingUnit
+      await tx.accessibilityReport.deleteMany({ where: { tenantId: id } }); // → PollingUnit
+      await tx.deadMansSwitch.deleteMany({ where: { tenantId: id } });      // → User
+
+      // Tier 2: Direct tenantId models (children already deleted above)
       await tx.agentMessage.deleteMany({ where: { tenantId: id } });
       await tx.electionResult.deleteMany({ where: { tenantId: id } });
       await tx.alert.deleteMany({ where: { tenantId: id } });
       await tx.incident.deleteMany({ where: { tenantId: id } });
-      await tx.auditLog.deleteMany({ where: { user: { tenantId: id } } });
+      await tx.securityEvent.deleteMany({ where: { tenantId: id } });       // → User (deleted in Tier 4)
+      await tx.auditLog.deleteMany({ where: { user: { tenantId: id } } });   // → User (deleted in Tier 4)
+      await tx.evidenceDossier.deleteMany({ where: { tenantId: id } });     // child StegoScanResult gone
+      await tx.geofenceZone.deleteMany({ where: { tenantId: id } });        // child AgentCheckIn gone
+      await tx.campaignEvent.deleteMany({ where: { tenantId: id } });
+      await tx.voterSuppressionReport.deleteMany({ where: { tenantId: id } });
+      await tx.osintPost.deleteMany({ where: { tenantId: id } });
+      await tx.flashpointForecast.deleteMany({ where: { tenantId: id } });
+      await tx.wargameScenario.deleteMany({ where: { tenantId: id } });
+      await tx.campaign.deleteMany({ where: { tenantId: id } });            // child CampaignMessage gone
+      await tx.contactList.deleteMany({ where: { tenantId: id } });         // referenced by Campaign (gone)
+
+      // Tier 3: Mid-level parents (children already deleted)
       await tx.pollingUnit.deleteMany({ where: { election: { tenantId: id } } });
       await tx.election.deleteMany({ where: { tenantId: id } });
+
+      // Tier 4: User (all FK references from above tiers already deleted)
       await tx.user.deleteMany({ where: { tenantId: id } });
+
+      // Tier 5: Tenant itself
       await tx.tenant.delete({ where: { id } });
     });
 

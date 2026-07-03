@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
+import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -401,8 +402,8 @@ export function FieldSafety() {
                 </ScrollArea>
               </Card>
 
-              {/* Live Agent Map Placeholder */}
-              <Card className="bg-card/40 border-border rounded-xl">
+              {/* Live Agent Map */}
+              <Card className="bg-card/40 border-border rounded-xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Satellite className="h-4 w-4 text-cyan" />
@@ -415,59 +416,7 @@ export function FieldSafety() {
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Offline</span>
                   </div>
                 </div>
-                <div className="p-4">
-                  <div className="relative w-full h-56 rounded-lg bg-background/60 map-grid border border-border overflow-hidden">
-                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 224" preserveAspectRatio="xMidYMid meet">
-                      {/* Equator-ish line */}
-                      <line x1="0" y1="112" x2="400" y2="112" stroke="oklch(0.28 0.01 260 / 0.5)" strokeWidth="0.5" strokeDasharray="4 4" />
-                      {/* Vertical center */}
-                      <line x1="200" y1="0" x2="200" y2="224" stroke="oklch(0.28 0.01 260 / 0.5)" strokeWidth="0.5" strokeDasharray="4 4" />
-                    </svg>
-                    {/* Agent dots from zones */}
-                    {data.zones.length > 0 && (() => {
-                      const allZones = data.zones.filter(z => z.isActive);
-                      const lats = allZones.map(z => z.centerLat);
-                      const lngs = allZones.map(z => z.centerLng);
-                      const minLat = Math.min(...lats, 4);
-                      const maxLat = Math.max(...lats, 14);
-                      const minLng = Math.min(...lngs, 2.5);
-                      const maxLng = Math.max(...lngs, 15);
-                      const pad = 20;
-                      const w = 400 - pad * 2;
-                      const h = 224 - pad * 2;
-                      const rangeLat = Math.max(maxLat - minLat, 0.01);
-                      const rangeLng = Math.max(maxLng - minLng, 0.01);
-
-                      return allZones.map(zone => {
-                        const x = pad + ((zone.centerLng - minLng) / rangeLng) * w;
-                        const y = pad + h - ((zone.centerLat - minLat) / rangeLat) * h;
-                        const switchData = data.switches.find(s => s.geofenceZoneId === zone.id && s.isActive);
-                        const hasSOS = data.checkIns.some(c => c.geofenceZoneId === zone.id && c.status === 'SOS_TRIGGERED');
-                        const isOverdue = switchData?.isOverdue ?? false;
-                        let color = '#10b981'; // emerald
-                        let glow = 'oklch(0.65 0.19 160 / 0.4)';
-                        if (hasSOS || switchData?.autoSOSTriggered) { color = '#f43f5e'; glow = 'oklch(0.65 0.22 25 / 0.5)'; }
-                        else if (isOverdue) { color = '#f59e0b'; glow = 'oklch(0.75 0.16 75 / 0.4)'; }
-                        const hasAgentOnline = data.agentSafety.some(a => zone.assignedAgentIds.includes(a.id) && a.isOnline);
-                        if (!hasAgentOnline && !hasSOS && !isOverdue) { color = 'oklch(0.45 0 0)'; glow = 'none'; }
-
-                        return (
-                          <g key={zone.id}>
-                            <circle cx={x} cy={y} r={hasSOS ? 14 : 10} fill={glow} opacity={0.6}>
-                              {hasSOS && <animate attributeName="r" values="10;16;10" dur="2s" repeatCount="indefinite" />}
-                              {hasSOS && <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite" />}
-                            </circle>
-                            <circle cx={x} cy={y} r={5} fill={color} stroke="oklch(0.18 0.006 260)" strokeWidth="1.5" />
-                            <text x={x} y={y - 10} textAnchor="middle" fill="oklch(0.75 0 0)" fontSize="7" fontFamily="sans-serif">{zone.name.slice(0, 12)}</text>
-                          </g>
-                        );
-                      });
-                    })()}
-                    {data.zones.filter(z => z.isActive).length === 0 && (
-                      <text x="200" y="112" textAnchor="middle" fill="oklch(0.5 0 0)" fontSize="11" fontFamily="sans-serif">No active zones to display</text>
-                    )}
-                  </div>
-                </div>
+                <AgentMiniMap data={data} />
               </Card>
             </div>
           </div>
@@ -780,3 +729,9 @@ function KpiCard({ label, value, icon, accent, delay }: {
     </motion.div>
   );
 }
+
+// ── Leaflet Mini-Map for Agent Positions (dynamically loaded) ──
+const AgentMiniMap = dynamic(() => import('./field-safety-map').then(m => ({ default: m.AgentMiniMap })), {
+  ssr: false,
+  loading: () => <div className="h-56 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Loading map...</div>,
+});

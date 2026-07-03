@@ -1,14 +1,16 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
   ShieldAlert, AlertTriangle, Info, Radio, CheckCircle2,
-  Eye, ShieldOff, Clock,
+  Eye, ShieldOff, Clock, Check, CheckCheck,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 
 interface Alert {
@@ -55,7 +57,31 @@ function formatTime(date: string | Date) {
 }
 
 export function AlertTriage({ alerts, operationalCount, securityCount, criticalCount }: AlertTriageProps) {
-  const { alertFilter, setAlertFilter } = useDashboardStore();
+  const { alertFilter, setAlertFilter, tenantId } = useDashboardStore();
+  const queryClient = useQueryClient();
+  const unreadCount = alerts.filter(a => !a.isRead).length;
+
+  const markReadMutation = useMutation({
+    mutationFn: (alertId: string) =>
+      fetchJson(`/api/alerts?tenantId=${tenantId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ alertId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts', tenantId] });
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: () =>
+      fetchJson(`/api/alerts?tenantId=${tenantId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ markAllRead: true }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts', tenantId] });
+    },
+  });
 
   const filtered = alerts.filter(a => {
     if (alertFilter !== 'ALL' && a.type !== alertFilter) return false;
@@ -75,6 +101,18 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
             Adversarial Alert Triage
           </h3>
           <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 gap-1.5 text-[10px] px-2"
+                disabled={markAllReadMutation.isPending}
+                onClick={() => markAllReadMutation.mutate()}
+              >
+                <CheckCheck className="h-3 w-3" />
+                Mark all read
+              </Button>
+            )}
             <Badge variant="destructive" className="text-[10px] h-5">{criticalCount} Critical</Badge>
           </div>
         </div>
@@ -153,6 +191,19 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
                     </Badge>
                     {!alert.isRead && (
                       <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    )}
+                    {!alert.isRead && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markReadMutation.mutate(alert.id);
+                        }}
+                        className="ml-auto shrink-0 p-0.5 rounded text-muted-foreground hover:text-emerald transition-colors"
+                        title="Mark as read"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
                     )}
                     <span className="text-[10px] text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
                       <Clock className="h-2.5 w-2.5" />{formatTime(alert.createdAt)}
