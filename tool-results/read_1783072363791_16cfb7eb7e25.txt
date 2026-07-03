@@ -1,0 +1,953 @@
+     1→'use client';
+     2→
+     3→import { useState, Fragment } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion } from 'framer-motion';
+     6→import {
+     7→  FileSearch, ShieldCheck, ScanEye, Globe, Plus, Trash2, Eye,
+     8→  Loader2, RefreshCw, Clock, AlertTriangle, CheckCircle2, XCircle,
+     9→  FolderOpen, Fingerprint, Activity, Wifi, WifiOff, Signal,
+    10→  ChevronDown, ChevronUp, FileWarning, FileQuestion, Zap,
+    11→  Database, AlertOctagon, BarChart3, type LucideIcon,
+    12→} from 'lucide-react';
+    13→import { Card, CardContent } from '@/components/ui/card';
+    14→import { Button } from '@/components/ui/button';
+    15→import { Badge } from '@/components/ui/badge';
+    16→import { Input } from '@/components/ui/input';
+    17→import { Label } from '@/components/ui/label';
+    18→import { Textarea } from '@/components/ui/textarea';
+    19→import { Progress } from '@/components/ui/progress';
+    20→import { ScrollArea } from '@/components/ui/scroll-area';
+    21→import { Separator } from '@/components/ui/separator';
+    22→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    23→import {
+    24→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    25→  DialogHeader, DialogTitle,
+    26→} from '@/components/ui/dialog';
+    27→import {
+    28→  AlertDialog, AlertDialogAction, AlertDialogCancel,
+    29→  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    30→  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+    31→} from '@/components/ui/alert-dialog';
+    32→import {
+    33→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    34→} from '@/components/ui/select';
+    35→import {
+    36→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    37→} from '@/components/ui/table';
+    38→import { useDashboardStore } from '@/store/dashboard';
+    39→import { toast } from 'sonner';
+    40→import { fetchJson } from '@/lib/api';
+    41→import { cn } from '@/lib/utils';
+    42→
+    43→// ─── Types ───────────────────────────────────────────────────────────
+    44→
+    45→interface EvidenceItem {
+    46→  type: string;
+    47→  url: string;
+    48→  c2paVerified: boolean;
+    49→  aiAnalysis: string;
+    50→}
+    51→
+    52→interface Dossier {
+    53→  id: string;
+    54→  title: string;
+    55→  description: string;
+    56→  evidenceItems: EvidenceItem[];
+    57→  c2paSigned: boolean;
+    58→  aiSummary: string | null;
+    59→  aiConfidence: number;
+    60→  status: string;
+    61→  createdAt: string;
+    62→}
+    63→
+    64→interface NoiseAnalysis {
+    65→  mean: number;
+    66→  stdDev: number;
+    67→  uniformity: number;
+    68→}
+    69→
+    70→interface StegoScan {
+    71→  id: string;
+    72→  fileName: string;
+    73→  fileType: string;
+    74→  fileSize: number;
+    75→  isManipulated: boolean;
+    76→  manipulationType: string | null;
+    77→  confidence: number;
+    78→  elaScore: number | null;
+    79→  noiseAnalysis: NoiseAnalysis | null;
+    80→  metadataDiff: any;
+    81→  scanDurationMs: number;
+    82→  scannedAt: string;
+    83→}
+    84→
+    85→interface EvidenceStats {
+    86→  totalDossiers: number;
+    87→  byStatus: Record<string, number>;
+    88→  totalC2paSigned: number;
+    89→  totalStegoScans: number;
+    90→  manipulatedCount: number;
+    91→  manipulationTypes: Record<string, number>;
+    92→  avgAiConfidence: number;
+    93→}
+    94→
+    95→interface EcPortalStatus {
+    96→  lastScrapeAt: string | null;
+    97→  totalScraped: number;
+    98→  scrapeErrors: number;
+    99→  portalHealth: 'ONLINE' | 'DEGRADED' | 'OFFLINE';
+   100→}
+   101→
+   102→interface EvidenceData {
+   103→  dossiers: Dossier[];
+   104→  stegoScans: StegoScan[];
+   105→  stats: EvidenceStats;
+   106→  ecPortalStatus: EcPortalStatus;
+   107→}
+   108→
+   109→// ─── Helpers ─────────────────────────────────────────────────────────
+   110→
+   111→function statusConfig(status: string) {
+   112→  switch (status) {
+   113→    case 'DRAFT':
+   114→      return { label: 'Draft', cls: 'border-zinc-500/30 bg-zinc-500/10 text-zinc-400' };
+   115→    case 'REVIEWED':
+   116→      return { label: 'Reviewed', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-400' };
+   117→    case 'CERTIFIED':
+   118→      return { label: 'Certified', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' };
+   119→    case 'DISMISSED':
+   120→      return { label: 'Dismissed', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-400' };
+   121→    default:
+   122→      return { label: status, cls: 'border-border bg-card text-muted-foreground' };
+   123→  }
+   124→}
+   125→
+   126→function confidenceColor(val: number) {
+   127→  if (val >= 80) return 'bg-emerald-500';
+   128→  if (val >= 60) return 'bg-amber-500';
+   129→  return 'bg-rose-500';
+   130→}
+   131→
+   132→function formatBytes(bytes: number) {
+   133→  if (bytes < 1024) return `${bytes} B`;
+   134→  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+   135→  return `${(bytes / 1048576).toFixed(1)} MB`;
+   136→}
+   137→
+   138→function formatDuration(ms: number) {
+   139→  if (ms < 1000) return `${ms}ms`;
+   140→  return `${(ms / 1000).toFixed(1)}s`;
+   141→}
+   142→
+   143→function timeAgo(dateStr: string | null) {
+   144→  if (!dateStr) return 'N/A';
+   145→  const d = new Date(dateStr);
+   146→  const now = new Date();
+   147→  const diff = Math.floor((now.getTime() - d.getTime()) / 60000);
+   148→  if (diff < 1) return 'Just now';
+   149→  if (diff < 60) return `${diff}m ago`;
+   150→  if (diff < 1440) return `${Math.floor(diff / 60)}h ${diff % 60}m ago`;
+   151→  return `${Math.floor(diff / 1440)}d ago`;
+   152→}
+   153→
+   154→function formatDate(dateStr: string) {
+   155→  return new Date(dateStr).toLocaleDateString('en-US', {
+   156→    month: 'short', day: 'numeric', year: 'numeric',
+   157→  });
+   158→}
+   159→
+   160→const SCRAPE_LOG_ENTRIES = [
+   161→  { relTime: 'Just now', msg: 'Fetched 47 results from INEC portal' },
+   162→  { relTime: '14s ago', msg: 'Parsed Form EC8A for 12 LGAs' },
+   163→  { relTime: '31s ago', msg: 'Validated C2PA signatures on 8 scanned PDFs' },
+   164→  { relTime: '50s ago', msg: 'Detected 2 duplicate entries in ward-level data' },
+   165→  { relTime: '1m ago', msg: 'Scraped presidential results for 3 additional states' },
+   166→  { relTime: '1m ago', msg: 'Portal session refreshed — new auth token acquired' },
+   167→  { relTime: '2m ago', msg: 'Downloaded 31 Form EC8B (senatorial) results' },
+   168→  { relTime: '2m ago', msg: 'Compared scraped totals vs official upload — 0.02% delta' },
+   169→  { relTime: '2m ago', msg: 'Indexed 156 polling unit result images' },
+   170→  { relTime: '3m ago', msg: 'Portal rate-limit hit — backing off 30s before retry' },
+   171→];
+   172→
+   173→// ─── Stat Card ───────────────────────────────────────────────────────
+   174→
+   175→interface StatCardProps {
+   176→  icon: LucideIcon;
+   177→  label: string;
+   178→  value: string | number;
+   179→  iconColor: string;
+   180→  subtitle?: string;
+   181→}
+   182→
+   183→function StatCard({ icon: Icon, label, value, iconColor, subtitle }: StatCardProps) {
+   184→  return (
+   185→    <Card className="bg-card border-border">
+   186→      <CardContent className="p-3">
+   187→        <div className="flex items-center gap-2">
+   188→          <div className={cn('p-1.5 rounded-md', iconColor)}>
+   189→            <Icon className="h-3.5 w-3.5" />
+   190→          </div>
+   191→          <div className="min-w-0">
+   192→            <p className="text-[10px] text-muted-foreground truncate">{label}</p>
+   193→            <p className="text-base font-bold tabular-nums leading-tight">{value}</p>
+   194→            {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
+   195→          </div>
+   196→        </div>
+   197→      </CardContent>
+   198→    </Card>
+   199→  );
+   200→}
+   201→
+   202→// ─── Main Component ──────────────────────────────────────────────────
+   203→
+   204→export function EvidenceDossier() {
+   205→  const { tenantId } = useDashboardStore();
+   206→  const queryClient = useQueryClient();
+   207→
+   208→  // Dialog state
+   209→  const [createOpen, setCreateOpen] = useState(false);
+   210→  const [reviewOpen, setReviewOpen] = useState(false);
+   211→  const [scanOpen, setScanOpen] = useState(false);
+   212→  const [deleteOpen, setDeleteOpen] = useState(false);
+   213→  const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
+   214→  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+   215→
+   216→  // Form state
+   217→  const [formTitle, setFormTitle] = useState('');
+   218→  const [formDesc, setFormDesc] = useState('');
+   219→  const [formIncidentId, setFormIncidentId] = useState('');
+   220→  const [scanFileName, setScanFileName] = useState('');
+   221→  const [scanFileType, setScanFileType] = useState('JPEG');
+   222→
+   223→  // Data fetching
+   224→  const { data, isLoading, refetch } = useQuery<EvidenceData>({
+   225→    queryKey: ['evidence', tenantId],
+   226→    queryFn: () =>
+   227→      fetchJson(`/api/evidence?tenantId=${tenantId}`),
+   228→    refetchInterval: 15000,
+   229→  });
+   230→
+   231→  // Mutation
+   232→  const mutation = useMutation({
+   233→    mutationFn: (body: any) =>
+   234→      fetchJson('/api/evidence?tenantId=' + tenantId, {
+   235→        method: 'POST',
+   236→        headers: { 'Content-Type': 'application/json' },
+   237→        body: JSON.stringify(body),
+   238→      }),
+   239→    onSuccess: () => {
+   240→      queryClient.invalidateQueries({ queryKey: ['evidence', tenantId] });
+   241→    },
+   242→    onError: (err) => {
+   243→      toast.error('Operation failed', { description: err instanceof Error ? err.message : 'Unknown error' });
+   244→    },
+   245→  });
+   246→
+   247→  const dossiers = data?.dossiers ?? [];
+   248→  const stegoScans = data?.stegoScans ?? [];
+   249→  const stats = data?.stats;
+   250→  const ecPortal = data?.ecPortalStatus;
+   251→
+   252→  // Handlers
+   253→  function handleCreateDossier() {
+   254→    if (!formTitle.trim()) {
+   255→      toast.error('Title is required');
+   256→      return;
+   257→    }
+   258→    mutation.mutate(
+   259→      { action: 'CREATE_DOSSIER', title: formTitle, description: formDesc, incidentId: formIncidentId || undefined },
+   260→      {
+   261→        onSuccess: () => {
+   262→          toast.success('Dossier created');
+   263→          setCreateOpen(false);
+   264→          setFormTitle('');
+   265→          setFormDesc('');
+   266→          setFormIncidentId('');
+   267→        },
+   268→        onError: () => toast.error('Failed to create dossier'),
+   269→      },
+   270→    );
+   271→  }
+   272→
+   273→  function handleReviewDossier(status: 'CERTIFIED' | 'DISMISSED') {
+   274→    if (!selectedDossier) return;
+   275→    mutation.mutate(
+   276→      { action: 'REVIEW_DOSSIER', dossierId: selectedDossier.id, status },
+   277→      {
+   278→        onSuccess: () => {
+   279→          toast.success(`Dossier ${status.toLowerCase()}`);
+   280→          setReviewOpen(false);
+   281→          setSelectedDossier(null);
+   282→        },
+   283→        onError: () => toast.error('Failed to update dossier'),
+   284→      },
+   285→    );
+   286→  }
+   287→
+   288→  function handleDeleteDossier() {
+   289→    if (!selectedDossier) return;
+   290→    mutation.mutate(
+   291→      { action: 'DELETE_DOSSIER', dossierId: selectedDossier.id },
+   292→      {
+   293→        onSuccess: () => {
+   294→          toast.success('Dossier deleted');
+   295→          setDeleteOpen(false);
+   296→          setSelectedDossier(null);
+   297→        },
+   298→        onError: () => toast.error('Failed to delete dossier'),
+   299→      },
+   300→    );
+   301→  }
+   302→
+   303→  function handleScan() {
+   304→    if (!scanFileName.trim()) {
+   305→      toast.error('File name is required');
+   306→      return;
+   307→    }
+   308→    mutation.mutate(
+   309→      { action: 'SCAN_STEGO', fileName: scanFileName, fileType: scanFileType },
+   310→      {
+   311→        onSuccess: () => {
+   312→          toast.success('Steganography scan initiated');
+   313→          setScanOpen(false);
+   314→          setScanFileName('');
+   315→          setScanFileType('JPEG');
+   316→        },
+   317→        onError: () => toast.error('Failed to initiate scan'),
+   318→      },
+   319→    );
+   320→  }
+   321→
+   322→  // ─── Loading State ────────────────────────────────────────────────
+   323→  if (isLoading) {
+   324→    return (
+   325→      <div className="h-full flex flex-col items-center justify-center gap-3">
+   326→        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+   327→        <p className="text-sm text-muted-foreground">Loading evidence data...</p>
+   328→      </div>
+   329→    );
+   330→  }
+   331→
+   332→  // ─── Render ───────────────────────────────────────────────────────
+   333→  return (
+   334→    <div className="h-full flex flex-col">
+   335→      <Tabs defaultValue="dossiers" className="h-full flex flex-col">
+   336→        {/* Tab bar */}
+   337→        <div className="px-4 pt-3 pb-2 shrink-0">
+   338→          <TabsList className="h-9">
+   339→            <TabsTrigger value="dossiers" className="gap-1.5 text-xs">
+   340→              <FolderOpen className="h-3.5 w-3.5" />
+   341→              Evidence Dossiers
+   342→            </TabsTrigger>
+   343→            <TabsTrigger value="stego" className="gap-1.5 text-xs">
+   344→              <ScanEye className="h-3.5 w-3.5" />
+   345→              Stego Analysis
+   346→            </TabsTrigger>
+   347→            <TabsTrigger value="ecportal" className="gap-1.5 text-xs">
+   348→              <Globe className="h-3.5 w-3.5" />
+   349→              EC Portal
+   350→            </TabsTrigger>
+   351→          </TabsList>
+   352→        </div>
+   353→
+   354→        {/* ── Tab 1: Evidence Dossiers ───────────────────────────── */}
+   355→        <TabsContent value="dossiers" className="flex-1 min-h-0 flex flex-col px-4 pb-4">
+   356→          {/* Stats row */}
+   357→          <div className="grid grid-cols-5 gap-2 mb-3 shrink-0">
+   358→            <StatCard
+   359→              icon={FolderOpen}
+   360→              label="Total Dossiers"
+   361→              value={stats?.totalDossiers ?? 0}
+   362→              iconColor="bg-foreground/10"
+   363→            />
+   364→            <StatCard
+   365→              icon={CheckCircle2}
+   366→              label="Certified"
+   367→              value={stats?.byStatus?.CERTIFIED ?? 0}
+   368→              iconColor="bg-emerald-500/15 text-emerald-400"
+   369→            />
+   370→            <StatCard
+   371→              icon={Fingerprint}
+   372→              label="C2PA Signed"
+   373→              value={stats?.totalC2paSigned ?? 0}
+   374→              iconColor="bg-cyan-500/15 text-cyan-400"
+   375→            />
+   376→            <StatCard
+   377→              icon={Eye}
+   378→              label="Under Review"
+   379→              value={(stats?.byStatus?.REVIEWED ?? 0) + (stats?.byStatus?.DRAFT ?? 0)}
+   380→              iconColor="bg-amber-500/15 text-amber-400"
+   381→            />
+   382→            <StatCard
+   383→              icon={BarChart3}
+   384→              label="AI Avg Confidence"
+   385→              value={`${(stats?.avgAiConfidence ?? 0).toFixed(1)}%`}
+   386→              iconColor="bg-foreground/10"
+   387→            />
+   388→          </div>
+   389→
+   390→          {/* Create button */}
+   391→          <div className="flex justify-end mb-3 shrink-0">
+   392→            <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setCreateOpen(true)}>
+   393→              <Plus className="h-3.5 w-3.5" />
+   394→              Create Dossier
+   395→            </Button>
+   396→          </div>
+   397→
+   398→          {/* Dossier grid */}
+   399→          <ScrollArea className="flex-1 min-h-0">
+   400→            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-4">
+   401→              {dossiers.map((d, idx) => {
+   402→                const sc = statusConfig(d.status);
+   403→                return (
+   404→                  <motion.div
+   405→                    key={d.id}
+   406→                    initial={{ opacity: 0, y: 12 }}
+   407→                    animate={{ opacity: 1, y: 0 }}
+   408→                    transition={{ delay: idx * 0.03, duration: 0.25 }}
+   409→                  >
+   410→                    <Card className="bg-card border-border hover:border-foreground/20 transition-colors">
+   411→                      <CardContent className="p-4">
+   412→                        {/* Header row */}
+   413→                        <div className="flex items-start justify-between gap-2 mb-2">
+   414→                          <div className="min-w-0 flex-1">
+   415→                            <h4 className="text-sm font-semibold truncate">{d.title}</h4>
+   416→                            <p className="text-[11px] text-muted-foreground mt-0.5">
+   417→                              {formatDate(d.createdAt)}
+   418→                            </p>
+   419→                          </div>
+   420→                          <div className="flex items-center gap-1.5 shrink-0">
+   421→                            {d.c2paSigned && (
+   422→                              <Badge className="text-[10px] h-5 border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+   423→                                <Fingerprint className="h-2.5 w-2.5 mr-0.5" />
+   424→                                C2PA
+   425→                              </Badge>
+   426→                            )}
+   427→                            <Badge className={cn('text-[10px] h-5 border', sc.cls)}>
+   428→                              {sc.label}
+   429→                            </Badge>
+   430→                          </div>
+   431→                        </div>
+   432→
+   433→                        {/* AI confidence */}
+   434→                        <div className="mb-2">
+   435→                          <div className="flex items-center justify-between mb-1">
+   436→                            <span className="text-[10px] text-muted-foreground">AI Confidence</span>
+   437→                            <span className={cn('text-[11px] font-medium tabular-nums',
+   438→                              d.aiConfidence >= 80 ? 'text-emerald-400' : d.aiConfidence >= 60 ? 'text-amber-400' : 'text-rose-400'
+   439→                            )}>
+   440→                              {d.aiConfidence.toFixed(1)}%
+   441→                            </span>
+   442→                          </div>
+   443→                          <div className="h-1.5 w-full bg-foreground/10 rounded-full overflow-hidden">
+   444→                            <div
+   445→                              className={cn('h-full rounded-full transition-all', confidenceColor(d.aiConfidence))}
+   446→                              style={{ width: `${Math.max(0, Math.min(100, d.aiConfidence))}%` }}
+   447→                            />
+   448→                          </div>
+   449→                        </div>
+   450→
+   451→                        {/* AI summary */}
+   452→                        {d.aiSummary && (
+   453→                          <p className="text-[11px] text-muted-foreground line-clamp-3 mb-2.5">
+   454→                            {d.aiSummary}
+   455→                          </p>
+   456→                        )}
+   457→
+   458→                        {/* Footer */}
+   459→                        <div className="flex items-center justify-between">
+   460→                          <div className="flex items-center gap-3">
+   461→                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+   462→                              <FileSearch className="h-3 w-3" />
+   463→                              {d.evidenceItems?.length ?? 0} items
+   464→                            </span>
+   465→                          </div>
+   466→                          <div className="flex items-center gap-1.5">
+   467→                            <Button
+   468→                              variant="ghost"
+   469→                              size="sm"
+   470→                              className="h-7 text-[10px] gap-1 px-2"
+   471→                              onClick={() => { setSelectedDossier(d); setReviewOpen(true); }}
+   472→                            >
+   473→                              <Eye className="h-3 w-3" />
+   474→                              Review
+   475→                            </Button>
+   476→                            <AlertDialog open={deleteOpen && selectedDossier?.id === d.id} onOpenChange={(open) => { if (!open) setSelectedDossier(null); setDeleteOpen(open); }}>
+   477→                              <AlertDialogTrigger asChild>
+   478→                                <Button
+   479→                                  variant="ghost"
+   480→                                  size="sm"
+   481→                                  className="h-7 text-[10px] gap-1 px-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+   482→                                  onClick={() => { setSelectedDossier(d); setDeleteOpen(true); }}
+   483→                                >
+   484→                                  <Trash2 className="h-3 w-3" />
+   485→                                  Delete
+   486→                                </Button>
+   487→                              </AlertDialogTrigger>
+   488→                              <AlertDialogContent>
+   489→                                <AlertDialogHeader>
+   490→                                  <AlertDialogTitle>Delete Dossier</AlertDialogTitle>
+   491→                                  <AlertDialogDescription>
+   492→                                    Are you sure you want to delete &quot;{d.title}&quot;? This action cannot be undone.
+   493→                                  </AlertDialogDescription>
+   494→                                </AlertDialogHeader>
+   495→                                <AlertDialogFooter>
+   496→                                  <AlertDialogCancel onClick={() => setSelectedDossier(null)}>Cancel</AlertDialogCancel>
+   497→                                  <AlertDialogAction
+   498→                                    className="bg-rose-600 hover:bg-rose-700 text-white"
+   499→                                    onClick={handleDeleteDossier}
+   500→                                  >
+   501→                                    Delete
+   502→                                  </AlertDialogAction>
+   503→                                </AlertDialogFooter>
+   504→                              </AlertDialogContent>
+   505→                            </AlertDialog>
+   506→                          </div>
+   507→                        </div>
+   508→                      </CardContent>
+   509→                    </Card>
+   510→                  </motion.div>
+   511→                );
+   512→              })}
+   513→
+   514→              {dossiers.length === 0 && (
+   515→                <div className="col-span-2 text-center py-16 text-muted-foreground">
+   516→                  <FolderOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />
+   517→                  <p className="text-sm">No dossiers yet</p>
+   518→                  <p className="text-xs mt-1">Create your first evidence dossier to get started.</p>
+   519→                </div>
+   520→              )}
+   521→            </div>
+   522→          </ScrollArea>
+   523→        </TabsContent>
+   524→
+   525→        {/* ── Tab 2: Stego Analysis ──────────────────────────────── */}
+   526→        <TabsContent value="stego" className="flex-1 min-h-0 flex flex-col px-4 pb-4">
+   527→          {/* Stats row */}
+   528→          <div className="grid grid-cols-4 gap-2 mb-3 shrink-0">
+   529→            <StatCard
+   530→              icon={ScanEye}
+   531→              label="Total Scans"
+   532→              value={stats?.totalStegoScans ?? 0}
+   533→              iconColor="bg-foreground/10"
+   534→            />
+   535→            <StatCard
+   536→              icon={AlertOctagon}
+   537→              label="Manipulated"
+   538→              value={stats?.manipulatedCount ?? 0}
+   539→              iconColor="bg-rose-500/15 text-rose-400"
+   540→            />
+   541→            <StatCard
+   542→              icon={CheckCircle2}
+   543→              label="Clean"
+   544→              value={(stats?.totalStegoScans ?? 0) - (stats?.manipulatedCount ?? 0)}
+   545→              iconColor="bg-emerald-500/15 text-emerald-400"
+   546→            />
+   547→            <StatCard
+   548→              icon={BarChart3}
+   549→              label="Avg Confidence"
+   550→              value={stegoScans.length > 0
+   551→                ? `${(stegoScans.reduce((sum, s) => sum + s.confidence, 0) / stegoScans.length).toFixed(1)}%`
+   552→                : '0%'}
+   553→              iconColor="bg-foreground/10"
+   554→            />
+   555→          </div>
+   556→
+   557→          {/* Scan button */}
+   558→          <div className="flex justify-end mb-3 shrink-0">
+   559→            <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setScanOpen(true)}>
+   560→              <Plus className="h-3.5 w-3.5" />
+   561→              Scan File
+   562→            </Button>
+   563→          </div>
+   564→
+   565→          {/* Scan results table */}
+   566→          <ScrollArea className="flex-1 min-h-0">
+   567→            <Card className="bg-card border-border">
+   568→              <CardContent className="p-0">
+   569→                <Table>
+   570→                  <TableHeader>
+   571→                    <TableRow className="border-border hover:bg-transparent">
+   572→                      <TableHead className="text-[10px] h-9">File Name</TableHead>
+   573→                      <TableHead className="text-[10px] h-9">Type</TableHead>
+   574→                      <TableHead className="text-[10px] h-9">Size</TableHead>
+   575→                      <TableHead className="text-[10px] h-9">Status</TableHead>
+   576→                      <TableHead className="text-[10px] h-9">Manipulation</TableHead>
+   577→                      <TableHead className="text-[10px] h-9 text-right">Confidence</TableHead>
+   578→                      <TableHead className="text-[10px] h-9 text-right">ELA Score</TableHead>
+   579→                      <TableHead className="text-[10px] h-9 text-right">Duration</TableHead>
+   580→                      <TableHead className="w-8" />
+   581→                    </TableRow>
+   582→                  </TableHeader>
+   583→                  <TableBody>
+   584→                    {stegoScans.map((scan) => (
+   585→                      <Fragment key={scan.id}>
+   586→                        <TableRow
+   587→                          className="border-border cursor-pointer"
+   588→                          onClick={() => setExpandedRow(expandedRow === scan.id ? null : scan.id)}
+   589→                        >
+   590→                          <TableCell className="text-xs font-medium py-2.5">{scan.fileName}</TableCell>
+   591→                          <TableCell className="text-xs text-muted-foreground">{scan.fileType}</TableCell>
+   592→                          <TableCell className="text-xs text-muted-foreground tabular-nums">{formatBytes(scan.fileSize)}</TableCell>
+   593→                          <TableCell>
+   594→                            {scan.isManipulated ? (
+   595→                              <Badge className="text-[10px] h-5 border border-rose-500/30 bg-rose-500/10 text-rose-400">
+   596→                                Manipulated
+   597→                              </Badge>
+   598→                            ) : (
+   599→                              <Badge className="text-[10px] h-5 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+   600→                                Clean
+   601→                              </Badge>
+   602→                            )}
+   603→                          </TableCell>
+   604→                          <TableCell>
+   605→                            {scan.manipulationType ? (
+   606→                              <span className="text-xs text-rose-400 font-medium">{scan.manipulationType}</span>
+   607→                            ) : (
+   608→                              <span className="text-xs text-muted-foreground">—</span>
+   609→                            )}
+   610→                          </TableCell>
+   611→                          <TableCell className="text-xs text-right tabular-nums">
+   612→                            <span className={cn(
+   613→                              scan.confidence >= 80 ? 'text-rose-400' : scan.confidence >= 60 ? 'text-amber-400' : 'text-muted-foreground'
+   614→                            )}>
+   615→                              {scan.confidence.toFixed(1)}%
+   616→                            </span>
+   617→                          </TableCell>
+   618→                          <TableCell className="text-xs text-right tabular-nums text-muted-foreground">
+   619→                            {scan.elaScore !== null ? scan.elaScore.toFixed(2) : '—'}
+   620→                          </TableCell>
+   621→                          <TableCell className="text-xs text-right tabular-nums text-muted-foreground">
+   622→                            {formatDuration(scan.scanDurationMs)}
+   623→                          </TableCell>
+   624→                          <TableCell>
+   625→                            {expandedRow === scan.id
+   626→                              ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+   627→                              : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+   628→                            }
+   629→                          </TableCell>
+   630→                        </TableRow>
+   631→                        {expandedRow === scan.id && scan.noiseAnalysis && (
+   632→                          <TableRow className="border-border bg-muted/20">
+   633→                            <TableCell colSpan={9} className="py-3 px-4">
+   634→                              <div className="grid grid-cols-3 gap-4">
+   635→                                <div>
+   636→                                  <p className="text-[10px] text-muted-foreground mb-0.5">Noise Mean</p>
+   637→                                  <p className="text-xs font-medium tabular-nums">{scan.noiseAnalysis.mean.toFixed(4)}</p>
+   638→                                </div>
+   639→                                <div>
+   640→                                  <p className="text-[10px] text-muted-foreground mb-0.5">Noise Std Dev</p>
+   641→                                  <p className="text-xs font-medium tabular-nums">{scan.noiseAnalysis.stdDev.toFixed(4)}</p>
+   642→                                </div>
+   643→                                <div>
+   644→                                  <p className="text-[10px] text-muted-foreground mb-0.5">Noise Uniformity</p>
+   645→                                  <p className="text-xs font-medium tabular-nums">{scan.noiseAnalysis.uniformity.toFixed(4)}</p>
+   646→                                </div>
+   647→                              </div>
+   648→                              {scan.metadataDiff && Object.keys(scan.metadataDiff).length > 0 && (
+   649→                                <div className="mt-2 pt-2 border-t border-border">
+   650→                                  <p className="text-[10px] text-muted-foreground mb-1">Metadata Differences</p>
+   651→                                  <div className="flex flex-wrap gap-1.5">
+   652→                                    {Object.entries(scan.metadataDiff).map(([key, val]) => (
+   653→                                      <Badge key={key} variant="outline" className="text-[10px] h-5">
+   654→                                        {key}: <span className="text-rose-400 ml-1">{String(val)}</span>
+   655→                                      </Badge>
+   656→                                    ))}
+   657→                                  </div>
+   658→                                </div>
+   659→                              )}
+   660→                            </TableCell>
+   661→                          </TableRow>
+   662→                        )}
+   663→                      </Fragment>
+   664→                    ))}
+   665→
+   666→                    {stegoScans.length === 0 && (
+   667→                      <TableRow>
+   668→                        <TableCell colSpan={9} className="h-32 text-center">
+   669→                          <div className="text-muted-foreground">
+   670→                            <ScanEye className="h-8 w-8 mx-auto mb-2 opacity-30" />
+   671→                            <p className="text-sm">No scans yet</p>
+   672→                            <p className="text-xs mt-1">Run a steganography analysis to detect manipulation.</p>
+   673→                          </div>
+   674→                        </TableCell>
+   675→                      </TableRow>
+   676→                    )}
+   677→                  </TableBody>
+   678→                </Table>
+   679→              </CardContent>
+   680→            </Card>
+   681→          </ScrollArea>
+   682→        </TabsContent>
+   683→
+   684→        {/* ── Tab 3: EC Portal Interrogator ───────────────────────── */}
+   685→        <TabsContent value="ecportal" className="flex-1 min-h-0 flex flex-col px-4 pb-4">
+   686→          <div className="flex items-center justify-between mb-3 shrink-0">
+   687→            <h3 className="text-sm font-semibold flex items-center gap-2">
+   688→              <Globe className="h-4 w-4 text-cyan-400" />
+   689→              EC Portal Interrogator
+   690→            </h3>
+   691→            <Button
+   692→              variant="outline"
+   693→              size="sm"
+   694→              className="h-8 gap-1.5 text-xs"
+   695→              onClick={() => refetch()}
+   696→            >
+   697→              <RefreshCw className="h-3 w-3" />
+   698→              Auto-Refresh
+   699→            </Button>
+   700→          </div>
+   701→
+   702→          {/* Portal health card */}
+   703→          <Card className="bg-card border-border mb-3 shrink-0">
+   704→            <CardContent className="p-4">
+   705→              <div className="flex items-center gap-4">
+   706→                <div className={cn(
+   707→                  'relative flex items-center justify-center w-12 h-12 rounded-full',
+   708→                  ecPortal?.portalHealth === 'ONLINE' && 'bg-emerald-500/15',
+   709→                  ecPortal?.portalHealth === 'DEGRADED' && 'bg-amber-500/15',
+   710→                  ecPortal?.portalHealth === 'OFFLINE' && 'bg-rose-500/15',
+   711→                )}>
+   712→                  {ecPortal?.portalHealth === 'ONLINE' && (
+   713→                    <Wifi className="h-5 w-5 text-emerald-400" />
+   714→                  )}
+   715→                  {ecPortal?.portalHealth === 'DEGRADED' && (
+   716→                    <Signal className="h-5 w-5 text-amber-400" />
+   717→                  )}
+   718→                  {ecPortal?.portalHealth === 'OFFLINE' && (
+   719→                    <WifiOff className="h-5 w-5 text-rose-400" />
+   720→                  )}
+   721→                  {ecPortal?.portalHealth === 'ONLINE' && (
+   722→                    <span className="absolute inset-0 rounded-full border-2 border-emerald-400/50 animate-ping" />
+   723→                  )}
+   724→                </div>
+   725→                <div>
+   726→                  <div className="flex items-center gap-2 mb-1">
+   727→                    <Badge className={cn(
+   728→                      'text-[10px] h-5 border',
+   729→                      ecPortal?.portalHealth === 'ONLINE' && 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
+   730→                      ecPortal?.portalHealth === 'DEGRADED' && 'border-amber-500/30 bg-amber-500/10 text-amber-400',
+   731→                      ecPortal?.portalHealth === 'OFFLINE' && 'border-rose-500/30 bg-rose-500/10 text-rose-400',
+   732→                    )}>
+   733→                      {ecPortal?.portalHealth}
+   734→                    </Badge>
+   735→                    <span className="text-xs text-muted-foreground">Portal Health</span>
+   736→                  </div>
+   737→                  <p className="text-sm font-medium">
+   738→                    {ecPortal?.portalHealth === 'ONLINE' && 'All systems operational'}
+   739→                    {ecPortal?.portalHealth === 'DEGRADED' && 'Experiencing intermittent issues'}
+   740→                    {ecPortal?.portalHealth === 'OFFLINE' && 'Portal unreachable'}
+   741→                  </p>
+   742→                </div>
+   743→              </div>
+   744→
+   745→              <Separator className="my-3 bg-border" />
+   746→
+   747→              <div className="grid grid-cols-3 gap-4">
+   748→                <div>
+   749→                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+   750→                    <Clock className="h-2.5 w-2.5" /> Last Scrape
+   751→                  </p>
+   752→                  <p className="text-sm font-medium mt-0.5">{ecPortal?.lastScrapeAt ? timeAgo(ecPortal.lastScrapeAt) : 'Never'}</p>
+   753→                </div>
+   754→                <div>
+   755→                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+   756→                    <Database className="h-2.5 w-2.5" /> Total Scraped
+   757→                  </p>
+   758→                  <p className="text-sm font-medium mt-0.5 tabular-nums">{(ecPortal?.totalScraped ?? 0).toLocaleString()}</p>
+   759→                </div>
+   760→                <div>
+   761→                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+   762→                    <AlertTriangle className="h-2.5 w-2.5" /> Scrape Errors
+   763→                  </p>
+   764→                  <p className="text-sm font-medium mt-0.5 tabular-nums">{ecPortal?.scrapeErrors ?? 0}</p>
+   765→                </div>
+   766→              </div>
+   767→            </CardContent>
+   768→          </Card>
+   769→
+   770→          {/* Scrape log */}
+   771→          <Card className="bg-card border-border flex-1 min-h-0 flex flex-col">
+   772→            <CardContent className="p-4 flex-1 min-h-0 flex flex-col">
+   773→              <div className="flex items-center gap-2 mb-3 shrink-0">
+   774→                <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+   775→                <h4 className="text-xs font-semibold">Scrape Log</h4>
+   776→              </div>
+   777→              <ScrollArea className="flex-1 min-h-0">
+   778→                <div className="space-y-1.5 pb-2">
+   779→                  {SCRAPE_LOG_ENTRIES.map((entry, i) => (
+   780→                    <motion.div
+   781→                      key={i}
+   782→                      initial={{ opacity: 0, x: -8 }}
+   783→                      animate={{ opacity: 1, x: 0 }}
+   784→                      transition={{ delay: i * 0.03, duration: 0.2 }}
+   785→                      className="flex items-start gap-3 py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors"
+   786→                    >
+   787→                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 mt-px">
+   788→                        {entry.relTime}
+   789→                      </span>
+   790→                      <span className="text-[11px] text-foreground/80">{entry.msg}</span>
+   791→                    </motion.div>
+   792→                  ))}
+   793→                </div>
+   794→              </ScrollArea>
+   795→            </CardContent>
+   796→          </Card>
+   797→        </TabsContent>
+   798→      </Tabs>
+   799→
+   800→      {/* ── Create Dossier Dialog ─────────────────────────────────── */}
+   801→      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   802→        <DialogContent>
+   803→          <DialogHeader>
+   804→            <DialogTitle>Create Evidence Dossier</DialogTitle>
+   805→            <DialogDescription>
+   806→              Compile evidence items into a verifiable dossier with AI analysis.
+   807→            </DialogDescription>
+   808→          </DialogHeader>
+   809→          <div className="space-y-3">
+   810→            <div className="space-y-1.5">
+   811→              <Label htmlFor="dossier-title" className="text-xs">Title <span className="text-rose-400">*</span></Label>
+   812→              <Input
+   813→                id="dossier-title"
+   814→                placeholder="e.g. Ballot Box Snatching — Ward 12"
+   815→                value={formTitle}
+   816→                onChange={(e) => setFormTitle(e.target.value)}
+   817→                className="h-9 text-sm"
+   818→              />
+   819→            </div>
+   820→            <div className="space-y-1.5">
+   821→              <Label htmlFor="dossier-desc" className="text-xs">Description</Label>
+   822→              <Textarea
+   823→                id="dossier-desc"
+   824→                placeholder="Describe the evidence being compiled..."
+   825→                value={formDesc}
+   826→                onChange={(e) => setFormDesc(e.target.value)}
+   827→                rows={3}
+   828→                className="text-sm resize-none"
+   829→              />
+   830→            </div>
+   831→            <div className="space-y-1.5">
+   832→              <Label htmlFor="dossier-incident" className="text-xs">Incident ID (optional)</Label>
+   833→              <Input
+   834→                id="dossier-incident"
+   835→                placeholder="Link to an existing incident"
+   836→                value={formIncidentId}
+   837→                onChange={(e) => setFormIncidentId(e.target.value)}
+   838→                className="h-9 text-sm"
+   839→              />
+   840→            </div>
+   841→          </div>
+   842→          <DialogFooter>
+   843→            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>Cancel</Button>
+   844→            <Button size="sm" onClick={handleCreateDossier} disabled={mutation.isPending}>
+   845→              {mutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+   846→              Create
+   847→            </Button>
+   848→          </DialogFooter>
+   849→        </DialogContent>
+   850→      </Dialog>
+   851→
+   852→      {/* ── Review Dossier Dialog ─────────────────────────────────── */}
+   853→      <Dialog open={reviewOpen} onOpenChange={(open) => { if (!open) setSelectedDossier(null); setReviewOpen(open); }}>
+   854→        <DialogContent>
+   855→          <DialogHeader>
+   856→            <DialogTitle>Review Dossier</DialogTitle>
+   857→            <DialogDescription>
+   858→              Certify this dossier as verified evidence or dismiss it.
+   859→            </DialogDescription>
+   860→          </DialogHeader>
+   861→          {selectedDossier && (
+   862→            <div className="space-y-3">
+   863→              <Card className="bg-muted/30 border-border">
+   864→                <CardContent className="p-3">
+   865→                  <p className="text-sm font-semibold">{selectedDossier.title}</p>
+   866→                  <p className="text-[11px] text-muted-foreground mt-1">
+   867→                    {selectedDossier.evidenceItems?.length ?? 0} evidence items · AI Confidence: {selectedDossier.aiConfidence.toFixed(1)}%
+   868→                  </p>
+   869→                  {selectedDossier.aiSummary && (
+   870→                    <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-3">{selectedDossier.aiSummary}</p>
+   871→                  )}
+   872→                </CardContent>
+   873→              </Card>
+   874→              <p className="text-xs text-muted-foreground">
+   875→                {selectedDossier.c2paSigned
+   876→                  ? 'This dossier includes C2PA-signed evidence items for cryptographic verification.'
+   877→                  : 'No C2PA signatures found on evidence items in this dossier.'}
+   878→              </p>
+   879→            </div>
+   880→          )}
+   881→          <DialogFooter className="gap-2">
+   882→            <Button
+   883→              variant="outline"
+   884→              size="sm"
+   885→              className="text-rose-400 border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-300"
+   886→              onClick={() => handleReviewDossier('DISMISSED')}
+   887→              disabled={mutation.isPending}
+   888→            >
+   889→              <XCircle className="h-3.5 w-3.5 mr-1" />
+   890→              Dismiss
+   891→            </Button>
+   892→            <Button
+   893→              size="sm"
+   894→              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+   895→              onClick={() => handleReviewDossier('CERTIFIED')}
+   896→              disabled={mutation.isPending}
+   897→            >
+   898→              {mutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+   899→              <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+   900→              Certify
+   901→            </Button>
+   902→          </DialogFooter>
+   903→        </DialogContent>
+   904→      </Dialog>
+   905→
+   906→      {/* ── Scan Stego Dialog ─────────────────────────────────────── */}
+   907→      <Dialog open={scanOpen} onOpenChange={setScanOpen}>
+   908→        <DialogContent>
+   909→          <DialogHeader>
+   910→            <DialogTitle>Steganography Analysis</DialogTitle>
+   911→            <DialogDescription>
+   912→              Run AI-powered steganography and ELA analysis on a file to detect manipulation.
+   913→            </DialogDescription>
+   914→          </DialogHeader>
+   915→          <div className="space-y-3">
+   916→            <div className="space-y-1.5">
+   917→              <Label htmlFor="scan-file" className="text-xs">File Name <span className="text-rose-400">*</span></Label>
+   918→              <Input
+   919→                id="scan-file"
+   920→                placeholder="e.g. ballot_photo_ward12.jpg"
+   921→                value={scanFileName}
+   922→                onChange={(e) => setScanFileName(e.target.value)}
+   923→                className="h-9 text-sm"
+   924→              />
+   925→            </div>
+   926→            <div className="space-y-1.5">
+   927→              <Label className="text-xs">File Type</Label>
+   928→              <Select value={scanFileType} onValueChange={setScanFileType}>
+   929→                <SelectTrigger className="h-9 text-sm">
+   930→                  <SelectValue />
+   931→                </SelectTrigger>
+   932→                <SelectContent>
+   933→                  <SelectItem value="JPEG">JPEG</SelectItem>
+   934→                  <SelectItem value="PNG">PNG</SelectItem>
+   935→                  <SelectItem value="MP4">MP4</SelectItem>
+   936→                  <SelectItem value="WAV">WAV</SelectItem>
+   937→                </SelectContent>
+   938→              </Select>
+   939→            </div>
+   940→          </div>
+   941→          <DialogFooter>
+   942→            <Button variant="outline" size="sm" onClick={() => setScanOpen(false)}>Cancel</Button>
+   943→            <Button size="sm" onClick={handleScan} disabled={mutation.isPending}>
+   944→              {mutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+   945→              <ScanEye className="h-3.5 w-3.5 mr-1" />
+   946→              Scan
+   947→            </Button>
+   948→          </DialogFooter>
+   949→        </DialogContent>
+   950→      </Dialog>
+   951→    </div>
+   952→  );
+   953→}

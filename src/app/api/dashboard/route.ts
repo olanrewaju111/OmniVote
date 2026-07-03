@@ -61,7 +61,7 @@ export async function GET(req: Request) {
     }
 
     // Rename stateAgg for backward compat (frontend uses this key)
-    const stateAgg = electionTier === 'LOCAL' ? agg : agg;
+    const stateAgg = agg;
 
     // Parse mapBounds
     let mapBounds = null;

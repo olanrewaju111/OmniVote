@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/osint?tenantId=X&platform=X&category=X&limit=50&offset=0
 export async function GET(req: NextRequest) {
@@ -49,12 +50,6 @@ export async function GET(req: NextRequest) {
         db.osintPost.count({ where: { tenantId, isFakeNews: true } }),
         db.osintPost.count({ where: { tenantId, isBotSuspect: true } }),
       ]);
-
-    // Helper to safely parse JSON fields
-    const safeParse = (val: string | null, fallback: unknown = []) => {
-      if (!val) return fallback;
-      try { return JSON.parse(val); } catch { return fallback; }
-    };
 
     // Parse JSON string fields on each post
     const parsedPosts = posts.map((p) => ({

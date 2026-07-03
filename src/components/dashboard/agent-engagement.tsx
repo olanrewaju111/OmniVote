@@ -7,7 +7,7 @@ import {
   MessageSquare, Send, Phone, Smartphone, Bell, Clock, AlertTriangle, UserX,
   WifiOff, ShieldAlert, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp,
   MessageCircle, RefreshCw, Zap, Users, Eye, Radio, Filter, Reply,
-  QrCode, Link2, Unlink,
+  QrCode, Link2, Unlink, AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -124,7 +124,7 @@ export function AgentEngagement() {
   const [bulkChannel, setBulkChannel] = useState('WHATSAPP');
 
   // Fetch engagement data
-  const { data, isLoading, refetch } = useQuery<EngagementData>({
+  const { data, isLoading, isError, refetch } = useQuery<EngagementData>({
     queryKey: ['engagement', tenantId, msgFilter],
     queryFn: () => {
       const p = new URLSearchParams(`?tenantId=${tenantId}&view=messages`);
@@ -186,6 +186,18 @@ export function AgentEngagement() {
     return (
       <div className="h-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-emerald" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
       </div>
     );
   }

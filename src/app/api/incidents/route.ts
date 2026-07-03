@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 export async function GET(req: NextRequest) {
   try {
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
         gpsLng: inc.gpsLongitude,
         gpsAnomaly: inc.gpsAnomaly,
         aiSummary: inc.aiSummary,
-        aiFlags: JSON.parse(inc.aiFlags || '[]'),
+        aiFlags: safeParse<string[]>(inc.aiFlags),
         isQuarantined: inc.isQuarantined,
         c2paVerified: inc.c2paVerified,
         submittedAt: inc.submittedAt,

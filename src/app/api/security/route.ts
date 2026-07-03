@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/security?tenantId=X&severity=X&eventType=X
 export async function GET(req: NextRequest) {
@@ -38,11 +39,6 @@ export async function GET(req: NextRequest) {
 
     // Tenant security settings
     const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { encryptionEnabled: true, twoFactorEnabled: true, sessionTimeoutMin: true, ipWhitelist: true, dataRetentionDays: true, auditLogRetentionDays: true } });
-
-    const safeParse = (val: string | null, fallback: unknown = {}) => {
-      if (!val) return fallback;
-      try { return JSON.parse(val); } catch { return fallback; }
-    };
 
     return NextResponse.json({
       events: events.map(e => ({ ...e, metadata: safeParse(e.metadata) })),

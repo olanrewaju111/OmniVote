@@ -263,7 +263,7 @@ function StatPill({ label, value, icon, color }: { label: string; value: number;
 
 // ---- Report List ----
 function ReportList({ reports, expandedResult, setExpandedResult, showReporter }: {
-  reports: any[];
+  reports: Array<{ id: string; type: string; [key: string]: unknown }>;
   expandedResult: string | null;
   setExpandedResult: (id: string | null) => void;
   showReporter: boolean;

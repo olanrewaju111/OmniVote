@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/results — fetch results for a polling unit or all
 export async function GET(req: NextRequest) {
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
         totalValidVotes: r.totalValidVotes,
         rejectedBallots: r.rejectedBallots,
         totalVotesCast: r.totalVotesCast,
-        partyResults: JSON.parse(r.partyResults || '[]'),
+        partyResults: safeParse(r.partyResults),
         bvasUsed: r.bvasUsed,
         materialsArrivedOnTime: r.materialsArrivedOnTime,
         securityPresent: r.securityPresent,

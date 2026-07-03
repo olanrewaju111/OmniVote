@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/geofence?tenantId=X
 export async function GET(req: NextRequest) {
@@ -27,11 +28,6 @@ export async function GET(req: NextRequest) {
         select: { id: true, name: true, role: true, isOnline: true, lastSeenAt: true, isLocked: true, biometricRiskScore: true, deviceTrustScore: true },
       }),
     ]);
-
-    const safeParse = (val: string | null, fallback: unknown = []) => {
-      if (!val) return fallback;
-      try { return JSON.parse(val); } catch { return fallback; }
-    };
 
     const parsedZones = zones.map(z => ({
       ...z,

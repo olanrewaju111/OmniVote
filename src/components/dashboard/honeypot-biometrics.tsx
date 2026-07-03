@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   Radar, Fingerprint, Accessibility, Plus, Loader2, ShieldAlert,
-  Shield, AlertTriangle, Eye, EyeOff, CheckCircle2, XCircle,
+  Shield, AlertTriangle, AlertCircle, Eye, EyeOff, CheckCircle2, XCircle,
   Wifi, WifiOff, Lock, Users, Activity, TrendingDown, Target,
   Siren, CircleDot, Circle, X,
 } from 'lucide-react';
@@ -225,7 +225,7 @@ export function HoneypotBiometrics() {
   const [arScore, setArScore] = useState([50]);
 
   // ── Data fetching ──
-  const { data, isLoading, refetch } = useQuery<HoneypotData>({
+  const { data, isLoading, isError, refetch } = useQuery<HoneypotData>({
     queryKey: ['honeypot', tenantId],
     queryFn: () =>
       fetchJson(`/api/honeypot?tenantId=${tenantId}`),
@@ -386,7 +386,15 @@ export function HoneypotBiometrics() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[200px] text-center p-6">
+          <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+          <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      ) : isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-purple" />
         </div>

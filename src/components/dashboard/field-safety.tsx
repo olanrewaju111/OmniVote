@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import {
   MapPin, ShieldAlert, Radio, Clock, Users, CheckCircle2,
-  AlertTriangle, Wifi, WifiOff, Battery, BatteryLow, BatteryWarning,
+  AlertTriangle, AlertCircle, Wifi, WifiOff, Battery, BatteryLow, BatteryWarning,
   BatteryFull, Satellite, Loader2, Plus, Eye, Activity,
   Signal, Zap, Shield,
 } from 'lucide-react';
@@ -202,7 +202,7 @@ export function FieldSafety() {
   });
 
   // ── Query ──────────────────────────────────────────────────────────
-  const { data, isLoading } = useQuery<GeofenceData>({
+  const { data, isLoading, isError } = useQuery<GeofenceData>({
     queryKey: ['geofence', tenantId],
     queryFn: () => fetchJson(`/api/geofence?tenantId=${tenantId}`),
     refetchInterval: 10000,
@@ -295,6 +295,18 @@ export function FieldSafety() {
     return (
       <div className="h-full flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
       </div>
     );
   }

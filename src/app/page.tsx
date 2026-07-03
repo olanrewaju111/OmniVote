@@ -4,35 +4,49 @@ import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
 import { useDashboardStore, type ElectionInfo } from '@/store/dashboard';
 import { KpiGrid } from '@/components/dashboard/kpi-grid';
-import { GeoMapView } from '@/components/dashboard/geo-map';
-import { LiveFeed } from '@/components/dashboard/live-feed';
-import { AlertTriage } from '@/components/dashboard/alert-triage';
-import { AiInsights } from '@/components/dashboard/ai-insights';
-import { MediaGallery } from '@/components/dashboard/media-gallery';
-import { SubmitReport } from '@/components/dashboard/field-submit';
-import { MyReports } from '@/components/dashboard/field-reports';
-import { AgentRoster } from '@/components/dashboard/agent-roster';
-import { SystemHealth } from '@/components/dashboard/system-health';
-import { TenantManagement } from '@/components/dashboard/tenant-mgmt';
-import { SituationRoom } from '@/components/dashboard/situation-room';
-import { AgentEngagement } from '@/components/dashboard/agent-engagement';
-import { OsintMonitor } from '@/components/dashboard/osint-monitor';
-import { MobilizationEngine } from '@/components/dashboard/mobilization';
-import { CampaignMonitor } from '@/components/dashboard/campaign-monitor';
-import { SecurityCenter } from '@/components/dashboard/security-center';
-import { FieldSafety } from '@/components/dashboard/field-safety';
-import { PvtQuickCount } from '@/components/dashboard/pvt-quick-count';
-import { EvidenceDossier } from '@/components/dashboard/evidence-dossier';
-import { FlashpointWargame } from '@/components/dashboard/flashpoint-wargame';
-import { HoneypotBiometrics } from '@/components/dashboard/honeypot-biometrics';
 import { PwaRegistration } from '@/components/pwa-registration';
 import { fetchJson } from '@/lib/api';
+
+// ---- Code-split heavy tab components ----
+const createDynamic = <T extends React.ComponentType<any>>(
+  loader: () => Promise<{ default: T }>,
+) =>
+  dynamic(loader, {
+    loading: () => (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    ),
+  });
+
+const GeoMapView = createDynamic(() => import('@/components/dashboard/geo-map').then(m => ({ default: m.GeoMapView })));
+const LiveFeed = createDynamic(() => import('@/components/dashboard/live-feed').then(m => ({ default: m.LiveFeed })));
+const AlertTriage = createDynamic(() => import('@/components/dashboard/alert-triage').then(m => ({ default: m.AlertTriage })));
+const AiInsights = createDynamic(() => import('@/components/dashboard/ai-insights').then(m => ({ default: m.AiInsights })));
+const MediaGallery = createDynamic(() => import('@/components/dashboard/media-gallery').then(m => ({ default: m.MediaGallery })));
+const SubmitReport = createDynamic(() => import('@/components/dashboard/field-submit').then(m => ({ default: m.SubmitReport })));
+const MyReports = createDynamic(() => import('@/components/dashboard/field-reports').then(m => ({ default: m.MyReports })));
+const AgentRoster = createDynamic(() => import('@/components/dashboard/agent-roster').then(m => ({ default: m.AgentRoster })));
+const SystemHealth = createDynamic(() => import('@/components/dashboard/system-health').then(m => ({ default: m.SystemHealth })));
+const TenantManagement = createDynamic(() => import('@/components/dashboard/tenant-mgmt').then(m => ({ default: m.TenantManagement })));
+const SituationRoom = createDynamic(() => import('@/components/dashboard/situation-room').then(m => ({ default: m.SituationRoom })));
+const AgentEngagement = createDynamic(() => import('@/components/dashboard/agent-engagement').then(m => ({ default: m.AgentEngagement })));
+const OsintMonitor = createDynamic(() => import('@/components/dashboard/osint-monitor').then(m => ({ default: m.OsintMonitor })));
+const MobilizationEngine = createDynamic(() => import('@/components/dashboard/mobilization').then(m => ({ default: m.MobilizationEngine })));
+const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campaign-monitor').then(m => ({ default: m.CampaignMonitor })));
+const SecurityCenter = createDynamic(() => import('@/components/dashboard/security-center').then(m => ({ default: m.SecurityCenter })));
+const FieldSafety = createDynamic(() => import('@/components/dashboard/field-safety').then(m => ({ default: m.FieldSafety })));
+const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-quick-count').then(m => ({ default: m.PvtQuickCount })));
+const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evidence-dossier').then(m => ({ default: m.EvidenceDossier })));
+const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })));
+const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })));
 
 // ---- Types ----
 export interface Incident {

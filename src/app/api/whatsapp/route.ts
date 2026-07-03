@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
           },
         }).catch(console.error);
 
-        console.log(`[WA-MOCK] Tenant ${tenantId} auto-connected as ${jid}`);
+        console.debug(`[WA-MOCK] Tenant ${tenantId} auto-connected as ${jid}`);
       }
     }, 3000);
 

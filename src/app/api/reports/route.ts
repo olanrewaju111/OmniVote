@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/reports
 //   ?reporterId=xxx       — single agent's reports (field agent view)
@@ -68,8 +69,8 @@ export async function GET(req: NextRequest) {
     // ── All tenant reports (admin / analyst view) ──
     if (viewAll) {
       // Build where clause — optionally filter by agentId
-      const resultWhere: any = { tenantId };
-      const incidentWhere: any = { tenantId };
+      const resultWhere: Record<string, unknown> = { tenantId };
+      const incidentWhere: Record<string, unknown> = { tenantId };
       if (agentId) {
         resultWhere.reportedById = agentId;
         incidentWhere.reportedById = agentId;
@@ -133,14 +134,32 @@ export async function GET(req: NextRequest) {
 }
 
 // ── Mappers ──
-function mapResult(r: any) {
+interface ResultRow {
+  id: string;
+  accreditedVoters: number;
+  totalValidVotes: number;
+  rejectedBallots: number;
+  totalVotesCast: number;
+  partyResults: string;
+  bvasUsed: boolean;
+  materialsArrivedOnTime: boolean;
+  securityPresent: boolean;
+  violenceOccurred: boolean;
+  notes: string;
+  verified: boolean;
+  submittedAt: string;
+  updatedAt: string;
+  pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number };
+}
+
+function mapResult(r: ResultRow) {
   return {
     id: r.id,
     accreditedVoters: r.accreditedVoters,
     totalValidVotes: r.totalValidVotes,
     rejectedBallots: r.rejectedBallots,
     totalVotesCast: r.totalVotesCast,
-    partyResults: JSON.parse(r.partyResults || '[]'),
+    partyResults: safeParse(r.partyResults),
     bvasUsed: r.bvasUsed,
     materialsArrivedOnTime: r.materialsArrivedOnTime,
     securityPresent: r.securityPresent,
@@ -153,14 +172,32 @@ function mapResult(r: any) {
   };
 }
 
-function mapIncident(inc: any) {
+interface IncidentRow {
+  id: string;
+  type: string;
+  severity: string;
+  status: string;
+  description: string;
+  mediaUrls: string;
+  gpsLatitude: number | null;
+  gpsLongitude: number | null;
+  gpsAnomaly: boolean;
+  aiSummary: string | null;
+  isQuarantined: boolean;
+  c2paVerified: boolean;
+  submittedAt: string;
+  reviewedAt: string | null;
+  pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
+}
+
+function mapIncident(inc: IncidentRow) {
   return {
     id: inc.id,
     type: inc.type,
     severity: inc.severity,
     status: inc.status,
     description: inc.description,
-    mediaUrls: JSON.parse(inc.mediaUrls || '[]'),
+    mediaUrls: safeParse(inc.mediaUrls),
     gpsLat: inc.gpsLatitude,
     gpsLng: inc.gpsLongitude,
     gpsAnomaly: inc.gpsAnomaly,

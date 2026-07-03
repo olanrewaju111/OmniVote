@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/voter-suppression?tenantId=X&reportType=X&state=X&severity=X&status=X
 export async function GET(req: NextRequest) {
@@ -47,12 +48,6 @@ export async function GET(req: NextRequest) {
       }),
       db.voterSuppressionReport.count({ where: { tenantId, isDisinformation: true } }),
     ]);
-
-    // Helper to safely parse JSON fields
-    const safeParse = (val: string | null, fallback: unknown = []) => {
-      if (!val) return fallback;
-      try { return JSON.parse(val); } catch { return fallback; }
-    };
 
     // Parse evidenceUrls on each report
     const parsedReports = reports.map((r) => ({

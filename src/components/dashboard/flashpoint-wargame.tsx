@@ -42,6 +42,7 @@ import {
   Flame,
   Activity,
   AlertTriangle,
+  AlertCircle,
   ShieldAlert,
   TrendingUp,
   Loader2,
@@ -96,7 +97,7 @@ interface FlashpointData {
     id: string;
     title: string;
     description: string;
-    parameters: any;
+    parameters: Record<string, unknown>;
     steps: Array<{
       step: number;
       description: string;
@@ -105,7 +106,7 @@ interface FlashpointData {
     }>;
     status: string;
     currentPlayerRole: string | null;
-    results: any;
+    results: Record<string, unknown> | null;
     score: number | null;
     startedAt: string | null;
     completedAt: string | null;
@@ -223,7 +224,7 @@ export function FlashpointWargame() {
   const [completeScore, setCompleteScore] = useState('');
 
   /* ---- Data fetching ---- */
-  const { data, isLoading, refetch } = useQuery<FlashpointData>({
+  const { data, isLoading, isError, refetch } = useQuery<FlashpointData>({
     queryKey: ['flashpoint', tenantId],
     queryFn: () =>
       fetchJson(`/api/flashpoint?tenantId=${tenantId}`),
@@ -231,7 +232,7 @@ export function FlashpointWargame() {
   });
 
   const mutation = useMutation({
-    mutationFn: (body: any) =>
+    mutationFn: (body: Record<string, unknown>) =>
       fetchJson('/api/flashpoint?tenantId=' + tenantId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -362,6 +363,18 @@ export function FlashpointWargame() {
       <div className="h-full flex flex-col items-center justify-center gap-3">
         <Loader2 className="size-8 text-emerald-500 animate-spin" />
         <p className="text-sm text-muted-foreground">Loading flashpoint data…</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
       </div>
     );
   }

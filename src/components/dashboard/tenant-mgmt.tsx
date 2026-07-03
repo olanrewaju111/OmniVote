@@ -14,12 +14,13 @@ import { Input } from '@/components/ui/input';
 import {
   Building2, Users, Settings, Shield, Vote, Loader2, MapPin, Save,
   RotateCcw, Plus, Trash2, UserPlus, Mail, ChevronRight, Globe,
-  Eye, UserCheck, Radio, AlertTriangle, Pencil,
+  Eye, UserCheck, Radio, AlertTriangle, Pencil, AlertCircle,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { fetchJson } from '@/lib/api';
 import { useDashboardStore, type UserRole } from '@/store/dashboard';
 
 // ---- Shared types & constants ----
@@ -68,36 +69,29 @@ export function TenantManagement() {
   const isAdmin = isSuperAdmin || isTenantAdmin;
 
   // ===================== SUPER_ADMIN: Platform Tenants =====================
-  const { data: allTenants, isLoading: tenantsLoading } = useQuery({
+  const { data: allTenants, isLoading: tenantsLoading, isError: tenantsIsError } = useQuery({
     queryKey: ['all-tenants'],
     queryFn: async () => {
-      const res = await fetch('/api/tenants');
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Failed to load tenants');
+      const d = await fetchJson<{ tenants?: unknown[] }>('/api/tenants');
       return d.tenants || [];
     },
     enabled: isSuperAdmin,
   });
 
   // ===================== TENANT_ADMIN: Own tenant settings =====================
-  const { data: settings, isLoading: settingsLoading } = useQuery({
+  const { data: settings, isLoading: settingsLoading, isError: settingsIsError } = useQuery({
     queryKey: ['tenant-settings', tenantId],
     queryFn: async () => {
-      const res = await fetch(`/api/tenant-settings?tenantId=${tenantId}`);
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Failed to load settings');
-      return d;
+      return fetchJson(`/api/tenant-settings?tenantId=${tenantId}`);
     },
     enabled: !!tenantId && isAdmin,
   });
 
   // ===================== Common: Tenant Users =====================
-  const { data: tenantUsersData, isLoading: usersLoading } = useQuery({
+  const { data: tenantUsersData, isLoading: usersLoading, isError: usersIsError } = useQuery({
     queryKey: ['tenant-users', tenantId],
     queryFn: async () => {
-      const res = await fetch(`/api/tenants/users?tenantId=${tenantId}`);
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Failed to load users');
+      const d = await fetchJson<{ users?: unknown[] }>(`/api/tenants/users?tenantId=${tenantId}`);
       return d.users || [];
     },
     enabled: !!tenantId && isAdmin,
@@ -165,14 +159,11 @@ export function TenantManagement() {
   // Save map bounds
   const saveMapMutation = useMutation({
     mutationFn: async (bounds: MapBoundsData) => {
-      const res = await fetch(`/api/tenant-settings?tenantId=${tenantId}`, {
+      return fetchJson(`/api/tenant-settings?tenantId=${tenantId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mapBounds: bounds }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save map configuration');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-settings', tenantId] });
@@ -186,13 +177,10 @@ export function TenantManagement() {
   // Create tenant
   const createTenantMutation = useMutation({
     mutationFn: (data: { name: string; slug: string; primaryColor: string; adminName: string; adminEmail: string }) =>
-      fetch('/api/tenants', {
+      fetchJson('/api/tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then(r => {
-        if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); });
-        return r.json();
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
@@ -207,8 +195,7 @@ export function TenantManagement() {
   // Delete tenant
   const deleteTenantMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/tenants?id=${id}`, { method: 'DELETE' })
-        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
+      fetchJson(`/api/tenants?id=${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
       setDeleteConfirm(null);
@@ -220,11 +207,11 @@ export function TenantManagement() {
   // Toggle tenant active
   const toggleTenantMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      fetch('/api/tenants', {
+      fetchJson('/api/tenants', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, isActive }),
-      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
       toast.success('Tenant status updated');
@@ -235,11 +222,11 @@ export function TenantManagement() {
   // Add user
   const addUserMutation = useMutation({
     mutationFn: (data: { tenantId: string; name: string; email: string; role: string }) =>
-      fetch('/api/tenants/users', {
+      fetchJson('/api/tenants/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       setAddUserOpen(false);
@@ -252,11 +239,11 @@ export function TenantManagement() {
   // Change user role
   const changeRoleMutation = useMutation({
     mutationFn: ({ id, role }: { id: string; role: string }) =>
-      fetch('/api/tenants/users', {
+      fetchJson('/api/tenants/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, role }),
-      }).then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       setRoleChangeOpen(false);
@@ -269,8 +256,7 @@ export function TenantManagement() {
   // Remove user
   const deleteUserMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/tenants/users?id=${id}`, { method: 'DELETE' })
-        .then(r => { if (!r.ok) return r.json().then(e => { throw new Error(e.error || 'Failed'); }); return r.json(); }),
+      fetchJson(`/api/tenants/users?id=${id}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
       setDeleteConfirm(null);
@@ -335,6 +321,7 @@ export function TenantManagement() {
   }
 
   const isLoading = isSuperAdmin ? tenantsLoading : settingsLoading;
+  const hasError = isSuperAdmin ? tenantsIsError : settingsIsError;
 
   // ===================== Render =====================
   return (
@@ -393,6 +380,14 @@ export function TenantManagement() {
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : hasError ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center p-6">
+            <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+            <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
           </div>
         ) : isSuperAdmin ? (
           /* ========== SUPER_ADMIN VIEWS ========== */

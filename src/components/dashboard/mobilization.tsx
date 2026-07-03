@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Upload, Users, Send, CheckCircle, AlertTriangle, Clock,
   BarChart3, Plus, Phone, Shield, FileText, Pause, Play, Loader2,
-  X, Eye, MessageCircle, UserPlus, Check, Image, Music, Video,
+  X, Eye, MessageCircle, UserPlus, Check, Image, Music, Video, AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { fetchJson } from '@/lib/api';
 import { useDashboardStore } from '@/store/dashboard';
 import { BUILT_IN_TEMPLATES, MEDIA_LABELS, type MessageTemplate, type MediaType } from '@/data/templates';
 
@@ -190,12 +191,10 @@ export function MobilizationEngine() {
 
   // ─── Data fetching ────────────────────────────────────────────────
 
-  const { data, isLoading } = useQuery<CampaignData>({
+  const { data, isLoading, isError } = useQuery<CampaignData>({
     queryKey: ['campaigns', tenantId],
     queryFn: async () => {
-      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`);
-      if (!res.ok) throw new Error('Failed to fetch campaigns');
-      return res.json();
+      return fetchJson(`/api/campaigns?tenantId=${tenantId}`);
     },
     enabled: !!tenantId,
   });
@@ -217,14 +216,11 @@ export function MobilizationEngine() {
 
   const createCampaign = useMutation({
     mutationFn: async (payload: typeof campaignForm) => {
-      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`, {
+      return fetchJson(`/api/campaigns?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create campaign');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
@@ -237,14 +233,11 @@ export function MobilizationEngine() {
 
   const updateCampaign = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`, {
+      return fetchJson(`/api/campaigns?tenantId=${tenantId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update campaign');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
@@ -255,10 +248,7 @@ export function MobilizationEngine() {
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/campaigns?id=${id}&tenantId=${tenantId}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete campaign');
-      return data;
+      return fetchJson(`/api/campaigns?id=${id}&tenantId=${tenantId}`, { method: 'DELETE' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
@@ -270,14 +260,11 @@ export function MobilizationEngine() {
 
   const uploadContacts = useMutation({
     mutationFn: async (payload: { name: string; segment: string; contacts: string[] }) => {
-      const res = await fetch(`/api/campaigns/contacts?tenantId=${tenantId}`, {
+      return fetchJson(`/api/campaigns/contacts?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to upload contacts');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
@@ -340,6 +327,18 @@ export function MobilizationEngine() {
     return (
       <div className="h-full flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
       </div>
     );
   }

@@ -14,6 +14,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { useDashboardStore } from '@/store/dashboard';
+import { Button } from '@/components/ui/button';
 import {
   Loader2,
   BarChart3,
@@ -27,6 +28,7 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -483,7 +485,7 @@ const fadeUp = {
 export function PvtQuickCount() {
   const { tenantId } = useDashboardStore();
 
-  const { data, isLoading } = useQuery<PvtData>({
+  const { data, isLoading, isError } = useQuery<PvtData>({
     queryKey: ['pvt', tenantId],
     queryFn: () => fetchJson(`/api/pvt?tenantId=${tenantId}`),
     refetchInterval: 15000,
@@ -494,6 +496,18 @@ export function PvtQuickCount() {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-7 w-7 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
       </div>
     );
   }

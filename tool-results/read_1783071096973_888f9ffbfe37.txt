@@ -1,0 +1,737 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion } from 'framer-motion';
+     6→import { cn } from '@/lib/utils';
+     7→import { fetchJson } from '@/lib/api';
+     8→import { toast } from 'sonner';
+     9→import { useDashboardStore } from '@/store/dashboard';
+    10→import dynamic from 'next/dynamic';
+    11→import { Card, CardContent } from '@/components/ui/card';
+    12→import { Badge } from '@/components/ui/badge';
+    13→import { Button } from '@/components/ui/button';
+    14→import { Input } from '@/components/ui/input';
+    15→import { Label } from '@/components/ui/label';
+    16→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    17→import { Progress } from '@/components/ui/progress';
+    18→import { Separator } from '@/components/ui/separator';
+    19→import { ScrollArea } from '@/components/ui/scroll-area';
+    20→import { Switch } from '@/components/ui/switch';
+    21→import {
+    22→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    23→  DialogHeader, DialogTitle,
+    24→} from '@/components/ui/dialog';
+    25→import {
+    26→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    27→} from '@/components/ui/select';
+    28→import {
+    29→  MapPin, ShieldAlert, Radio, Clock, Users, CheckCircle2,
+    30→  AlertTriangle, Wifi, WifiOff, Battery, BatteryLow, BatteryWarning,
+    31→  BatteryFull, Satellite, Loader2, Plus, Eye, Activity,
+    32→  Signal, Zap, Shield,
+    33→} from 'lucide-react';
+    34→
+    35→// ── Types ────────────────────────────────────────────────────────────
+    36→interface GeofenceZone {
+    37→  id: string;
+    38→  name: string;
+    39→  state: string;
+    40→  lga: string;
+    41→  centerLat: number;
+    42→  centerLng: number;
+    43→  radiusMeters: number;
+    44→  pollingUnitIds: string[];
+    45→  assignedAgentIds: string[];
+    46→  isActive: boolean;
+    47→  checkInIntervalMin: number;
+    48→  maxMissedCheckIns: number;
+    49→  createdAt: string;
+    50→}
+    51→
+    52→interface CheckIn {
+    53→  id: string;
+    54→  agentId: string;
+    55→  geofenceZoneId: string;
+    56→  status: 'CHECKED_IN' | 'CHECKED_OUT' | 'SOS_TRIGGERED' | 'EXPIRED';
+    57→  latitude: number;
+    58→  longitude: number;
+    59→  isInsideZone: boolean;
+    60→  batteryLevel: number | null;
+    61→  networkType: string | null;
+    62→  accuracyMeters: number | null;
+    63→  notes: string | null;
+    64→  checkedInAt: string;
+    65→  checkedOutAt: string | null;
+    66→  agentName: string;
+    67→  zoneName: string;
+    68→}
+    69→
+    70→interface DeadMansSwitch {
+    71→  id: string;
+    72→  agentId: string;
+    73→  geofenceZoneId: string;
+    74→  isActive: boolean;
+    75→  checkInDeadline: string;
+    76→  lastCheckInAt: string | null;
+    77→  missedCheckIns: number;
+    78→  escalationLevel: number;
+    79→  autoSOSTriggered: boolean;
+    80→  resolvedAt: string | null;
+    81→  agentName: string;
+    82→  zoneName: string | null;
+    83→  isOverdue: boolean;
+    84→}
+    85→
+    86→interface AgentSafety {
+    87→  id: string;
+    88→  name: string;
+    89→  isOnline: boolean;
+    90→  lastSeenAt: string | null;
+    91→  isLocked: boolean;
+    92→  biometricRiskScore: number | null;
+    93→  deviceTrustScore: number | null;
+    94→  hasActiveSwitch: boolean;
+    95→  switchEscalation: number;
+    96→  isOverdue: boolean;
+    97→  lastCheckInAt: string | null;
+    98→  lastCheckInStatus: string | null;
+    99→}
+   100→
+   101→interface Counts {
+   102→  totalZones: number;
+   103→  activeZones: number;
+   104→  activeSwitches: number;
+   105→  overdueSwitches: number;
+   106→  escalatedSwitches: number;
+   107→  sosTriggered: number;
+   108→  checkedInNow: number;
+   109→  sosCheckIns: number;
+   110→  totalFieldAgents: number;
+   111→}
+   112→
+   113→interface GeofenceData {
+   114→  zones: GeofenceZone[];
+   115→  checkIns: CheckIn[];
+   116→  switches: DeadMansSwitch[];
+   117→  agentSafety: AgentSafety[];
+   118→  counts: Counts;
+   119→}
+   120→
+   121→// ── Nigerian states for the select ───────────────────────────────────
+   122→const NIGERIAN_STATES = [
+   123→  'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
+   124→  'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT','Gombe',
+   125→  'Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara',
+   126→  'Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau',
+   127→  'Rivers','Sokoto','Taraba','Yobe','Zamfara',
+   128→];
+   129→
+   130→// ── Helpers ──────────────────────────────────────────────────────────
+   131→function formatRelativeTime(d: string | Date | null): string {
+   132→  if (!d) return 'Never';
+   133→  const date = new Date(d);
+   134→  const now = Date.now();
+   135→  const diff = Math.floor((now - date.getTime()) / 60000);
+   136→  if (diff < 1) return 'Just now';
+   137→  if (diff < 60) return `${diff}m ago`;
+   138→  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+   139→  return date.toLocaleDateString('en-NG', { day: '2-digit', month: 'short' });
+   140→}
+   141→
+   142→function formatDeadlineCountdown(deadline: string): { text: string; isOverdue: boolean } {
+   143→  const diff = new Date(deadline).getTime() - Date.now();
+   144→  const mins = Math.floor(Math.abs(diff) / 60000);
+   145→  if (diff > 0) {
+   146→    return { text: `${mins}m left`, isOverdue: false };
+   147→  }
+   148→  return { text: `OVERDUE by ${mins}m`, isOverdue: true };
+   149→}
+   150→
+   151→function batteryIcon(level: number | null) {
+   152→  if (level === null) return <Battery className="h-3.5 w-3.5 text-muted-foreground" />;
+   153→  if (level > 60) return <BatteryFull className="h-3.5 w-3.5 text-emerald" />;
+   154→  if (level > 20) return <BatteryWarning className="h-3.5 w-3.5 text-amber" />;
+   155→  return <BatteryLow className="h-3.5 w-3.5 text-rose" />;
+   156→}
+   157→
+   158→function batteryColor(level: number | null) {
+   159→  if (level === null) return 'text-muted-foreground';
+   160→  if (level > 60) return 'text-emerald';
+   161→  if (level > 20) return 'text-amber';
+   162→  return 'text-rose';
+   163→}
+   164→
+   165→function statusBadge(status: string) {
+   166→  switch (status) {
+   167→    case 'CHECKED_IN':
+   168→      return <Badge className="border-emerald/30 bg-emerald/10 text-emerald text-[10px]">CHECKED IN</Badge>;
+   169→    case 'CHECKED_OUT':
+   170→      return <Badge className="border-cyan/30 bg-cyan/10 text-cyan text-[10px]">CHECKED OUT</Badge>;
+   171→    case 'SOS_TRIGGERED':
+   172→      return <Badge className="border-rose/30 bg-rose/10 text-rose text-[10px] glow-rose animate-pulse-dot">SOS</Badge>;
+   173→    case 'EXPIRED':
+   174→      return <Badge className="border-amber/30 bg-amber/10 text-amber text-[10px]">EXPIRED</Badge>;
+   175→    default:
+   176→      return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
+   177→  }
+   178→}
+   179→
+   180→function escalationBadge(level: number) {
+   181→  if (level === 0) return null;
+   182→  if (level === 1) return <span className="inline-flex items-center gap-1 text-amber"><span className="h-2 w-2 rounded-full bg-amber animate-pulse-dot" /> Level 1</span>;
+   183→  if (level === 2) return <Badge className="border-amber/30 bg-amber/10 text-amber text-[10px]">ESCALATED</Badge>;
+   184→  return <Badge className="border-rose/30 bg-rose/10 text-rose text-[10px] animate-pulse-dot glow-rose">EMERGENCY</Badge>;
+   185→}
+   186→
+   187→// ── Animation variants ───────────────────────────────────────────────
+   188→const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.04 } } };
+   189→const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
+   190→
+   191→// ── Main Component ───────────────────────────────────────────────────
+   192→export function FieldSafety() {
+   193→  const { tenantId, user } = useDashboardStore();
+   194→  const queryClient = useQueryClient();
+   195→
+   196→  // Dialog / filter state
+   197→  const [createZoneOpen, setCreateZoneOpen] = useState(false);
+   198→  const [agentFilter, setAgentFilter] = useState<'ALL' | 'AT_RISK' | 'SOS'>('ALL');
+   199→  const [formState, setFormState] = useState({
+   200→    name: '', state: '', lga: '', centerLat: '', centerLng: '',
+   201→    radiusMeters: '500', checkInIntervalMin: '60', maxMissedCheckIns: '3',
+   202→  });
+   203→
+   204→  // ── Query ──────────────────────────────────────────────────────────
+   205→  const { data, isLoading } = useQuery<GeofenceData>({
+   206→    queryKey: ['geofence', tenantId],
+   207→    queryFn: () => fetchJson(`/api/geofence?tenantId=${tenantId}`),
+   208→    refetchInterval: 10000,
+   209→    enabled: !!tenantId,
+   210→  });
+   211→
+   212→  // ── Mutations ──────────────────────────────────────────────────────
+   213→  const mutation = useMutation({
+   214→    mutationFn: (body: Record<string, unknown>) =>
+   215→      fetchJson('/api/geofence', {
+   216→        method: 'POST',
+   217→        headers: { 'Content-Type': 'application/json' },
+   218→        body: JSON.stringify({ tenantId, ...body }),
+   219→      }),
+   220→    onSuccess: () => {
+   221→      queryClient.invalidateQueries({ queryKey: ['geofence', tenantId] });
+   222→      toast.success('Action completed successfully');
+   223→    },
+   224→    onError: () => toast.error('Action failed'),
+   225→  });
+   226→
+   227→  const handleToggleZone = (zoneId: string, isActive: boolean) => {
+   228→    mutation.mutate({ action: 'TOGGLE_ZONE', zoneId, isActive: !isActive });
+   229→  };
+   230→
+   231→  const handleResolveSwitch = (switchId: string) => {
+   232→    mutation.mutate({ action: 'RESOLVE_SWITCH', switchId, resolvedById: user?.id });
+   233→  };
+   234→
+   235→  const handleTriggerSOS = (agentId: string, geofenceZoneId: string) => {
+   236→    mutation.mutate({ action: 'TRIGGER_SOS', agentId, geofenceZoneId });
+   237→  };
+   238→
+   239→  const handleCheckIn = (agentId: string, geofenceZoneId: string) => {
+   240→    mutation.mutate({ action: 'CHECK_IN', agentId, geofenceZoneId, latitude: 0, longitude: 0, isInsideZone: true });
+   241→  };
+   242→
+   243→  const handleCreateZone = () => {
+   244→    if (!formState.name || !formState.state || !formState.centerLat || !formState.centerLng) {
+   245→      toast.error('Name, State, Center Lat, and Center Lng are required');
+   246→      return;
+   247→    }
+   248→    mutation.mutate({
+   249→      action: 'CREATE_ZONE',
+   250→      name: formState.name,
+   251→      state: formState.state,
+   252→      lga: formState.lga,
+   253→      centerLat: parseFloat(formState.centerLat),
+   254→      centerLng: parseFloat(formState.centerLng),
+   255→      radiusMeters: parseInt(formState.radiusMeters) || 500,
+   256→      checkInIntervalMin: parseInt(formState.checkInIntervalMin) || 60,
+   257→      maxMissedCheckIns: parseInt(formState.maxMissedCheckIns) || 3,
+   258→    }, {
+   259→      onSuccess: () => {
+   260→        setCreateZoneOpen(false);
+   261→        setFormState({ name: '', state: '', lga: '', centerLat: '', centerLng: '', radiusMeters: '500', checkInIntervalMin: '60', maxMissedCheckIns: '3' });
+   262→      },
+   263→    });
+   264→  };
+   265→
+   266→  // ── Derived data ───────────────────────────────────────────────────
+   267→  const counts = data?.counts;
+   268→  const activeSwitches = useMemo(() => {
+   269→    if (!data) return [];
+   270→    return data.switches
+   271→      .filter(s => s.isActive)
+   272→      .sort((a, b) => {
+   273→        if (a.isOverdue !== b.isOverdue) return a.isOverdue ? -1 : 1;
+   274→        return b.escalationLevel - a.escalationLevel;
+   275→      });
+   276→  }, [data]);
+   277→
+   278→  const filteredAgents = useMemo(() => {
+   279→    if (!data) return [];
+   280→    let agents = [...data.agentSafety];
+   281→    if (agentFilter === 'AT_RISK') {
+   282→      agents = agents.filter(a => a.isOverdue || (a.biometricRiskScore !== null && a.biometricRiskScore > 60));
+   283→    } else if (agentFilter === 'SOS') {
+   284→      agents = agents.filter(a => a.lastCheckInStatus === 'SOS_TRIGGERED');
+   285→    }
+   286→    return agents.sort((a, b) => {
+   287→      const scoreA = (a.biometricRiskScore || 0) + (a.isOverdue ? 100 : 0) + (a.switchEscalation * 25);
+   288→      const scoreB = (b.biometricRiskScore || 0) + (b.isOverdue ? 100 : 0) + (b.switchEscalation * 25);
+   289→      return scoreB - scoreA;
+   290→    });
+   291→  }, [data, agentFilter]);
+   292→
+   293→  // ── Loading state ──────────────────────────────────────────────────
+   294→  if (isLoading || !data) {
+   295→    return (
+   296→      <div className="h-full flex items-center justify-center">
+   297→        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   298→      </div>
+   299→    );
+   300→  }
+   301→
+   302→  return (
+   303→    <div className="h-full flex flex-col gap-4 p-4 overflow-hidden">
+   304→      {/* ── Header ─────────────────────────────────────────────────── */}
+   305→      <div className="flex items-center justify-between shrink-0">
+   306→        <div className="flex items-center gap-3">
+   307→          <MapPin className="h-5 w-5 text-emerald" />
+   308→          <h2 className="text-base font-semibold">Field Safety</h2>
+   309→          {counts && counts.activeSwitches > 0 && (
+   310→            <Badge className="border-rose/30 bg-rose/10 text-rose text-[10px] glow-rose animate-pulse-dot">
+   311→              <Radio className="h-3 w-3 mr-1" />
+   312→              DEAD-MAN&apos;S SWITCH ACTIVE
+   313→            </Badge>
+   314→          )}
+   315→        </div>
+   316→        <div className="text-xs text-muted-foreground">
+   317→          {counts?.totalFieldAgents ?? 0} field agents · {counts?.activeZones ?? 0} zones
+   318→        </div>
+   319→      </div>
+   320→
+   321→      {/* ── Tabs ───────────────────────────────────────────────────── */}
+   322→      <Tabs defaultValue="dashboard" className="flex-1 flex flex-col min-h-0">
+   323→        <TabsList className="shrink-0">
+   324→          <TabsTrigger value="dashboard" className="text-xs">Dashboard</TabsTrigger>
+   325→          <TabsTrigger value="zones" className="text-xs">Geofence Zones</TabsTrigger>
+   326→          <TabsTrigger value="roster" className="text-xs">Agent Roster</TabsTrigger>
+   327→          <TabsTrigger value="log" className="text-xs">Check-in Log</TabsTrigger>
+   328→        </TabsList>
+   329→
+   330→        {/* ────────────────────── TAB 1: DASHBOARD ─────────────────── */}
+   331→        <TabsContent value="dashboard" className="flex-1 min-h-0 overflow-y-auto">
+   332→          <div className="space-y-4 mt-2">
+   333→            {/* KPI Cards */}
+   334→            {counts && (
+   335→              <motion.div className="grid grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
+   336→                <KpiCard label="Active Zones" value={counts.activeZones} icon={<MapPin className="h-4 w-4 text-emerald" />} accent="emerald" delay={0} />
+   337→                <KpiCard label="Agents Checked In" value={counts.checkedInNow} icon={<CheckCircle2 className="h-4 w-4 text-emerald" />} accent="emerald" delay={1} />
+   338→                <KpiCard label="Overdue Switches" value={counts.overdueSwitches} icon={<AlertTriangle className="h-4 w-4 text-rose" />} accent="rose" delay={2} />
+   339→                <KpiCard label="SOS Alerts" value={counts.sosTriggered} icon={<Radio className="h-4 w-4 text-rose" />} accent="rose" delay={3} />
+   340→                <KpiCard label="Escalated Cases" value={counts.escalatedSwitches} icon={<ShieldAlert className="h-4 w-4 text-amber" />} accent="amber" delay={4} />
+   341→                <KpiCard label="Field Agents" value={counts.totalFieldAgents} icon={<Users className="h-4 w-4 text-cyan" />} accent="cyan" delay={5} />
+   342→              </motion.div>
+   343→            )}
+   344→
+   345→            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+   346→              {/* Dead-Man's Switch Monitor */}
+   347→              <Card className="bg-card/40 border-border rounded-xl">
+   348→                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+   349→                  <div className="flex items-center gap-2">
+   350→                    <Activity className="h-4 w-4 text-amber" />
+   351→                    <span className="text-sm font-semibold">Dead-Man&apos;s Switch Monitor</span>
+   352→                  </div>
+   353→                  <Badge variant="outline" className="text-[10px]">{activeSwitches.length} active</Badge>
+   354→                </div>
+   355→                <ScrollArea className="max-h-72">
+   356→                  <div className="p-2 space-y-2">
+   357→                    {activeSwitches.length === 0 && (
+   358→                      <div className="text-center text-muted-foreground text-xs py-6">No active switches</div>
+   359→                    )}
+   360→                    {activeSwitches.map(sw => {
+   361→                      const deadline = formatDeadlineCountdown(sw.checkInDeadline);
+   362→                      return (
+   363→                        <motion.div
+   364→                          key={sw.id}
+   365→                          variants={item}
+   366→                          initial="hidden"
+   367→                          animate="show"
+   368→                          className={cn(
+   369→                            'flex items-center justify-between gap-2 p-3 rounded-lg border transition-colors',
+   370→                            sw.isOverdue ? 'border-rose/30 bg-rose/5' : sw.escalationLevel >= 2 ? 'border-amber/25 bg-amber/5' : 'border-border bg-card/40',
+   371→                          )}
+   372→                        >
+   373→                          <div className="flex-1 min-w-0">
+   374→                            <div className="flex items-center gap-2 mb-1">
+   375→                              <span className="text-sm font-medium truncate">{sw.agentName}</span>
+   376→                              {escalationBadge(sw.escalationLevel)}
+   377→                              {sw.autoSOSTriggered && (
+   378→                                <Badge className="border-rose/30 bg-rose/10 text-rose text-[9px] glow-rose animate-pulse-dot">AUTO-SOS</Badge>
+   379→                              )}
+   380→                            </div>
+   381→                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+   382→                              <span className="truncate">{sw.zoneName ?? 'Unknown zone'}</span>
+   383→                              <span className={deadline.isOverdue ? 'text-rose font-medium' : ''}>
+   384→                                <Clock className="h-3 w-3 inline mr-0.5" />
+   385→                                {deadline.text}
+   386→                              </span>
+   387→                              <span>Missed: {sw.missedCheckIns}</span>
+   388→                            </div>
+   389→                          </div>
+   390→                          <div className="flex items-center gap-1.5 shrink-0">
+   391→                            <Button size="sm" variant="outline" className="h-7 text-[10px] px-2" onClick={() => handleResolveSwitch(sw.id)}>
+   392→                              Resolve
+   393→                            </Button>
+   394→                            <Button size="sm" variant="destructive" className="h-7 text-[10px] px-2" onClick={() => handleTriggerSOS(sw.agentId, sw.geofenceZoneId)}>
+   395→                              SOS
+   396→                            </Button>
+   397→                          </div>
+   398→                        </motion.div>
+   399→                      );
+   400→                    })}
+   401→                  </div>
+   402→                </ScrollArea>
+   403→              </Card>
+   404→
+   405→              {/* Live Agent Map */}
+   406→              <Card className="bg-card/40 border-border rounded-xl overflow-hidden">
+   407→                <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+   408→                  <div className="flex items-center gap-2">
+   409→                    <Satellite className="h-4 w-4 text-cyan" />
+   410→                    <span className="text-sm font-semibold">Live Agent Positions</span>
+   411→                  </div>
+   412→                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   413→                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald" /> Checked In</span>
+   414→                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose" /> SOS</span>
+   415→                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber" /> Overdue</span>
+   416→                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Offline</span>
+   417→                  </div>
+   418→                </div>
+   419→                <AgentMiniMap data={data} />
+   420→              </Card>
+   421→            </div>
+   422→          </div>
+   423→        </TabsContent>
+   424→
+   425→        {/* ────────────────────── TAB 2: GEOFENCE ZONES ─────────────── */}
+   426→        <TabsContent value="zones" className="flex-1 min-h-0 overflow-y-auto">
+   427→          <div className="space-y-3 mt-2">
+   428→            <div className="flex items-center justify-between">
+   429→              <span className="text-xs text-muted-foreground">{data.zones.length} zones configured</span>
+   430→              <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => setCreateZoneOpen(true)}>
+   431→                <Plus className="h-3.5 w-3.5" /> Create Zone
+   432→              </Button>
+   433→            </div>
+   434→            <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
+   435→              {data.zones.map(zone => (
+   436→                <motion.div key={zone.id} variants={item}>
+   437→                  <Card className={cn('bg-card/40 border-border rounded-xl overflow-hidden', zone.isActive ? 'border-l-2 border-l-emerald' : 'border-l-2 border-l-muted-foreground/30')}>
+   438→                    <CardContent className="p-4">
+   439→                      <div className="flex items-start justify-between mb-2">
+   440→                        <div className="min-w-0 flex-1">
+   441→                          <div className="flex items-center gap-2">
+   442→                            <span className="text-sm font-medium truncate">{zone.name}</span>
+   443→                            {zone.isActive ? (
+   444→                              <Badge className="border-emerald/30 bg-emerald/10 text-emerald text-[9px]">ACTIVE</Badge>
+   445→                            ) : (
+   446→                              <Badge variant="outline" className="text-[9px] text-muted-foreground">INACTIVE</Badge>
+   447→                            )}
+   448→                          </div>
+   449→                          <p className="text-xs text-muted-foreground mt-0.5">{zone.state}{zone.lga ? ` / ${zone.lga}` : ''}</p>
+   450→                        </div>
+   451→                        <Switch
+   452→                          checked={zone.isActive}
+   453→                          onCheckedChange={() => handleToggleZone(zone.id, zone.isActive)}
+   454→                          className="scale-75 origin-right"
+   455→                        />
+   456→                      </div>
+   457→                      <Separator className="my-2" />
+   458→                      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+   459→                        <div>
+   460→                          <span className="block text-muted-foreground/70">Radius</span>
+   461→                          <span className="font-medium text-foreground">{zone.radiusMeters}m</span>
+   462→                        </div>
+   463→                        <div>
+   464→                          <span className="block text-muted-foreground/70">Agents</span>
+   465→                          <span className="font-medium text-foreground">{zone.assignedAgentIds.length}</span>
+   466→                        </div>
+   467→                        <div>
+   468→                          <span className="block text-muted-foreground/70">PUs</span>
+   469→                          <span className="font-medium text-foreground">{zone.pollingUnitIds.length}</span>
+   470→                        </div>
+   471→                      </div>
+   472→                      <div className="mt-2 text-[10px] text-muted-foreground/60 flex items-center gap-3">
+   473→                        <span>Interval: {zone.checkInIntervalMin}m</span>
+   474→                        <span>Max missed: {zone.maxMissedCheckIns}</span>
+   475→                      </div>
+   476→                    </CardContent>
+   477→                  </Card>
+   478→                </motion.div>
+   479→              ))}
+   480→              {data.zones.length === 0 && (
+   481→                <div className="col-span-full text-center text-muted-foreground text-sm py-10">No geofence zones configured yet</div>
+   482→              )}
+   483→            </motion.div>
+   484→          </div>
+   485→        </TabsContent>
+   486→
+   487→        {/* ────────────────────── TAB 3: AGENT ROSTER ───────────────── */}
+   488→        <TabsContent value="roster" className="flex-1 min-h-0 overflow-y-auto">
+   489→          <div className="space-y-3 mt-2">
+   490→            <div className="flex items-center justify-between">
+   491→              <div className="flex items-center gap-2">
+   492→                <Select value={agentFilter} onValueChange={(v: 'ALL' | 'AT_RISK' | 'SOS') => setAgentFilter(v)}>
+   493→                  <SelectTrigger className="h-7 w-32 text-xs">
+   494→                    <SelectValue />
+   495→                  </SelectTrigger>
+   496→                  <SelectContent>
+   497→                    <SelectItem value="ALL">All Agents</SelectItem>
+   498→                    <SelectItem value="AT_RISK">At Risk</SelectItem>
+   499→                    <SelectItem value="SOS">SOS Only</SelectItem>
+   500→                  </SelectContent>
+   501→                </Select>
+   502→                <span className="text-xs text-muted-foreground">{filteredAgents.length} agents</span>
+   503→              </div>
+   504→            </div>
+   505→            <ScrollArea className="max-h-[calc(100vh-220px)]">
+   506→              <div className="space-y-2">
+   507→                {filteredAgents.map(agent => {
+   508→                  const switchStatus = agent.hasActiveSwitch
+   509→                    ? agent.isOverdue ? 'Overdue' : 'Active'
+   510→                    : agent.lastCheckInStatus === 'SOS_TRIGGERED' ? 'SOS' : 'None';
+   511→                  const switchStatusBadge = agent.hasActiveSwitch
+   512→                    ? agent.isOverdue
+   513→                      ? <Badge className="border-rose/30 bg-rose/10 text-rose text-[9px]">OVERDUE</Badge>
+   514→                      : <Badge className="border-amber/30 bg-amber/10 text-amber text-[9px]">ACTIVE</Badge>
+   515→                    : agent.lastCheckInStatus === 'SOS_TRIGGERED'
+   516→                      ? <Badge className="border-rose/30 bg-rose/10 text-rose text-[9px] glow-rose animate-pulse-dot">SOS</Badge>
+   517→                      : <span className="text-[10px] text-muted-foreground">—</span>;
+   518→                  const riskScore = (agent.biometricRiskScore || 0) + (agent.isOverdue ? 100 : 0) + (agent.switchEscalation * 25);
+   519→
+   520→                  return (
+   521→                    <motion.div
+   522→                      key={agent.id}
+   523→                      variants={item}
+   524→                      initial="hidden"
+   525→                      animate="show"
+   526→                      className={cn(
+   527→                        'flex items-center gap-3 p-3 rounded-lg border bg-card/40',
+   528→                        riskScore > 100 ? 'border-rose/20' : riskScore > 30 ? 'border-amber/20' : 'border-border',
+   529→                      )}
+   530→                    >
+   531→                      {/* Online status */}
+   532→                      <div className="shrink-0">
+   533→                        <div className={cn('h-2.5 w-2.5 rounded-full', agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/40')} />
+   534→                      </div>
+   535→                      {/* Info */}
+   536→                      <div className="flex-1 min-w-0">
+   537→                        <div className="flex items-center gap-2 mb-0.5">
+   538→                          <span className="text-sm font-medium truncate">{agent.name}</span>
+   539→                          {switchStatusBadge}
+   540→                        </div>
+   541→                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   542→                          <span>Last seen: {formatRelativeTime(agent.lastSeenAt)}</span>
+   543→                          <span>Trust: {agent.deviceTrustScore ?? '—'}</span>
+   544→                          <span>Bio risk: <span className={agent.biometricRiskScore && agent.biometricRiskScore > 60 ? 'text-rose' : 'text-muted-foreground'}>{agent.biometricRiskScore ?? '—'}</span></span>
+   545→                          <span>Last check-in: {formatRelativeTime(agent.lastCheckInAt)}</span>
+   546→                        </div>
+   547→                      </div>
+   548→                      {/* Trust progress bar */}
+   549→                      <div className="hidden md:flex flex-col items-end gap-1 w-20 shrink-0">
+   550→                        <span className="text-[9px] text-muted-foreground">Trust</span>
+   551→                        <Progress value={agent.deviceTrustScore ?? 0} className="h-1.5 w-16" />
+   552→                      </div>
+   553→                      {/* Actions */}
+   554→                      <div className="flex items-center gap-1.5 shrink-0">
+   555→                        <Button size="sm" variant="outline" className="h-7 text-[10px] px-2" onClick={() => {
+   556→                          const zone = data.zones[0];
+   557→                          if (zone) handleCheckIn(agent.id, zone.id);
+   558→                          else toast.error('No zones available for check-in');
+   559→                        }}>
+   560→                          Check In
+   561→                        </Button>
+   562→                        <Button size="sm" variant="destructive" className="h-7 text-[10px] px-2" onClick={() => {
+   563→                          const zone = data.zones[0];
+   564→                          if (zone) handleTriggerSOS(agent.id, zone.id);
+   565→                          else toast.error('No zones available');
+   566→                        }}>
+   567→                          SOS
+   568→                        </Button>
+   569→                      </div>
+   570→                    </motion.div>
+   571→                  );
+   572→                })}
+   573→                {filteredAgents.length === 0 && (
+   574→                  <div className="text-center text-muted-foreground text-xs py-8">No agents match the selected filter</div>
+   575→                )}
+   576→              </div>
+   577→            </ScrollArea>
+   578→          </div>
+   579→        </TabsContent>
+   580→
+   581→        {/* ────────────────────── TAB 4: CHECK-IN LOG ───────────────── */}
+   582→        <TabsContent value="log" className="flex-1 min-h-0 overflow-y-auto">
+   583→          <div className="space-y-3 mt-2">
+   584→            <div className="flex items-center justify-between">
+   585→              <span className="text-xs text-muted-foreground">{data.checkIns.length} check-ins recorded</span>
+   586→            </div>
+   587→            <ScrollArea className="max-h-[calc(100vh-200px)]">
+   588→              <div className="space-y-1.5">
+   589→                {data.checkIns.map(ci => (
+   590→                  <motion.div
+   591→                    key={ci.id}
+   592→                    variants={item}
+   593→                    initial="hidden"
+   594→                    animate="show"
+   595→                    className={cn(
+   596→                      'flex items-center gap-3 p-3 rounded-lg border transition-colors',
+   597→                      ci.status === 'SOS_TRIGGERED' ? 'border-rose/30 bg-rose/5 glow-rose' : 'border-border bg-card/40',
+   598→                    )}
+   599→                  >
+   600→                    <div className="shrink-0">{statusBadge(ci.status)}</div>
+   601→                    <div className="flex-1 min-w-0">
+   602→                      <div className="flex items-center gap-2 mb-0.5">
+   603→                        <span className="text-sm font-medium truncate">{ci.agentName}</span>
+   604→                        <span className="text-xs text-muted-foreground truncate">→ {ci.zoneName}</span>
+   605→                      </div>
+   606→                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   607→                        <span className="flex items-center gap-1">
+   608→                          <Eye className="h-3 w-3" />
+   609→                          {ci.isInsideZone ? 'Inside' : 'Outside'}
+   610→                        </span>
+   611→                        <span className="flex items-center gap-1">
+   612→                          {batteryIcon(ci.batteryLevel)}
+   613→                          <span className={batteryColor(ci.batteryLevel)}>{ci.batteryLevel !== null ? `${ci.batteryLevel}%` : '—'}</span>
+   614→                        </span>
+   615→                        {ci.networkType && (
+   616→                          <span className="flex items-center gap-1">
+   617→                            <Signal className="h-3 w-3" />
+   618→                            {ci.networkType}
+   619→                          </span>
+   620→                        )}
+   621→                      </div>
+   622→                    </div>
+   623→                    <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(ci.checkedInAt)}</span>
+   624→                  </motion.div>
+   625→                ))}
+   626→                {data.checkIns.length === 0 && (
+   627→                  <div className="text-center text-muted-foreground text-xs py-8">No check-in records</div>
+   628→                )}
+   629→              </div>
+   630→            </ScrollArea>
+   631→          </div>
+   632→        </TabsContent>
+   633→      </Tabs>
+   634→
+   635→      {/* ──────────────────── CREATE ZONE DIALOG ──────────────────── */}
+   636→      <Dialog open={createZoneOpen} onOpenChange={setCreateZoneOpen}>
+   637→        <DialogContent className="sm:max-w-md bg-card border-border">
+   638→          <DialogHeader>
+   639→            <DialogTitle className="flex items-center gap-2">
+   640→              <Plus className="h-4 w-4 text-emerald" />
+   641→              Create Geofence Zone
+   642→            </DialogTitle>
+   643→            <DialogDescription>Define a new geofence zone for field agent monitoring.</DialogDescription>
+   644→          </DialogHeader>
+   645→          <div className="grid gap-3 py-2">
+   646→            <div className="grid gap-1.5">
+   647→              <Label className="text-xs">Zone Name *</Label>
+   648→              <Input className="h-8 text-sm" placeholder="e.g. Ikeja PU-01" value={formState.name} onChange={e => setFormState(s => ({ ...s, name: e.target.value }))} />
+   649→            </div>
+   650→            <div className="grid grid-cols-2 gap-3">
+   651→              <div className="grid gap-1.5">
+   652→                <Label className="text-xs">State *</Label>
+   653→                <Select value={formState.state} onValueChange={v => setFormState(s => ({ ...s, state: v }))}>
+   654→                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select state" /></SelectTrigger>
+   655→                  <SelectContent>
+   656→                    {NIGERIAN_STATES.map(st => (
+   657→                      <SelectItem key={st} value={st}>{st}</SelectItem>
+   658→                    ))}
+   659→                  </SelectContent>
+   660→                </Select>
+   661→              </div>
+   662→              <div className="grid gap-1.5">
+   663→                <Label className="text-xs">LGA</Label>
+   664→                <Input className="h-8 text-sm" placeholder="Local Gov Area" value={formState.lga} onChange={e => setFormState(s => ({ ...s, lga: e.target.value }))} />
+   665→              </div>
+   666→            </div>
+   667→            <div className="grid grid-cols-2 gap-3">
+   668→              <div className="grid gap-1.5">
+   669→                <Label className="text-xs">Center Latitude *</Label>
+   670→                <Input className="h-8 text-sm" type="number" step="any" placeholder="6.5244" value={formState.centerLat} onChange={e => setFormState(s => ({ ...s, centerLat: e.target.value }))} />
+   671→              </div>
+   672→              <div className="grid gap-1.5">
+   673→                <Label className="text-xs">Center Longitude *</Label>
+   674→                <Input className="h-8 text-sm" type="number" step="any" placeholder="3.3792" value={formState.centerLng} onChange={e => setFormState(s => ({ ...s, centerLng: e.target.value }))} />
+   675→              </div>
+   676→            </div>
+   677→            <div className="grid grid-cols-3 gap-3">
+   678→              <div className="grid gap-1.5">
+   679→                <Label className="text-xs">Radius (m)</Label>
+   680→                <Input className="h-8 text-sm" type="number" placeholder="500" value={formState.radiusMeters} onChange={e => setFormState(s => ({ ...s, radiusMeters: e.target.value }))} />
+   681→              </div>
+   682→              <div className="grid gap-1.5">
+   683→                <Label className="text-xs">Check-in (min)</Label>
+   684→                <Input className="h-8 text-sm" type="number" placeholder="60" value={formState.checkInIntervalMin} onChange={e => setFormState(s => ({ ...s, checkInIntervalMin: e.target.value }))} />
+   685→              </div>
+   686→              <div className="grid gap-1.5">
+   687→                <Label className="text-xs">Max Missed</Label>
+   688→                <Input className="h-8 text-sm" type="number" placeholder="3" value={formState.maxMissedCheckIns} onChange={e => setFormState(s => ({ ...s, maxMissedCheckIns: e.target.value }))} />
+   689→              </div>
+   690→            </div>
+   691→          </div>
+   692→          <DialogFooter>
+   693→            <Button variant="outline" size="sm" className="text-xs" onClick={() => setCreateZoneOpen(false)}>Cancel</Button>
+   694→            <Button size="sm" className="text-xs" onClick={handleCreateZone} disabled={mutation.isPending}>
+   695→              {mutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+   696→              Create Zone
+   697→            </Button>
+   698→          </DialogFooter>
+   699→        </DialogContent>
+   700→      </Dialog>
+   701→    </div>
+   702→  );
+   703→}
+   704→
+   705→// ── KPI Card Sub-component ───────────────────────────────────────────
+   706→function KpiCard({ label, value, icon, accent, delay }: {
+   707→  label: string; value: number; icon: React.ReactNode; accent: 'emerald' | 'rose' | 'amber' | 'cyan'; delay: number;
+   708→}) {
+   709→  const glowClass = accent === 'rose' ? 'glow-rose' : accent === 'amber' ? 'glow-amber' : accent === 'emerald' ? 'glow-emerald' : '';
+   710→  return (
+   711→    <motion.div variants={item} transition={{ delay: delay * 0.05 }}>
+   712→      <Card className={cn('bg-card/40 border-border rounded-xl', glowClass, value > 0 && (accent === 'rose' || accent === 'amber') ? '' : '')}>
+   713→        <CardContent className="p-4 flex items-center gap-3">
+   714→          <div className={cn(
+   715→            'flex items-center justify-center h-9 w-9 rounded-lg shrink-0',
+   716→            accent === 'emerald' && 'bg-emerald/10',
+   717→            accent === 'rose' && 'bg-rose/10',
+   718→            accent === 'amber' && 'bg-amber/10',
+   719→            accent === 'cyan' && 'bg-cyan/10',
+   720→          )}>
+   721→            {icon}
+   722→          </div>
+   723→          <div>
+   724→            <div className="text-xl font-bold leading-none">{value}</div>
+   725→            <div className="text-[11px] text-muted-foreground mt-0.5">{label}</div>
+   726→          </div>
+   727→        </CardContent>
+   728→      </Card>
+   729→    </motion.div>
+   730→  );
+   731→}
+   732→
+   733→// ── Leaflet Mini-Map for Agent Positions (dynamically loaded) ──
+   734→const AgentMiniMap = dynamic(() => import('./field-safety-map').then(m => ({ default: m.AgentMiniMap })), {
+   735→  ssr: false,
+   736→  loading: () => <div className="h-56 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Loading map...</div>,
+   737→});

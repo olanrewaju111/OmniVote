@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
+import { safeParse } from '@/lib/safe-parse';
 
 // GET /api/campaign-events?tenantId=X&eventType=X&party=X&state=X
 export async function GET(req: NextRequest) {
@@ -24,12 +25,6 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { eventDate: 'desc' },
     });
-
-    // Helper to safely parse JSON fields
-    const safeParse = (val: string | null, fallback: unknown = []) => {
-      if (!val) return fallback;
-      try { return JSON.parse(val); } catch { return fallback; }
-    };
 
     // Batch-lookup reporter names
     const reporterIds = [...new Set(events.map((e) => e.reportedById).filter(Boolean))] as string[];

@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
-
-const safeParse = (val: string | null, fallback: unknown = []) => {
-  if (!val) return fallback;
-  try { return JSON.parse(val); } catch { return fallback; }
-};
+import { safeParse } from '@/lib/safe-parse';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/pvt?tenantId=X — comprehensive PVT dashboard

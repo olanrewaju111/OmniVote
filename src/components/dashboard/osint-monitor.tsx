@@ -24,7 +24,7 @@ import {
   Flame, ChevronDown, ChevronUp, MapPin, Clock,
   Heart, Share2, MessageSquare, Eye, Sparkles,
   ExternalLink, Search, Filter, Loader2, AlertTriangle,
-  CheckCircle2, Zap, BarChart3, FileWarning, Users,
+  AlertCircle, CheckCircle2, Zap, BarChart3, FileWarning, Users,
   Radio, Fingerprint,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -494,9 +494,12 @@ export function OsintMonitor() {
             )}
 
             {error && (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <AlertTriangle className="h-6 w-6 text-rose" />
-                <p className="text-xs text-rose">Failed to load OSINT data</p>
+              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                <AlertCircle className="h-10 w-10 text-destructive" />
+                <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                  Retry
+                </Button>
               </div>
             )}
 

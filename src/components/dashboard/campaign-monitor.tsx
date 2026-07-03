@@ -19,7 +19,7 @@ import { useDashboardStore } from '@/store/dashboard';
 import {
   Calendar, MapPin, Users, AlertTriangle, Flag, Eye, CheckCircle,
   XCircle, TrendingUp, Mic, Megaphone, Shield, Plus,
-  Loader2, ImageIcon, Radio,
+  Loader2, ImageIcon, Radio, AlertCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -184,6 +184,7 @@ export function CampaignMonitor() {
     data: eventsData,
     isLoading: eventsLoading,
     error: eventsError,
+    isError: eventsIsError,
   } = useQuery<CampaignEventsData>({
     queryKey: ['campaign-events', tenantId],
     queryFn: () => fetchJson(`/api/campaign-events?tenantId=${tenantId}`),
@@ -196,6 +197,7 @@ export function CampaignMonitor() {
     data: suppressionData,
     isLoading: suppressionLoading,
     error: suppressionError,
+    isError: suppressionIsError,
   } = useQuery<SuppressionData>({
     queryKey: ['voter-suppression', tenantId],
     queryFn: () => fetchJson(`/api/voter-suppression?tenantId=${tenantId}`),
@@ -219,14 +221,11 @@ export function CampaignMonitor() {
   // ── Log Event Mutation ──
   const logEventMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      const res = await fetch(`/api/campaign-events?tenantId=${tenantId}`, {
+      return fetchJson(`/api/campaign-events?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to log event');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaign-events', tenantId] });
@@ -240,14 +239,11 @@ export function CampaignMonitor() {
   // ── Report Suppression Mutation ──
   const reportSuppressionMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
-      const res = await fetch(`/api/voter-suppression?tenantId=${tenantId}`, {
+      return fetchJson(`/api/voter-suppression?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit report');
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['voter-suppression', tenantId] });
@@ -324,6 +320,18 @@ export function CampaignMonitor() {
   }, {} as Record<string, number>);
 
   const uniqueStates = [...new Set(billboards.map(b => b.location.split(' – ')[0]))];
+
+  if (eventsIsError && suppressionIsError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">

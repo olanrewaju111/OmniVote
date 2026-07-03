@@ -81,14 +81,10 @@ export function AgentRoster() {
   // Add agent mutation
   const addMutation = useMutation({
     mutationFn: (body: { name: string; email: string; role: string }) =>
-      fetch(`/api/agents?tenantId=${tenantId}`, {
+      fetchJson(`/api/agents?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then(async r => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Failed to add agent');
-        return data;
       }),
     onSuccess: (data) => {
       if (data.error) {
@@ -106,14 +102,10 @@ export function AgentRoster() {
   // Action mutation (toggle online, remote wipe, change role, delete)
   const actionMutation = useMutation({
     mutationFn: (body: { userId: string; action: string; newRole?: string }) =>
-      fetch(`/api/agents?tenantId=${tenantId}`, {
+      fetchJson(`/api/agents?tenantId=${tenantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then(async r => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Action failed');
-        return data;
       }),
     onSuccess: (data, variables) => {
       if (data.error) {
@@ -152,14 +144,10 @@ export function AgentRoster() {
   // Edit agent mutation
   const editMutation = useMutation({
     mutationFn: (body: { id: string; name?: string; phone?: string; role?: string }) =>
-      fetch('/api/tenants/users', {
+      fetchJson('/api/tenants/users', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      }).then(async r => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Failed to update agent');
-        return data;
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });

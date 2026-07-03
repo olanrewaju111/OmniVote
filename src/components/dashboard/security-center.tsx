@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { fetchJson } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -1180,9 +1181,7 @@ export function SecurityCenter() {
   const { data, isLoading, isError } = useQuery<SecurityData>({
     queryKey: ['security', tenantId],
     queryFn: async () => {
-      const res = await fetch(`/api/security?tenantId=${tenantId}`);
-      if (!res.ok) throw new Error('Failed to fetch security data');
-      return res.json();
+      return fetchJson(`/api/security?tenantId=${tenantId}`);
     },
     refetchInterval: 15000,
     enabled: !!tenantId,
@@ -1191,7 +1190,7 @@ export function SecurityCenter() {
   /* Mutations */
   const resolveMutation = useMutation({
     mutationFn: async (vars: { eventId: string; resolvedById: string | null }) => {
-      const res = await fetch('/api/security', {
+      await fetchJson('/api/security', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1200,7 +1199,6 @@ export function SecurityCenter() {
           resolvedById: vars.resolvedById,
         }),
       });
-      if (!res.ok) throw new Error('Failed to resolve event');
     },
     onSuccess: () => {
       toast.success('Event resolved successfully');
@@ -1213,7 +1211,7 @@ export function SecurityCenter() {
 
   const userMutation = useMutation({
     mutationFn: async (vars: { action: string; userId: string; reason?: string }) => {
-      const res = await fetch('/api/security', {
+      await fetchJson('/api/security', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1222,7 +1220,6 @@ export function SecurityCenter() {
           reason: vars.reason,
         }),
       });
-      if (!res.ok) throw new Error(`Failed to ${vars.action}`);
     },
     onSuccess: (_data, vars) => {
       const label = vars.action === 'LOCK_USER' ? 'locked' : 'unlocked';
@@ -1236,12 +1233,11 @@ export function SecurityCenter() {
 
   const policyMutation = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch('/api/security', {
+      await fetchJson('/api/security', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Failed to update policy');
     },
     onSuccess: () => {
       toast.success('Security policies updated');

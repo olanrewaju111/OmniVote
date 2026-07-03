@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   FileSearch, ShieldCheck, ScanEye, Globe, Plus, Trash2, Eye,
-  Loader2, RefreshCw, Clock, AlertTriangle, CheckCircle2, XCircle,
+  Loader2, RefreshCw, Clock, AlertTriangle, AlertCircle, CheckCircle2, XCircle,
   FolderOpen, Fingerprint, Activity, Wifi, WifiOff, Signal,
   ChevronDown, ChevronUp, FileWarning, FileQuestion, Zap,
   Database, AlertOctagon, BarChart3, type LucideIcon,
@@ -77,7 +77,7 @@ interface StegoScan {
   confidence: number;
   elaScore: number | null;
   noiseAnalysis: NoiseAnalysis | null;
-  metadataDiff: any;
+  metadataDiff: Record<string, unknown> | null;
   scanDurationMs: number;
   scannedAt: string;
 }
@@ -221,7 +221,7 @@ export function EvidenceDossier() {
   const [scanFileType, setScanFileType] = useState('JPEG');
 
   // Data fetching
-  const { data, isLoading, refetch } = useQuery<EvidenceData>({
+  const { data, isLoading, isError, refetch } = useQuery<EvidenceData>({
     queryKey: ['evidence', tenantId],
     queryFn: () =>
       fetchJson(`/api/evidence?tenantId=${tenantId}`),
@@ -230,7 +230,7 @@ export function EvidenceDossier() {
 
   // Mutation
   const mutation = useMutation({
-    mutationFn: (body: any) =>
+    mutationFn: (body: Record<string, unknown>) =>
       fetchJson('/api/evidence?tenantId=' + tenantId, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -325,6 +325,18 @@ export function EvidenceDossier() {
       <div className="h-full flex flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
         <p className="text-sm text-muted-foreground">Loading evidence data...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center p-6">
+        <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+        <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+        <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+          Retry
+        </Button>
       </div>
     );
   }

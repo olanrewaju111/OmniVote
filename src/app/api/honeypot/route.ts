@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
-
-const safeParse = (val: string | null, fallback: unknown = []) => {
-  if (!val) return fallback;
-  try { return JSON.parse(val); } catch { return fallback; }
-};
+import { safeParse } from '@/lib/safe-parse';
 
 export async function GET(req: NextRequest) {
   try {
