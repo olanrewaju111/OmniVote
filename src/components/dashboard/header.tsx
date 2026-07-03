@@ -47,9 +47,9 @@ interface AlertItem {
 
 function categoryIcon(cat: string) {
   switch (cat) {
-    case 'CRITICAL': return <Radio className="h-3.5 w-3.5 text-rose shrink-0" />;
-    case 'WARNING': return <AlertTriangle className="h-3.5 w-3.5 text-amber shrink-0" />;
-    default: return <Info className="h-3.5 w-3.5 text-cyan shrink-0" />;
+    case 'CRITICAL': return <Radio className="h-3.5 w-3.5 text-rose shrink-0" aria-hidden="true" />;
+    case 'WARNING': return <AlertTriangle className="h-3.5 w-3.5 text-amber shrink-0" aria-hidden="true" />;
+    default: return <Info className="h-3.5 w-3.5 text-cyan shrink-0" aria-hidden="true" />;
   }
 }
 
@@ -147,8 +147,10 @@ export function AppHeader({ kpis }: HeaderProps) {
       <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <label htmlFor="global-search" className="sr-only">Search polling units, incidents, agents</label>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
+            id="global-search"
             ref={searchRef}
             value={globalSearch}
             onChange={(e) => setGlobalSearch(e.target.value)}
@@ -182,14 +184,14 @@ export function AppHeader({ kpis }: HeaderProps) {
               TIER_STYLES[electionTier] || 'border-border text-muted-foreground'
             )}
           >
-            <Vote className="h-3.5 w-3.5" />
+            <Vote className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="hidden sm:inline">{TIER_SHORT[electionTier]}</span>
             <span className="sm:hidden">{electionTier === 'LOCAL' ? 'Local' : electionTier === 'STATE' ? 'Gov' : 'Pres'}</span>
           </Badge>
 
           {electionInfo?.date && (
             <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="h-3 w-3" aria-hidden="true" />
               {new Date(electionInfo.date).toLocaleDateString('en-NG', {
                 day: 'numeric', month: 'short', year: 'numeric',
               })}
@@ -201,7 +203,7 @@ export function AppHeader({ kpis }: HeaderProps) {
           {/* System health — only for admin roles */}
           {user && (user.role === 'SUPER_ADMIN' || user.role === 'TENANT_ADMIN') && (
             <div className="hidden md:flex items-center gap-2 px-3 h-9 rounded-md bg-background border border-border">
-              <Activity className="h-3.5 w-3.5 text-emerald" />
+              <Activity className="h-3.5 w-3.5 text-emerald" aria-hidden="true" />
               <span className="text-xs text-muted-foreground">All Systems</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
             </div>
@@ -215,7 +217,7 @@ export function AppHeader({ kpis }: HeaderProps) {
               className="h-9 gap-2 bg-background border-border text-sm"
               onClick={() => setSelectedTab('alerts')}
             >
-              <Shield className="h-4 w-4 text-cyan" />
+              <Shield className="h-4 w-4 text-cyan" aria-hidden="true" />
               <span className="hidden sm:inline">Defense</span>
               {kpis?.securityAlerts ? (
                 <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px]">
@@ -242,7 +244,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-0">
+            <DropdownMenuContent align="end" className="w-80 p-0" role="region" aria-label="Notifications">
               <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
                 <DropdownMenuLabel className="p-0 text-xs font-semibold">
                   Notifications
@@ -257,7 +259,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                     onClick={(e) => { e.preventDefault(); markAllRead.mutate(); }}
                     className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
                   >
-                    <CheckCheck className="h-3 w-3" />
+                    <CheckCheck className="h-3 w-3" aria-hidden="true" />
                     Mark all read
                   </button>
                 )}
@@ -285,7 +287,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                               {alert.category}
                             </Badge>
                             <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                              <Clock className="h-2.5 w-2.5" />
+                              <Clock className="h-2.5 w-2.5" aria-hidden="true" />
                               {relativeTime(alert.createdAt)}
                             </span>
                           </div>
@@ -305,7 +307,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                   </div>
                 ) : (
                   <div className="py-8 text-center text-muted-foreground text-xs">
-                    <Bell className="h-5 w-5 mx-auto mb-1.5 opacity-30" />
+                    <Bell className="h-5 w-5 mx-auto mb-1.5 opacity-30" aria-hidden="true" />
                     No new notifications
                   </div>
                 )}
@@ -373,11 +375,11 @@ export function AppHeader({ kpis }: HeaderProps) {
               <Separator />
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Mail className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
                   <span className="text-muted-foreground">{user.email}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Building2 className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
                   <div>
                     <p className="font-medium">{user.tenantName}</p>
                     <p className="text-[11px] text-muted-foreground">Tenant ID: {user.tenantId}</p>

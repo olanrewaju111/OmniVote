@@ -55,11 +55,11 @@ export function AppSidebar() {
     <aside className={cn(
       'flex flex-col h-screen border-r border-border bg-sidebar transition-all duration-300 relative z-20',
       sidebarCollapsed ? 'w-16' : 'w-56'
-    )}>
+    )} aria-label="Main navigation sidebar">
       {/* Logo area */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border shrink-0">
         <div className="w-8 h-8 rounded-lg bg-emerald flex items-center justify-center shrink-0">
-          <Zap className="h-5 w-5 text-emerald-950" />
+          <Zap className="h-5 w-5 text-emerald-950" aria-hidden="true" />
         </div>
         {!sidebarCollapsed && (
           <div className="overflow-hidden">
@@ -80,7 +80,7 @@ export function AppSidebar() {
       <Separator className="bg-sidebar-border" />
 
       {/* Nav items */}
-      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto" aria-label="Dashboard navigation">
         <TooltipProvider delayDuration={0}>
           {navItems.map((item) => (
             <Tooltip key={item.id}>
@@ -95,8 +95,9 @@ export function AppSidebar() {
                       : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent',
                     sidebarCollapsed && 'justify-center px-0'
                   )}
+                  aria-current={activeTab === item.id ? 'page' as const : undefined}
                 >
-                  <span className="shrink-0">{item.icon}</span>
+                  <span className="shrink-0" aria-hidden="true">{item.icon}</span>
                   {!sidebarCollapsed && item.label}
                   {item.id === 'alerts' && !sidebarCollapsed && unreadAlerts > 0 && (
                     <Badge variant="destructive" className="ml-auto text-[10px] h-5 min-w-5 px-1.5">
@@ -130,8 +131,9 @@ export function AppSidebar() {
             size="sm"
             onClick={logout}
             className="w-full justify-start gap-2 h-8 text-xs text-sidebar-foreground/50 hover:text-rose"
+            aria-label="Sign out of OmniVote"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
             Sign Out
           </Button>
         </div>

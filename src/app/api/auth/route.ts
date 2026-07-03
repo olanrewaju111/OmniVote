@@ -8,12 +8,71 @@ import {
   getAuthUser,
 } from '@/lib/auth';
 
+// ─── In-memory login rate limiter ─────────────────────────────────────────
+// Tracks failed login attempts per email. In production, replace with Redis.
+const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes window
+
+function isRateLimited(email: string): { limited: boolean; retryAfterMs?: number } {
+  const entry = loginAttempts.get(email.toLowerCase());
+  if (!entry) return { limited: false };
+
+  const now = Date.now();
+
+  // If locked out, check if lockout period has passed
+  if (entry.lockedUntil > now) {
+    return { limited: true, retryAfterMs: entry.lockedUntil - now };
+  }
+
+  // If attempt window has passed, reset
+  if (now - entry.firstAttempt > ATTEMPT_WINDOW_MS) {
+    loginAttempts.delete(email.toLowerCase());
+    return { limited: false };
+  }
+
+  return { limited: false };
+}
+
+function recordFailedAttempt(email: string): void {
+  const key = email.toLowerCase();
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+
+  if (!entry) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now, lockedUntil: 0 });
+  } else {
+    entry.count++;
+    if (entry.count >= MAX_ATTEMPTS) {
+      entry.lockedUntil = now + LOCKOUT_DURATION_MS;
+    }
+  }
+}
+
+function clearAttempts(email: string): void {
+  loginAttempts.delete(email.toLowerCase());
+}
+
 // ─── POST /api/auth — Login ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
+    }
+
+    // Rate limiting check
+    const rateCheck = isRateLimited(email);
+    if (rateCheck.limited) {
+      const retryAfterSecs = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
+      return NextResponse.json(
+        { error: `Too many failed login attempts. Try again in ${retryAfterSecs} seconds.` },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(retryAfterSecs) },
+        },
+      );
     }
 
     // Find user across ALL tenants
@@ -26,6 +85,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
+      recordFailedAttempt(email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -34,11 +94,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify password — for dev seed users with default "changeme" hash,
-    // accept any non-empty password during development
+    // accept password "password" or "changeme" in dev mode
     const isDevMode = process.env.NODE_ENV !== 'production';
     let passwordValid = false;
     if (user.passwordHash === 'changeme') {
-      // Seed user: accept password "password" or "changeme" in dev, any in prod
       passwordValid = isDevMode
         ? (password === 'password' || password === 'changeme')
         : await verifyPassword(password, user.passwordHash);
@@ -47,18 +106,22 @@ export async function POST(req: NextRequest) {
     }
 
     if (!passwordValid) {
+      recordFailedAttempt(email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+
+    // Successful login — clear rate limit counter
+    clearAttempts(email);
 
     const tenant = await db.tenant.findUnique({ where: { id: user.tenantId } });
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
     }
 
-    // Update last seen
+    // Update last seen and set online status
     await db.user.update({
       where: { id: user.id },
-      data: { lastSeenAt: new Date() },
+      data: { lastSeenAt: new Date(), isOnline: true },
     });
 
     // Get counts for the user's tenant context
@@ -155,7 +218,20 @@ export async function GET(req: NextRequest) {
 }
 
 // ─── DELETE /api/auth — Logout ──────────────────────────────────────────────
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
+  try {
+    // Set user offline on logout if we can identify them
+    const authUser = await getAuthUser(req);
+    if (authUser) {
+      await db.user.update({
+        where: { id: authUser.userId },
+        data: { isOnline: false },
+      }).catch(() => { /* non-critical */ });
+    }
+  } catch {
+    // Continue with cookie clear even if DB update fails
+  }
+
   const cookie = deleteSessionCookie();
   const response = NextResponse.json({ success: true });
   response.cookies.set(cookie.name, cookie.value, cookie.options);

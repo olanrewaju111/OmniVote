@@ -108,7 +108,32 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId } = useDashboardStore();
+
+  // ── Session restoration: check if a valid cookie session exists on mount ──
+  const sessionRestore = useQuery<{
+    authenticated: boolean;
+    user?: { id: string; email: string; name: string; role: string; tenantId: string; tenantName: string; tenantSlug: string };
+  }>({
+    queryKey: ['session-check'],
+    queryFn: () => fetchJson('/api/auth'),
+    staleTime: 0,
+    retry: false,
+    enabled: !isAuthenticated,
+  });
+
+  // Auto-restore session from cookie if server confirms authentication
+  useEffect(() => {
+    if (sessionRestore.data?.authenticated && sessionRestore.data.user && !isAuthenticated) {
+      const u = sessionRestore.data.user;
+      login({
+        id: u.id, email: u.email, name: u.name,
+        role: u.role as 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'ANALYST' | 'TRUST_SAFETY' | 'FIELD_AGENT',
+        tenantId: u.tenantId, tenantName: u.tenantName, tenantSlug: u.tenantSlug,
+      });
+      setTenantId(u.tenantId);
+    }
+  }, [sessionRestore.data, isAuthenticated, login, setTenantId]);
 
   // Build URL with tenantId for all API calls
   const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
@@ -151,7 +176,19 @@ export default function Home() {
 
   const isLoading = dashLoading || incLoading || alertsLoading;
 
-  // Show login screen if not authenticated
+  // Show loading while checking session restoration
+  if (!isAuthenticated && sessionRestore.isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald mx-auto" />
+          <p className="text-sm text-muted-foreground">Restoring session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated and session check is complete
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
@@ -182,7 +219,11 @@ export default function Home() {
           } : undefined}
         />
 
-        <main className="flex-1 overflow-hidden">
+        <main id="main-content" className="flex-1 overflow-hidden" role="main">
+          {/* Screen reader announcement for tab changes */}
+          <div className="sr-only" aria-live="polite" aria-atomic="true">
+            Switched to {activeTab.replace(/-/g, ' ')} view
+          </div>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -191,6 +232,8 @@ export default function Home() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
               className="h-full"
+              role="tabpanel"
+              aria-label={`${activeTab.replace(/-/g, ' ')} panel`}
             >
               {activeTab === 'situation' && (
                 <div className="h-full">

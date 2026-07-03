@@ -11,10 +11,11 @@ export async function GET(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const [honeypots, accessibilityReports, trapTypeGroups, deviationCount, alertCount, deviationStats, accessibilityStats, pwdStats] = await Promise.all([
       db.honeypotUnit.findMany({
@@ -193,10 +194,11 @@ export async function POST(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const body = await req.json();
     const { action } = body;

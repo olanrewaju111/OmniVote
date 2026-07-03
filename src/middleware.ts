@@ -4,16 +4,46 @@ import { jwtVerify } from 'jose';
 const JWT_SECRET = process.env.JWT_SECRET || 'omnivote-dev-secret-change-in-production';
 
 /**
+ * RBAC map: API route prefix → allowed roles.
+ * Routes not listed here require any authenticated user (JWT check still applies).
+ */
+const ROUTE_RBAC: Record<string, string[]> = {
+  'tenants': ['SUPER_ADMIN'],
+  'tenants/users': ['SUPER_ADMIN'],
+  'security': ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'],
+};
+
+/**
+ * Extract the API route key from the request URL.
+ * e.g. /api/dashboard/xyz → 'dashboard', /api/tenants/users → 'tenants/users'
+ */
+function getRouteKey(pathname: string): string {
+  const withoutPrefix = pathname.replace(/^\/api\//, '');
+  const segments = withoutPrefix.split('/').filter(Boolean);
+  if (segments.length >= 2 && segments[0] === 'tenants') {
+    return segments[0] + '/' + segments[1];
+  }
+  return segments[0] || '';
+}
+
+function isRouteAllowed(routeKey: string, userRole: string): boolean {
+  const allowedRoles = ROUTE_RBAC[routeKey];
+  if (!allowedRoles) return true; // any authenticated user
+  return allowedRoles.includes(userRole);
+}
+
+/**
  * Next.js Edge Middleware.
  *
  * Runs on every request BEFORE it reaches the API routes or pages.
  * Responsibilities:
  * 1. Verify JWT session cookie for all /api/* routes (except /api/auth and /api/health)
- * 2. Add security headers to all responses
- * 3. Block requests with invalid/expired tokens
+ * 2. Enforce RBAC at the middleware level for role-restricted routes
+ * 3. Add security headers to all responses
+ * 4. Block requests with invalid/expired tokens
  *
- * NOTE: This is a first-pass guard. Individual API routes should also
- * use requireAuth() from @/lib/rbac.ts for tenant isolation and fine-grained RBAC.
+ * NOTE: Individual API routes should also use requireAuth()/requireTenantMatch()
+ * from @/lib/rbac.ts for defense-in-depth tenant isolation.
  */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -59,11 +89,11 @@ export async function middleware(req: NextRequest) {
     );
   }
 
+  let payload: { role?: string; [key: string]: unknown };
   try {
     const key = new TextEncoder().encode(JWT_SECRET);
-    await jwtVerify(token, key);
-    // Token is valid — continue to the API route
-    return response;
+    const { payload: p } = await jwtVerify(token, key);
+    payload = p as typeof payload;
   } catch {
     // Token is invalid or expired
     const errorResponse = NextResponse.json(
@@ -80,6 +110,20 @@ export async function middleware(req: NextRequest) {
     });
     return errorResponse;
   }
+
+  // ─── Enforce RBAC ─────────────────────────────────────────────────────
+  const routeKey = getRouteKey(pathname);
+  const userRole = (payload.role as string) || '';
+
+  if (!isRouteAllowed(routeKey, userRole)) {
+    return NextResponse.json(
+      { error: 'Insufficient permissions for this action' },
+      { status: 403, headers: response.headers },
+    );
+  }
+
+  // Token valid + RBAC check passed — continue to route handler
+  return response;
 }
 
 export const config = {

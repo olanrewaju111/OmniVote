@@ -1,0 +1,252 @@
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:3:import { useState, useCallback } from 'react';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:12:import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:34:interface EngStats {
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:50:  subject: string; body: string; priority: string; status: string;
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:59:  stats: EngStats;
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:65:  messageStats: Record<string, number>;
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:66:  triggerStats: Record<string, number>;
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:67:  statusStats: Record<string, number>;
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:88:const STATUS_STYLES: Record<string, string> = {
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:118:  const [msgFilter, setMsgFilter] = useState<{ triggerType: string; channel: string; status: string }>({
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:119:    triggerType: 'ALL', channel: 'ALL', status: 'ALL',
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:121:  const [composeOpen, setComposeOpen] = useState(false);
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:122:  const [composeAgent, setComposeAgent] = useState<{ id: string; name: string } | null>(null);
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:123:  const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:124:  const [bulkChannel, setBulkChannel] = useState('WHATSAPP');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:133:      if (msgFilter.status !== 'ALL') p.set('status', msgFilter.status);
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:205:  const stats = data?.stats || {} as EngStats;
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:226:      {/* ─── Stats Cards ─────────────────────────────────────── */}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:228:        <StatCard icon={<Users className="h-4 w-4" />} label="Total Agents" value={stats.totalAgents || 0} color="text-foreground" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:229:        <StatCard icon={<Wifi className="h-3.5 w-3.5" />} label="Online" value={stats.onlineAgents || 0} color="text-emerald" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:230:        <StatCard icon={<Clock className="h-3.5 w-3.5" />} label="Idle" value={stats.idleAgents || 0} color="text-amber" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:231:        <StatCard icon={<UserX className="h-3.5 w-3.5" />} label="No Data" value={stats.noDataAgents || 0} color="text-rose" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:232:        <StatCard icon={<WifiOff className="h-3.5 w-3.5" />} label="Offline" value={stats.offlineAgents || 0} color="text-muted-foreground" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:233:        <StatCard icon={<ShieldAlert className="h-3.5 w-3.5" />} label="Infractions" value={stats.agentsWithInfractions || 0} color="text-violet" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:234:        <StatCard icon={<MessageSquare className="h-3.5 w-3.5" />} label="Messages" value={stats.totalMessages || 0} color="text-cyan" />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:242:        <TabsList className="shrink-0 bg-card/60 border border-border">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:252:            <AgentGroupCard
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:257:              count={stats.idleAgents || 0}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:267:            <AgentGroupCard
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:272:              count={stats.noDataAgents || 0}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:282:            <AgentGroupCard
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:287:              count={stats.offlineAgents || 0}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:297:            <AgentGroupCard
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:302:              count={stats.agentsWithInfractions || 0}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:357:            <Select value={msgFilter.status} onValueChange={(v) => setMsgFilter(f => ({ ...f, status: v }))}>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:358:              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:360:                <SelectItem value="ALL">All Status</SelectItem>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:369:            {/* Quick stats */}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:371:              {data?.statusStats && Object.entries(data.statusStats).map(([k, v]) => (
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:421:              <Badge variant="outline" className={cn('text-[10px]', STATUS_STYLES[selectedMsg?.status || ''])}>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:422:                {selectedMsg?.status}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:437:            <div className="bg-card/60 rounded-lg p-3 border border-border">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:481:function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:483:    <Card className="bg-card/40 border-border py-2.5 px-3">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:491:    </Card>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:495:function AgentGroupCard({
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:505:  const [expanded, setExpanded] = useState(false);
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:509:    <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:510:      <CardHeader className="pb-2 pt-3 px-3">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:513:            <div className="w-8 h-8 rounded-md bg-card flex items-center justify-center border border-border">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:517:              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:520:              </CardTitle>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:535:      </CardHeader>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:536:      <CardContent className="px-3 pb-3">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:578:      </CardContent>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:579:    </Card>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:588:      className="flex items-start gap-3 rounded-lg border border-border bg-card/30 px-3 py-2.5 cursor-pointer hover:bg-card/60 hover:border-border transition-colors"
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:600:          <Badge variant="outline" className={cn('text-[9px] h-4 px-1.5 shrink-0', STATUS_STYLES[msg.status])}>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:601:            {msg.status}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:620:      {/* Priority + Agent status */}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:638:  const [agentId, setAgentId] = useState(preselectedAgent?.id || '');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:639:  const [channel, setChannel] = useState('WHATSAPP');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:640:  const [subject, setSubject] = useState('');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:641:  const [body, setBody] = useState('');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:642:  const [priority, setPriority] = useState('NORMAL');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:664:      <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:665:        <CardHeader className="pb-3">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:666:          <CardTitle className="text-sm flex items-center gap-2">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:669:          </CardTitle>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:673:        </CardHeader>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:674:        <CardContent className="space-y-3">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:750:                { label: 'Status Check', s: 'Status Check Required', b: 'Please provide your current situation report: voter queue length, BVAS status, any incidents, and security presence at your polling unit.' },
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:753:                { label: 'Evidence Request', s: 'Additional Evidence Required', b: 'The incident you reported needs more documentation. Please capture: wide-angle photos, a 30-second video walkthrough, and statements from any witnesses.' },
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:770:        </CardContent>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:771:      </Card>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:790:  const { data: waStatus, isLoading: waLoading, refetch: waRefetch } = useQuery({
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:791:    queryKey: ['whatsapp-status', tenantId],
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:805:      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:815:      queryClient.invalidateQueries({ queryKey: ['whatsapp-status'] });
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:821:  const [linkPhone, setLinkPhone] = useState('');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:823:  const status = waStatus?.status || 'DISCONNECTED';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:824:  const phone = waStatus?.phone || waStatus?.whatsappPhone || '';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:825:  const jid = waStatus?.jid || waStatus?.whatsappJid || '';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:826:  const qrCode = waStatus?.qrCode || '';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:827:  const mode = waStatus?.mode || (waStatus?.status === 'DISCONNECTED' ? 'OFFLINE' : 'UNKNOWN');
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:829:  const isConnected = status === 'CONNECTED';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:830:  const isQRReady = status === 'QR_READY';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:831:  const isConnecting = status === 'CONNECTING';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:833:  const statusColor = isConnected ? 'text-green-400' : isQRReady ? 'text-amber' : isConnecting ? 'text-cyan' : 'text-muted-foreground';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:834:  const statusBg = isConnected ? 'bg-green-500' : isQRReady ? 'bg-amber' : isConnecting ? 'bg-cyan animate-pulse' : 'bg-muted-foreground/30';
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:837:    <Card className="bg-card/40 border-border shrink-0">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:838:      <CardContent className="px-4 py-3">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:847:                <span className={cn('w-2 h-2 rounded-full', statusBg)} />
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:848:                <span className={cn('text-[10px] font-medium', statusColor)}>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:849:                  {status}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:896:            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => waRefetch()} aria-label="Refresh WhatsApp status">
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:936:      </CardContent>
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:937:    </Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:3:import { useState, useCallback } from 'react';
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:7:import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:52:  const [search, setSearch] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:53:  const [searchInput, setSearchInput] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:54:  const [roleFilter, setRoleFilter] = useState('ALL');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:55:  const [addOpen, setAddOpen] = useState(false);
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:56:  const [reportsPanel, setReportsPanel] = useState<ReportsSlideOver>({ agent: null, open: false });
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:57:  const [confirmAction, setConfirmAction] = useState<{ type: string; agent: AgentUser | null }>({ type: '', agent: null });
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:58:  const [editOpen, setEditOpen] = useState(false);
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:59:  const [editAgent, setEditAgent] = useState<AgentUser | null>(null);
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:60:  const [editName, setEditName] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:61:  const [editPhone, setEditPhone] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:62:  const [editRole, setEditRole] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:64:  // Add agent form state
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:65:  const [newName, setNewName] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:66:  const [newEmail, setNewEmail] = useState('');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:67:  const [newRole, setNewRole] = useState('FIELD_AGENT');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:122:        toast.success('Status updated');
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:225:      {/* Summary cards */}
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:227:        <Card className="border-border bg-card/40">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:228:          <CardContent className="p-3.5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:234:          </CardContent>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:235:        </Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:236:        <Card className="border-emerald/20 bg-emerald/5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:237:          <CardContent className="p-3.5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:243:          </CardContent>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:244:        </Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:245:        <Card className="border-amber/20 bg-amber/5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:246:          <CardContent className="p-3.5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:252:          </CardContent>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:253:        </Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:254:        <Card className="border-border bg-card/40">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:255:          <CardContent className="p-3.5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:261:          </CardContent>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:262:        </Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:299:      <Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:300:        <CardHeader className="pb-2 pt-4 px-4">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:302:            <CardTitle className="text-sm">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:305:            </CardTitle>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:322:        </CardHeader>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:323:        <CardContent className="px-0 pb-0">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:340:                    <TableHead className="text-[11px] h-9">Status</TableHead>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:354:                        className="border-border hover:bg-card/60 transition-colors"
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:363:                                'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card',
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:404:                                  : 'border-border text-muted-foreground hover:bg-card'
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:468:        </CardContent>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:469:      </Card>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:671:    id: string; type: string; severity: string; status: string;
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:673:    pollingUnit: { name: string; state: string; lga: string } | null;
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:706:  const statusColors: Record<string, string> = {
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:718:        <div key={inc.id} className="rounded-lg border border-border bg-card/40 p-3 space-y-1.5">
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:729:              <span className={cn('text-[10px] font-medium', statusColors[inc.status] || '')}>
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:730:                {inc.status}
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:739:                {inc.pollingUnit.name}, {inc.pollingUnit.state}
+/home/z/my-project/src/components/dashboard/security-center.tsx:3:import { useState, useMemo } from 'react';
+/home/z/my-project/src/components/dashboard/security-center.tsx:10:import { Card, CardContent } from '@/components/ui/card';
+/home/z/my-project/src/components/dashboard/security-center.tsx:66:  biometricRiskScore: number;
+/home/z/my-project/src/components/dashboard/security-center.tsx:255:  const kpis = [
+/home/z/my-project/src/components/dashboard/security-center.tsx:288:      {/* Security Score + KPIs */}
+/home/z/my-project/src/components/dashboard/security-center.tsx:291:        <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:292:          <CardContent className="p-4 flex flex-col items-center gap-2">
+/home/z/my-project/src/components/dashboard/security-center.tsx:308:          </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:309:        </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:311:        {/* KPI Grid */}
+/home/z/my-project/src/components/dashboard/security-center.tsx:313:          {kpis.map((kpi, i) => (
+/home/z/my-project/src/components/dashboard/security-center.tsx:315:              key={kpi.label}
+/home/z/my-project/src/components/dashboard/security-center.tsx:320:              <Card className={cn('bg-card/40 border-border h-full', kpi.glow && kpi.glow)}>
+/home/z/my-project/src/components/dashboard/security-center.tsx:321:                <CardContent className="p-3.5">
+/home/z/my-project/src/components/dashboard/security-center.tsx:323:                    {kpi.icon}
+/home/z/my-project/src/components/dashboard/security-center.tsx:324:                    <span className="text-[11px] text-muted-foreground">{kpi.label}</span>
+/home/z/my-project/src/components/dashboard/security-center.tsx:326:                  <p className={cn('text-xl font-bold tabular-nums', kpi.color)}>{kpi.value}</p>
+/home/z/my-project/src/components/dashboard/security-center.tsx:327:                </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:328:              </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:334:      {/* Policy Status */}
+/home/z/my-project/src/components/dashboard/security-center.tsx:336:        <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:337:          <CardContent className="p-4 space-y-3">
+/home/z/my-project/src/components/dashboard/security-center.tsx:340:              Policy Status
+/home/z/my-project/src/components/dashboard/security-center.tsx:343:              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:352:              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:361:              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:368:              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:376:          </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:377:        </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:381:      <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:382:        <CardContent className="p-4 space-y-2">
+/home/z/my-project/src/components/dashboard/security-center.tsx:400:                      : 'border-border bg-card/20',
+/home/z/my-project/src/components/dashboard/security-center.tsx:430:        </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:431:      </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:444:  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
+/home/z/my-project/src/components/dashboard/security-center.tsx:445:  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+/home/z/my-project/src/components/dashboard/security-center.tsx:446:  const [expandedId, setExpandedId] = useState<string | null>(null);
+/home/z/my-project/src/components/dashboard/security-center.tsx:512:              <TableHead className="text-[10px] h-8 w-20">Status</TableHead>
+/home/z/my-project/src/components/dashboard/security-center.tsx:523:                    expandedId === event.id && 'bg-card/60',
+/home/z/my-project/src/components/dashboard/security-center.tsx:568:                      <div className="bg-card/40 border border-border rounded-lg p-3 space-y-2">
+/home/z/my-project/src/components/dashboard/security-center.tsx:623:                              <pre className="text-[10px] mt-1 p-2 rounded bg-card/60 border border-border overflow-x-auto max-h-32 overflow-y-auto font-mono">
+/home/z/my-project/src/components/dashboard/security-center.tsx:657:  const [confirmDialog, setConfirmDialog] = useState<{
+/home/z/my-project/src/components/dashboard/security-center.tsx:694:                <TableHead className="text-[10px] h-8 w-28">Biometric Risk</TableHead>
+/home/z/my-project/src/components/dashboard/security-center.tsx:696:                <TableHead className="text-[10px] h-8 w-24">Status</TableHead>
+/home/z/my-project/src/components/dashboard/security-center.tsx:737:                            value={user.biometricRiskScore * 100}
+/home/z/my-project/src/components/dashboard/security-center.tsx:738:                            className={cn('h-1.5 w-12', riskBarColor(user.biometricRiskScore))}
+/home/z/my-project/src/components/dashboard/security-center.tsx:740:                          <span className={cn('text-[10px] font-medium', riskLabelColor(user.biometricRiskScore))}>
+/home/z/my-project/src/components/dashboard/security-center.tsx:741:                            {riskLabel(user.biometricRiskScore)}
+/home/z/my-project/src/components/dashboard/security-center.tsx:746:                        <p>Biometric risk score: <span className="font-mono font-medium">{(user.biometricRiskScore * 100).toFixed(1)}%</span></p>
+/home/z/my-project/src/components/dashboard/security-center.tsx:748:                          {user.biometricRiskScore < 0.3
+/home/z/my-project/src/components/dashboard/security-center.tsx:749:                            ? 'Low risk — biometric patterns are consistent with enrolled identity.'
+/home/z/my-project/src/components/dashboard/security-center.tsx:750:                            : user.biometricRiskScore < 0.7
+/home/z/my-project/src/components/dashboard/security-center.tsx:751:                              ? 'Medium risk — some anomalies detected in biometric verification.'
+/home/z/my-project/src/components/dashboard/security-center.tsx:752:                              : 'High risk — significant discrepancies in biometric data. Review recommended.'}
+/home/z/my-project/src/components/dashboard/security-center.tsx:808:          <DialogContent className="bg-card border-border max-w-sm">
+/home/z/my-project/src/components/dashboard/security-center.tsx:884:  const [encryptionEnabled, setEncryptionEnabled] = useState(policies?.encryptionEnabled ?? false);
+/home/z/my-project/src/components/dashboard/security-center.tsx:885:  const [twoFactorEnabled, setTwoFactorEnabled] = useState(policies?.twoFactorEnabled ?? false);
+/home/z/my-project/src/components/dashboard/security-center.tsx:886:  const [sessionTimeout, setSessionTimeout] = useState(policies?.sessionTimeoutMin ?? 30);
+/home/z/my-project/src/components/dashboard/security-center.tsx:887:  const [dataRetention, setDataRetention] = useState(policies?.dataRetentionDays ?? 365);
+/home/z/my-project/src/components/dashboard/security-center.tsx:888:  const [auditLogRetention, setAuditLogRetention] = useState(policies?.auditLogRetentionDays ?? 90);
+/home/z/my-project/src/components/dashboard/security-center.tsx:889:  const [ipList, setIpList] = useState<string[]>(policies?.ipWhitelist ?? []);
+/home/z/my-project/src/components/dashboard/security-center.tsx:890:  const [newIp, setNewIp] = useState('');
+/home/z/my-project/src/components/dashboard/security-center.tsx:943:      <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:944:        <CardContent className="p-4 space-y-4">
+/home/z/my-project/src/components/dashboard/security-center.tsx:991:              <Badge className="bg-card/60 border-border text-[10px] h-5" variant="outline">
+/home/z/my-project/src/components/dashboard/security-center.tsx:1004:        </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:1005:      </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:1008:      <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:1009:        <CardContent className="p-4 space-y-4">
+/home/z/my-project/src/components/dashboard/security-center.tsx:1062:        </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:1063:      </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:1066:      <Card className="bg-card/40 border-border">
+/home/z/my-project/src/components/dashboard/security-center.tsx:1067:        <CardContent className="p-4 space-y-3">
+/home/z/my-project/src/components/dashboard/security-center.tsx:1097:                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-card/30 border border-border group"
+/home/z/my-project/src/components/dashboard/security-center.tsx:1119:        </CardContent>
+/home/z/my-project/src/components/dashboard/security-center.tsx:1120:      </Card>
+/home/z/my-project/src/components/dashboard/security-center.tsx:1144:                toast.info('Changes discarded');
+/home/z/my-project/src/components/dashboard/security-center.tsx:1147:              Discard
+/home/z/my-project/src/components/dashboard/geo-map.tsx:3:import { useMemo, useState, useCallback, useEffect } from 'react';
+/home/z/my-project/src/components/dashboard/geo-map.tsx:31:  state: string;
+/home/z/my-project/src/components/dashboard/geo-map.tsx:38:  status: string;
+/home/z/my-project/src/components/dashboard/geo-map.tsx:53:function getStatusColor(status: string) {
+/home/z/my-project/src/components/dashboard/geo-map.tsx:54:  switch (status) {
+/home/z/my-project/src/components/dashboard/geo-map.tsx:83:          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] bg-card/60 border-border text-muted-foreground">Live</span>
+/home/z/my-project/src/components/dashboard/geo-map.tsx:87:        <div className="px-4 py-2.5 border-t border-border bg-card/60 flex items-center justify-between text-xs shrink-0">
+/home/z/my-project/src/components/dashboard/geo-map.tsx:95:              <span>{selectedPoint.state} / {selectedPoint.lga}</span>
+/home/z/my-project/src/components/dashboard/geo-map.tsx:121:  const [selectedId, setSelectedId] = useState<string | null>(null);
+/home/z/my-project/src/components/dashboard/geo-map.tsx:147:        <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2.5 space-y-1.5 z-[1000] pointer-events-none">
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:3:import { useState, Fragment } from 'react';
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:13:import { Card, CardContent } from '@/components/ui/card';
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:60:  status: string;
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:85:interface EvidenceStats {
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:87:  byStatus: Record<string, number>;
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:95:interface EcPortalStatus {
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:105:  stats: EvidenceStats;
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:106:  ecPortalStatus: EcPortalStatus;
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:111:function statusConfig(status: string) {
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:112:  switch (status) {
+
+[Showing results with pagination = limit: 250]

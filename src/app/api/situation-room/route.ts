@@ -47,10 +47,11 @@ export async function GET(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     // Get active election
     const election = await db.election.findFirst({

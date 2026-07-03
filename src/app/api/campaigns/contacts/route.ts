@@ -11,10 +11,11 @@ export async function POST(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const body = await req.json();
     const { name, segment, contacts, consentVerified } = body;
@@ -63,10 +64,11 @@ export async function GET(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const contactLists = await db.contactList.findMany({
       where: { tenantId },
@@ -86,10 +88,11 @@ export async function DELETE(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const url = new URL(req.url);
     const id = url.searchParams.get('id');

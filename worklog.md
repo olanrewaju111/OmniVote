@@ -252,3 +252,37 @@ Stage Summary:
 - 25 API routes with tenant isolation/RBAC enforcement
 - Security headers added globally
 - Login screen redesigned from user-picker to secure email/password form
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix hardcoded KPI trends (M5), aria-label accessibility (H4), auth/middleware implementation
+
+Work Log:
+- Analyzed full codebase: 30 KPI components, 175+ interactive elements, 28 API routes, auth system
+- Fixed dashboard turnout trend bug: prevVotes aggregate now filters by updatedAt < 1hr ago
+- Fixed OSINT virality trend bug: now compares hour-over-hour rate instead of vs cumulative total
+- Replaced hardcoded system-health services with data-derived metrics (security score, event counts, KPIs)
+- Added skip-to-content link in layout.tsx
+- Added aria-label to sidebar (aside, nav, active tab aria-current, sign-out button)
+- Added aria-hidden to 15+ decorative icons across sidebar, header, kpi-grid, system-health
+- Added htmlFor/id for search input, role="region" on notifications dropdown
+- Added aria-live="polite" for tab changes, role="tabpanel" on content area
+- Added main id="main-content" for skip link target
+- Implemented session persistence: page.tsx calls GET /api/auth on mount, restores Zustand state
+- Added "Restoring session..." loading state during cookie check
+- Added login rate limiting: 5 attempts / 15min lockout with Retry-After header
+- Set user isOnline=true on login, isOnline=false on logout
+- Generated 32-byte JWT_SECRET and added to .env
+- Rewrote middleware.ts with RBAC enforcement (tenants, tenants/users, security routes)
+- Fixed /api/route.ts: getAuthUser now receives actual Request (was passing empty Request)
+- Converted 39 optional auth checks to mandatory across 19 API route files
+
+Stage Summary:
+- 28 files modified across 3 task areas
+- Build passes with zero errors
+- All API routes now require authentication (defense-in-depth + middleware)
+- RBAC enforced at middleware level for tenant mgmt and security routes
+- Session survives page refresh
+- Login brute-force protection active
+- WCAG 2.1 AA improvements: skip link, aria-labels, aria-current, aria-hidden, aria-live, role attributes
+---

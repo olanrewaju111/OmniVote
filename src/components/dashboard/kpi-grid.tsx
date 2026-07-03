@@ -55,7 +55,7 @@ function KpiCard({ label, value, sub, icon, color, trend, glow, className }: Kpi
               )}
             </div>
             <div className={cn('p-2.5 rounded-lg', c.bg)}>
-              {icon}
+              {icon && <span aria-hidden="true">{icon}</span>}
             </div>
           </div>
         </CardContent>

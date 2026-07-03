@@ -55,10 +55,11 @@ export async function GET(req: NextRequest) {
     }
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     // Try bridge first
     const bridgeAlive = await isBridgeAlive();
@@ -107,10 +108,11 @@ export async function POST(req: NextRequest) {
     }
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     // Validate tenant exists
     const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
@@ -200,10 +202,11 @@ export async function PUT(req: NextRequest) {
       }
 
       const authUser = await getAuthUser(req);
-      if (authUser) {
-        const tenantErr = requireTenantMatch(authUser, tenantId);
-        if (tenantErr) return tenantErr;
+      if (!authUser) {
+        return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
       }
+      const tenantErr = requireTenantMatch(authUser, tenantId);
+      if (tenantErr) return tenantErr;
 
       // Try bridge first
       const bridgeAlive = await isBridgeAlive();

@@ -9,11 +9,14 @@ export async function GET(req: Request) {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
 
+    // Mandatory authentication — middleware catches missing tokens,
+    // this is defense-in-depth for tenant isolation
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     // Fetch tenant settings (mapBounds) and active election in parallel
     const [tenant, activeElection] = await Promise.all([
@@ -71,14 +74,21 @@ export async function GET(req: Request) {
     // ── Trend computation (hour-over-hour deltas) ─────────────────────
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const [prevOnlineAgents, prevIncidents, prevVotes] = await Promise.all([
-      db.user.count({ where: { tenantId, role: 'FIELD_AGENT', isOnline: true, lastSeenAt: { gte: oneHourAgo } } }),
-      db.incident.count({ where: { tenantId, createdAt: { lt: oneHourAgo } } }),
-      db.pollingUnit.aggregate({
-        where: activeElection ? { electionId: activeElection.id } : {},
-        _sum: { totalVotes: true, registeredVoters: true },
-      }),
-    ]);
+    // Trend: online agents seen in the last hour (same query gives current count)
+    const prevOnlineAgents = await db.user.count({
+      where: { tenantId, role: 'FIELD_AGENT', isOnline: true, lastSeenAt: { gte: oneHourAgo } },
+    });
+    // Trend: incidents created before one hour ago
+    const prevIncidents = await db.incident.count({ where: { tenantId, createdAt: { lt: oneHourAgo } } });
+
+    // Turnout trend: compare current snapshot vs units NOT updated in the last hour.
+    // This properly measures the delta in vote totals over the past hour.
+    const prevVotes = await db.pollingUnit.aggregate({
+      where: activeElection
+        ? { electionId: activeElection.id, updatedAt: { lt: oneHourAgo } }
+        : { updatedAt: { lt: oneHourAgo } },
+      _sum: { totalVotes: true, registeredVoters: true },
+    });
 
     const currentOnlineAgents = onlineAgents;
     const trendOnlineAgents = prevOnlineAgents > 0

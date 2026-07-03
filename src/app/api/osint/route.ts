@@ -11,11 +11,13 @@ export async function GET(req: NextRequest) {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
 
+    // Mandatory authentication
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const url = new URL(req.url);
     const platform = url.searchParams.get('platform');
@@ -76,15 +78,17 @@ export async function GET(req: NextRequest) {
     const trendBotSuspect = prevBotSuspect > 0
       ? Math.round(((botSuspectCount - prevBotSuspect) / prevBotSuspect) * 1000) / 10
       : botSuspectCount > 0 ? 100 : 0;
-    // Virality: posts with engagement reach > 1000 in the last hour
+    // Virality: posts published in the last hour
     const viralityAlerts = await db.osintPost.count({
-      where: {
-        tenantId,
-        publishedAt: { gte: oneHourAgo },
-      },
+      where: { tenantId, publishedAt: { gte: oneHourAgo } },
     });
-    const trendVirality = prevTotal > 0
-      ? Math.round(((viralityAlerts - prevTotal) / prevTotal) * 1000) / 10
+    // Compare hour-over-hour rate (posts 1-2h ago) instead of vs cumulative total
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const prevHourPosts = await db.osintPost.count({
+      where: { tenantId, publishedAt: { gte: twoHoursAgo, lt: oneHourAgo } },
+    });
+    const trendVirality = prevHourPosts > 0
+      ? Math.round(((viralityAlerts - prevHourPosts) / prevHourPosts) * 1000) / 10
       : viralityAlerts > 0 ? 100 : 0;
 
     // Parse JSON string fields on each post

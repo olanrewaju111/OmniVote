@@ -11,10 +11,11 @@ export async function GET(req: NextRequest) {
     if (error) return error;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
@@ -65,10 +66,11 @@ export async function POST(req: NextRequest) {
     if (tenantError) return tenantError;
 
     const authUser = await getAuthUser(req);
-    if (authUser) {
-      const tenantErr = requireTenantMatch(authUser, tenantId);
-      if (tenantErr) return tenantErr;
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
 
     // Check for duplicate email
     const existing = await db.user.findFirst({
