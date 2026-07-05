@@ -313,3 +313,26 @@ Stage Summary:
 - Users can now change their password from the default "changeme" seed value
 - Error boundaries prevent single-tab crashes from killing the entire dashboard
 ---
+Task ID: 6
+Agent: Main
+Task: Populate system with realistic sample data for testing
+
+Work Log:
+- Audited all 27 Prisma models and current database state (3 tenants, 85 users, 140 incidents, 133 alerts, 400 PUs)
+- Identified 3 completely empty tables: AgentMessage (0), AuditLog (0), CampaignMessage (0)
+- Wrote comprehensive seed script (scripts/seed-real-data.ts) with realistic Nigerian election context
+- Fixed Campaign model field name (title → name) in seed script
+- Executed seed successfully: enriched 85 user profiles, created 400 audit logs, 491 agent messages, 167 campaign messages
+- Added 46 realistic incidents (ballot snatching, vote buying, BVAS malfunction, voter intimidation, deepfakes, SOS, results manipulation, underage voting, materials logistics)
+- Added 91 rich alerts (security threats, cyber, operational, intel)
+- Added 223 agent check-ins with realistic statuses
+- Added 35 polling units with real Nigerian locations (Lagos, Abuja, Rivers, Kano, Oyo, Enugu, Kaduna, Delta, Anambra, Borno)
+- Verified dashboard KPIs load correctly with new data
+
+Stage Summary:
+- All 3 previously empty tables now populated with realistic data
+- Database grew from 1,152 to 2,344 total records across key tables
+- Per-tenant breakdown: Presidential (39 agents, 166 msgs, 113 incidents, 134 alerts, 146 check-ins, 289 PUs), Lagos State (20 agents, 161 msgs, 41 incidents, 48 alerts, 76 check-ins, 106 PUs), Lagos Island (11 agents, 164 msgs, 32 incidents, 42 alerts, 52 check-ins, 40 PUs)
+- Dashboard verified: all 10 KPIs return correct counts from enriched data
+- Script saved at scripts/seed-real-data.ts for future re-seeding
+---
