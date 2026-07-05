@@ -79,7 +79,7 @@ export async function GET(req: Request) {
       where: { tenantId, role: 'FIELD_AGENT', isOnline: true, lastSeenAt: { gte: oneHourAgo } },
     });
     // Trend: incidents created before one hour ago
-    const prevIncidents = await db.incident.count({ where: { tenantId, createdAt: { lt: oneHourAgo } } });
+    const prevIncidents = await db.incident.count({ where: { tenantId, submittedAt: { lt: oneHourAgo } } });
 
     // Turnout trend: compare current snapshot vs units NOT updated in the last hour.
     // This properly measures the delta in vote totals over the past hour.
