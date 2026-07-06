@@ -1,0 +1,921 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { cn } from '@/lib/utils';
+     5→import { fetchJson } from '@/lib/api';
+     6→import { Card, CardContent } from '@/components/ui/card';
+     7→import { Badge } from '@/components/ui/badge';
+     8→import { Button } from '@/components/ui/button';
+     9→import { Input } from '@/components/ui/input';
+    10→import {
+    11→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    12→} from '@/components/ui/select';
+    13→import {
+    14→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+    15→} from '@/components/ui/dialog';
+    16→import {
+    17→  Tabs, TabsList, TabsTrigger, TabsContent,
+    18→} from '@/components/ui/tabs';
+    19→import {
+    20→  Collapsible, CollapsibleTrigger, CollapsibleContent,
+    21→} from '@/components/ui/collapsible';
+    22→import {
+    23→  Globe, TrendingUp, TrendingDown, ShieldAlert, Bot,
+    24→  Flame, ChevronDown, ChevronUp, MapPin, Clock,
+    25→  Heart, Share2, MessageSquare, Eye, Sparkles,
+    26→  ExternalLink, Search, Filter, Loader2, AlertTriangle,
+    27→  AlertCircle, CheckCircle2, Zap, BarChart3, FileWarning, Users,
+    28→  Radio, Fingerprint,
+    29→} from 'lucide-react';
+    30→import { motion } from 'framer-motion';
+    31→import { useQuery } from '@tanstack/react-query';
+    32→import { useDashboardStore } from '@/store/dashboard';
+    33→
+    34→// ---------------------------------------------------------------------------
+    35→// Types
+    36→// ---------------------------------------------------------------------------
+    37→
+    38→interface OsintPost {
+    39→  id: string;
+    40→  platform: string;
+    41→  author: string;
+    42→  authorFollowers: number;
+    43→  content: string;
+    44→  url: string;
+    45→  sentiment: string;
+    46→  category: string;
+    47→  isVerified: boolean;
+    48→  isFakeNews: boolean;
+    49→  isBotSuspect: boolean;
+    50→  cibScore: number;
+    51→  aiSummary: string;
+    52→  aiFlags: string[];
+    53→  viralityScore: number;
+    54→  engagement: { likes: number; shares: number; comments: number; views: number };
+    55→  keywords: string[];
+    56→  location: string | null;
+    57→  publishedAt: string;
+    58→  ingestedAt: string;
+    59→}
+    60→
+    61→interface OsintCounts {
+    62→  total: number;
+    63→  byCategory: Record<string, number>;
+    64→  bySentiment: Record<string, number>;
+    65→  byPlatform: Record<string, number>;
+    66→  fakeNews: number;
+    67→  botSuspect: number;
+    68→  viralityAlerts: number;
+    69→}
+    70→
+    71→interface OsintTrend {
+    72→  value: number;
+    73→  up: boolean;
+    74→}
+    75→
+    76→interface OsintResponse {
+    77→  posts: OsintPost[];
+    78→  counts: OsintCounts;
+    79→  trends?: {
+    80→    total?: OsintTrend;
+    81→    fakeNews?: OsintTrend;
+    82→    botSuspect?: OsintTrend;
+    83→    viralityAlerts?: OsintTrend;
+    84→  };
+    85→}
+    86→
+    87→// ---------------------------------------------------------------------------
+    88→// Helpers
+    89→// ---------------------------------------------------------------------------
+    90→
+    91→const PLATFORMS = ['All', 'X', 'Facebook', 'YouTube', 'TikTok', 'News'] as const;
+    92→const CATEGORIES = [
+    93→  'All', 'Disinformation', 'Hate Speech', 'CIB Suspect', 'Bot Activity', 'Violence', 'Election News',
+    94→] as const;
+    95→
+    96→function platformColor(p: string) {
+    97→  switch (p) {
+    98→    case 'X': return 'bg-foreground/90 text-background';
+    99→    case 'Facebook': return 'bg-cyan/15 text-cyan border-cyan/30';
+   100→    case 'YouTube': return 'bg-rose/15 text-rose border-rose/30';
+   101→    case 'TikTok': return 'bg-violet/15 text-violet border-violet/30';
+   102→    case 'News': return 'bg-amber/15 text-amber border-amber/30';
+   103→    default: return 'bg-muted text-muted-foreground border-border';
+   104→  }
+   105→}
+   106→
+   107→function platformIcon(p: string) {
+   108→  switch (p) {
+   109→    case 'X': return <Radio className="h-3 w-3" />;
+   110→    case 'Facebook': return <Users className="h-3 w-3" />;
+   111→    case 'YouTube': return <Eye className="h-3 w-3" />;
+   112→    case 'TikTok': return <Zap className="h-3 w-3" />;
+   113→    case 'News': return <BarChart3 className="h-3 w-3" />;
+   114→    default: return <Globe className="h-3 w-3" />;
+   115→  }
+   116→}
+   117→
+   118→function sentimentStyle(s: string) {
+   119→  switch (s) {
+   120→    case 'POSITIVE': return 'bg-emerald/15 text-emerald border-emerald/30';
+   121→    case 'NEGATIVE': return 'bg-rose/15 text-rose border-rose/30';
+   122→    case 'NEUTRAL': return 'bg-muted text-muted-foreground border-border';
+   123→    case 'MIXED': return 'bg-amber/15 text-amber border-amber/30';
+   124→    default: return 'bg-muted text-muted-foreground border-border';
+   125→  }
+   126→}
+   127→
+   128→function sentimentBarColor(s: string) {
+   129→  switch (s) {
+   130→    case 'POSITIVE': return 'bg-emerald';
+   131→    case 'NEGATIVE': return 'bg-rose';
+   132→    case 'NEUTRAL': return 'bg-cyan';
+   133→    case 'MIXED': return 'bg-amber';
+   134→    default: return 'bg-muted-foreground';
+   135→  }
+   136→}
+   137→
+   138→function platformBarColor(p: string) {
+   139→  switch (p) {
+   140→    case 'X': return 'bg-foreground/70';
+   141→    case 'Facebook': return 'bg-cyan';
+   142→    case 'YouTube': return 'bg-rose';
+   143→    case 'TikTok': return 'bg-violet';
+   144→    case 'News': return 'bg-amber';
+   145→    default: return 'bg-muted-foreground';
+   146→  }
+   147→}
+   148→
+   149→function formatTime(date: string | Date) {
+   150→  const d = new Date(date);
+   151→  const now = new Date();
+   152→  const diff = Math.floor((now.getTime() - d.getTime()) / 60000);
+   153→  if (diff < 1) return 'Just now';
+   154→  if (diff < 60) return `${diff}m ago`;
+   155→  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+   156→  return `${Math.floor(diff / 1440)}d ago`;
+   157→}
+   158→
+   159→function formatNumber(n: number): string {
+   160→  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+   161→  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+   162→  return String(n);
+   163→}
+   164→
+   165→// ---------------------------------------------------------------------------
+   166→// Component
+   167→// ---------------------------------------------------------------------------
+   168→
+   169→export function OsintMonitor() {
+   170→  const { tenantId } = useDashboardStore();
+   171→
+   172→  // Filters
+   173→  const [platformFilter, setPlatformFilter] = useState('All');
+   174→  const [categoryFilter, setCategoryFilter] = useState('All');
+   175→  const [searchQuery, setSearchQuery] = useState('');
+   176→
+   177→  // Dialog
+   178→  const [selectedPost, setSelectedPost] = useState<OsintPost | null>(null);
+   179→  const [dialogOpen, setDialogOpen] = useState(false);
+   180→
+   181→  // Collapsible AI summaries
+   182→  const [expandedSummaries, setExpandedSummaries] = useState<Set<string>>(new Set());
+   183→
+   184→  // Data fetching
+   185→  const { data, isLoading, error } = useQuery<OsintResponse>({
+   186→    queryKey: ['osint', tenantId],
+   187→    queryFn: () => fetchJson(`/api/osint?tenantId=${tenantId}`),
+   188→    refetchInterval: 30_000,
+   189→    enabled: !!tenantId,
+   190→  });
+   191→
+   192→  const posts = data?.posts ?? [];
+   193→  const counts = data?.counts ?? {
+   194→    total: 0, byCategory: {}, bySentiment: {}, byPlatform: {},
+   195→    fakeNews: 0, botSuspect: 0, viralityAlerts: 0,
+   196→  };
+   197→  const trends = data?.trends;
+   198→
+   199→  // Filtered posts
+   200→  const filteredPosts = useMemo(() => {
+   201→    return posts.filter((p) => {
+   202→      if (platformFilter !== 'All' && p.platform !== platformFilter) return false;
+   203→      if (categoryFilter !== 'All' && p.category !== categoryFilter) return false;
+   204→      if (searchQuery) {
+   205→        const q = searchQuery.toLowerCase();
+   206→        return (
+   207→          p.content.toLowerCase().includes(q) ||
+   208→          p.author.toLowerCase().includes(q) ||
+   209→          p.keywords?.some((k) => k.toLowerCase().includes(q))
+   210→        );
+   211→      }
+   212→      return true;
+   213→    });
+   214→  }, [posts, platformFilter, categoryFilter, searchQuery]);
+   215→
+   216→  // Sentiment totals for bar
+   217→  const sentimentTotals = useMemo(() => {
+   218→    const s = counts.bySentiment ?? {};
+   219→    const total = Object.values(s).reduce((a, b) => a + b, 0) || 1;
+   220→    return { positive: (s.POSITIVE ?? 0) / total, negative: (s.NEGATIVE ?? 0) / total, neutral: (s.NEUTRAL ?? 0) / total, mixed: (s.MIXED ?? 0) / total };
+   221→  }, [counts]);
+   222→
+   223→  // Platform totals for bar
+   224→  const platformEntries = useMemo(() => {
+   225→    const p = counts.byPlatform ?? {};
+   226→    const total = Object.values(p).reduce((a, b) => a + b, 0) || 1;
+   227→    return Object.entries(p)
+   228→      .sort(([, a], [, b]) => b - a)
+   229→      .map(([name, count]) => ({ name, count, pct: count / total }));
+   230→  }, [counts]);
+   231→
+   232→  const toggleSummary = (id: string) => {
+   233→    setExpandedSummaries((prev) => {
+   234→      const next = new Set(prev);
+   235→      if (next.has(id)) next.delete(id);
+   236→      else next.add(id);
+   237→      return next;
+   238→    });
+   239→  };
+   240→
+   241→  const openPostDetail = (post: OsintPost) => {
+   242→    setSelectedPost(post);
+   243→    setDialogOpen(true);
+   244→  };
+   245→
+   246→  // -------------------------------------------------------------------------
+   247→  // Render
+   248→  // -------------------------------------------------------------------------
+   249→  return (
+   250→    <div className="h-full flex flex-col gap-4 p-4">
+   251→      {/* ── Top Bar ──────────────────────────────────────────────────────── */}
+   252→      <div className="flex items-center justify-between gap-4 flex-wrap shrink-0">
+   253→        <div className="flex items-center gap-2.5">
+   254→          <div className="p-2 rounded-lg bg-cyan/10">
+   255→            <Globe className="h-5 w-5 text-cyan" />
+   256→          </div>
+   257→          <div>
+   258→            <h2 className="text-base font-semibold">Digital Media & OSINT Monitor</h2>
+   259→            <p className="text-[11px] text-muted-foreground">Real-time social media ingestion &amp; threat detection</p>
+   260→          </div>
+   261→          {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+   262→        </div>
+   263→
+   264→        <div className="flex items-center gap-2 flex-wrap">
+   265→          {/* Search */}
+   266→          <div className="relative">
+   267→            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+   268→            <Input
+   269→              placeholder="Search posts, authors..."
+   270→              value={searchQuery}
+   271→              onChange={(e) => setSearchQuery(e.target.value)}
+   272→              className="h-8 w-48 pl-8 text-xs bg-card/40 border-border"
+   273→            />
+   274→          </div>
+   275→
+   276→          {/* Platform filter */}
+   277→          <Select value={platformFilter} onValueChange={setPlatformFilter}>
+   278→            <SelectTrigger className="h-8 w-32 text-xs bg-card/40 border-border">
+   279→              <SelectValue placeholder="Platform" />
+   280→            </SelectTrigger>
+   281→            <SelectContent>
+   282→              {PLATFORMS.map((p) => (
+   283→                <SelectItem key={p} value={p} className="text-xs">{p === 'All' ? 'All Platforms' : p}</SelectItem>
+   284→              ))}
+   285→            </SelectContent>
+   286→          </Select>
+   287→
+   288→          {/* Category filter */}
+   289→          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   290→            <SelectTrigger className="h-8 w-36 text-xs bg-card/40 border-border">
+   291→              <SelectValue placeholder="Category" />
+   292→            </SelectTrigger>
+   293→            <SelectContent>
+   294→              {CATEGORIES.map((c) => (
+   295→                <SelectItem key={c} value={c} className="text-xs">{c === 'All' ? 'All Categories' : c}</SelectItem>
+   296→              ))}
+   297→            </SelectContent>
+   298→          </Select>
+   299→        </div>
+   300→      </div>
+   301→
+   302→      {/* ── KPI Row ──────────────────────────────────────────────────────── */}
+   303→      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+   304→        {/* Total Posts */}
+   305→        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+   306→          <Card className="border-border bg-card/40 backdrop-blur-sm hover:bg-card/60 transition-colors">
+   307→            <CardContent className="p-4">
+   308→              <div className="flex items-start justify-between">
+   309→                <div className="space-y-1.5">
+   310→                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Posts Ingested</p>
+   311→                  <p className="text-2xl font-bold tabular-nums text-cyan">{formatNumber(counts.total)}</p>
+   312→                  {trends?.total ? (() => {
+   313→                    const t = trends.total;
+   314→                    const Icon = t.up ? TrendingUp : TrendingDown;
+   315→                    return (
+   316→                      <div className="flex items-center gap-1">
+   317→                        <Icon className="h-3 w-3 text-emerald" />
+   318→                        <span className="text-[11px] font-medium text-emerald">{t.up ? '+' : '-'}{t.value}%</span>
+   319→                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+   320→                      </div>
+   321→                    );
+   322→                  })() : (
+   323→                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+   324→                  )}
+   325→                </div>
+   326→                <div className="p-2.5 rounded-lg bg-cyan/10">
+   327→                  <BarChart3 className="h-5 w-5 text-cyan" />
+   328→                </div>
+   329→              </div>
+   330→            </CardContent>
+   331→          </Card>
+   332→        </motion.div>
+   333→
+   334→        {/* Disinformation */}
+   335→        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }}>
+   336→          <Card className="border-rose/20 bg-rose/5 backdrop-blur-sm hover:bg-rose/10 transition-colors">
+   337→            <CardContent className="p-4">
+   338→              <div className="flex items-start justify-between">
+   339→                <div className="space-y-1.5">
+   340→                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Disinformation Detected</p>
+   341→                  <p className="text-2xl font-bold tabular-nums text-rose">{formatNumber(counts.fakeNews)}</p>
+   342→                  {trends?.fakeNews ? (() => {
+   343→                    const t = trends.fakeNews;
+   344→                    const Icon = t.up ? TrendingUp : TrendingDown;
+   345→                    return (
+   346→                      <div className="flex items-center gap-1">
+   347→                        <Icon className={"h-3 w-3 text-rose"} />
+   348→                        <span className="text-[11px] font-medium text-rose">{t.up ? '+' : '-'}{t.value}%</span>
+   349→                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+   350→                      </div>
+   351→                    );
+   352→                  })() : (
+   353→                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+   354→                  )}
+   355→                </div>
+   356→                <div className="p-2.5 rounded-lg bg-rose/10">
+   357→                  <FileWarning className="h-5 w-5 text-rose" />
+   358→                </div>
+   359→              </div>
+   360→            </CardContent>
+   361→          </Card>
+   362→        </motion.div>
+   363→
+   364→        {/* Bot/CIB */}
+   365→        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
+   366→          <Card className="border-amber/20 bg-amber/5 backdrop-blur-sm hover:bg-amber/10 transition-colors">
+   367→            <CardContent className="p-4">
+   368→              <div className="flex items-start justify-between">
+   369→                <div className="space-y-1.5">
+   370→                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Bot / CIB Suspects</p>
+   371→                  <p className="text-2xl font-bold tabular-nums text-amber">{formatNumber(counts.botSuspect)}</p>
+   372→                  {trends?.botSuspect ? (() => {
+   373→                    const t = trends.botSuspect;
+   374→                    const Icon = t.up ? TrendingUp : TrendingDown;
+   375→                    return (
+   376→                      <div className="flex items-center gap-1">
+   377→                        <Icon className={"h-3 w-3 text-emerald"} />
+   378→                        <span className="text-[11px] font-medium text-emerald">{t.up ? '+' : '-'}{t.value}%</span>
+   379→                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+   380→                      </div>
+   381→                    );
+   382→                  })() : (
+   383→                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+   384→                  )}
+   385→                </div>
+   386→                <div className="p-2.5 rounded-lg bg-amber/10">
+   387→                  <Bot className="h-5 w-5 text-amber" />
+   388→                </div>
+   389→              </div>
+   390→            </CardContent>
+   391→          </Card>
+   392→        </motion.div>
+   393→
+   394→        {/* Virality Alerts */}
+   395→        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
+   396→          <Card className="border-violet/20 bg-violet/5 backdrop-blur-sm hover:bg-violet/10 transition-colors">
+   397→            <CardContent className="p-4">
+   398→              <div className="flex items-start justify-between">
+   399→                <div className="space-y-1.5">
+   400→                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Virality Alerts</p>
+   401→                  <p className="text-2xl font-bold tabular-nums text-violet">{formatNumber(counts.viralityAlerts)}</p>
+   402→                  {trends?.viralityAlerts ? (() => {
+   403→                    const t = trends.viralityAlerts;
+   404→                    const Icon = t.up ? TrendingUp : TrendingDown;
+   405→                    return (
+   406→                      <div className="flex items-center gap-1">
+   407→                        <Icon className={"h-3 w-3 text-violet"} />
+   408→                        <span className="text-[11px] font-medium text-violet">{t.up ? '+' : '-'}{t.value}%</span>
+   409→                        <span className="text-[10px] text-muted-foreground">vs last hr</span>
+   410→                      </div>
+   411→                    );
+   412→                  })() : (
+   413→                    <span className="text-[10px] text-muted-foreground">No prior data</span>
+   414→                  )}
+   415→                </div>
+   416→                <div className="p-2.5 rounded-lg bg-violet/10">
+   417→                  <Flame className="h-5 w-5 text-violet" />
+   418→                </div>
+   419→              </div>
+   420→            </CardContent>
+   421→          </Card>
+   422→        </motion.div>
+   423→      </div>
+   424→
+   425→      {/* ── Sentiment + Platform Breakdown Bars ─────────────────────────── */}
+   426→      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
+   427→        {/* Sentiment */}
+   428→        <Card className="border-border bg-card/40 backdrop-blur-sm">
+   429→          <CardContent className="p-4">
+   430→            <div className="flex items-center justify-between mb-3">
+   431→              <p className="text-xs font-semibold flex items-center gap-1.5">
+   432→                <Sparkles className="h-3.5 w-3.5 text-cyan" />
+   433→                Sentiment Breakdown
+   434→              </p>
+   435→            </div>
+   436→            <div className="h-3 rounded-full overflow-hidden flex bg-muted/50">
+   437→              {sentimentTotals.positive > 0 && (
+   438→                <div
+   439→                  className="bg-emerald transition-all duration-500"
+   440→                  style={{ width: `${sentimentTotals.positive * 100}%` }}
+   441→                  title={`Positive ${Math.round(sentimentTotals.positive * 100)}%`}
+   442→                />
+   443→              )}
+   444→              {sentimentTotals.negative > 0 && (
+   445→                <div
+   446→                  className="bg-rose transition-all duration-500"
+   447→                  style={{ width: `${sentimentTotals.negative * 100}%` }}
+   448→                  title={`Negative ${Math.round(sentimentTotals.negative * 100)}%`}
+   449→                />
+   450→              )}
+   451→              {sentimentTotals.mixed > 0 && (
+   452→                <div
+   453→                  className="bg-amber transition-all duration-500"
+   454→                  style={{ width: `${sentimentTotals.mixed * 100}%` }}
+   455→                  title={`Mixed ${Math.round(sentimentTotals.mixed * 100)}%`}
+   456→                />
+   457→              )}
+   458→              {sentimentTotals.neutral > 0 && (
+   459→                <div
+   460→                  className="bg-cyan transition-all duration-500"
+   461→                  style={{ width: `${sentimentTotals.neutral * 100}%` }}
+   462→                  title={`Neutral ${Math.round(sentimentTotals.neutral * 100)}%`}
+   463→                />
+   464→              )}
+   465→            </div>
+   466→            <div className="flex items-center gap-4 mt-2">
+   467→              {[
+   468→                { label: 'POSITIVE', pct: sentimentTotals.positive, color: 'bg-emerald' },
+   469→                { label: 'NEGATIVE', pct: sentimentTotals.negative, color: 'bg-rose' },
+   470→                { label: 'NEUTRAL', pct: sentimentTotals.neutral, color: 'bg-cyan' },
+   471→                { label: 'MIXED', pct: sentimentTotals.mixed, color: 'bg-amber' },
+   472→              ].map((s) => (
+   473→                <div key={s.label} className="flex items-center gap-1.5">
+   474→                  <span className={cn('w-2 h-2 rounded-full', s.color)} />
+   475→                  <span className="text-[10px] text-muted-foreground">{s.label}</span>
+   476→                  <span className="text-[10px] font-semibold tabular-nums">{Math.round(s.pct * 100)}%</span>
+   477→                </div>
+   478→              ))}
+   479→            </div>
+   480→          </CardContent>
+   481→        </Card>
+   482→
+   483→        {/* Platform Distribution */}
+   484→        <Card className="border-border bg-card/40 backdrop-blur-sm">
+   485→          <CardContent className="p-4">
+   486→            <div className="flex items-center justify-between mb-3">
+   487→              <p className="text-xs font-semibold flex items-center gap-1.5">
+   488→                <Globe className="h-3.5 w-3.5 text-violet" />
+   489→                Platform Distribution
+   490→              </p>
+   491→            </div>
+   492→            <div className="h-3 rounded-full overflow-hidden flex bg-muted/50">
+   493→              {platformEntries.map((p) => (
+   494→                <div
+   495→                  key={p.name}
+   496→                  className={cn('transition-all duration-500', platformBarColor(p.name))}
+   497→                  style={{ width: `${p.pct * 100}%` }}
+   498→                  title={`${p.name}: ${p.count}`}
+   499→                />
+   500→              ))}
+   501→            </div>
+   502→            <div className="flex items-center gap-4 mt-2 flex-wrap">
+   503→              {platformEntries.map((p) => (
+   504→                <div key={p.name} className="flex items-center gap-1.5">
+   505→                  <span className={cn('w-2 h-2 rounded-full', platformBarColor(p.name))} />
+   506→                  <span className="text-[10px] text-muted-foreground">{p.name}</span>
+   507→                  <span className="text-[10px] font-semibold tabular-nums">{formatNumber(p.count)}</span>
+   508→                </div>
+   509→              ))}
+   510→            </div>
+   511→          </CardContent>
+   512→        </Card>
+   513→      </div>
+   514→
+   515→      {/* ── Main Feed ────────────────────────────────────────────────────── */}
+   516→      <div className="flex-1 min-h-0 rounded-xl border border-border bg-card/40 backdrop-blur-sm flex flex-col overflow-hidden">
+   517→        {/* Feed header */}
+   518→        <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
+   519→          <div className="flex items-center gap-2">
+   520→            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+   521→            <span className="text-xs font-semibold">Post Feed</span>
+   522→            <Badge variant="secondary" className="text-[10px] h-5">{filteredPosts.length}</Badge>
+   523→          </div>
+   524→          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   525→            <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse-dot" />
+   526→            Streaming live
+   527→          </div>
+   528→        </div>
+   529→
+   530→        {/* Scrollable feed */}
+   531→        <div className="flex-1 min-h-0 overflow-y-auto">
+   532→          <div className="p-3 space-y-2">
+   533→            {isLoading && (
+   534→              <div className="flex flex-col items-center justify-center py-16 gap-3">
+   535→                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   536→                <p className="text-xs text-muted-foreground">Ingesting OSINT data...</p>
+   537→              </div>
+   538→            )}
+   539→
+   540→            {error && (
+   541→              <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+   542→                <AlertCircle className="h-10 w-10 text-destructive" />
+   543→                <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+   544→                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+   545→                  Retry
+   546→                </Button>
+   547→              </div>
+   548→            )}
+   549→
+   550→            {!isLoading && !error && filteredPosts.length === 0 && (
+   551→              <div className="flex flex-col items-center justify-center py-16 gap-3">
+   552→                <Globe className="h-8 w-8 text-muted-foreground/30" />
+   553→                <p className="text-sm text-muted-foreground">No posts match current filters</p>
+   554→              </div>
+   555→            )}
+   556→
+   557→            {filteredPosts.map((post, idx) => (
+   558→              <motion.div
+   559→                key={post.id}
+   560→                initial={{ opacity: 0, y: 8 }}
+   561→                animate={{ opacity: 1, y: 0 }}
+   562→                transition={{ delay: idx * 0.02, duration: 0.2 }}
+   563→                className={cn(
+   564→                  'rounded-xl border p-4 cursor-pointer transition-colors',
+   565→                  post.isFakeNews
+   566→                    ? 'bg-rose/5 border-rose/20 hover:bg-rose/10'
+   567→                    : post.viralityScore > 70
+   568→                    ? 'bg-violet/5 border-violet/20 hover:bg-violet/10'
+   569→                    : 'bg-card/40 border-border hover:bg-card/60'
+   570→                )}
+   571→                onClick={() => openPostDetail(post)}
+   572→              >
+   573→                {/* Row 1: Platform badge + Author + Time */}
+   574→                <div className="flex items-center gap-2 mb-2 flex-wrap">
+   575→                  <Badge className={cn('text-[10px] h-5 border gap-1', platformColor(post.platform))}>
+   576→                    {platformIcon(post.platform)}
+   577→                    {post.platform}
+   578→                  </Badge>
+   579→                  <span className="text-xs font-medium truncate max-w-40">{post.author}</span>
+   580→                  {post.isVerified && (
+   581→                    <CheckCircle2 className="h-3 w-3 text-emerald shrink-0" />
+   582→                  )}
+   583→                  <span className="text-[10px] text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
+   584→                    <Clock className="h-2.5 w-2.5" />
+   585→                    {formatTime(post.publishedAt)}
+   586→                  </span>
+   587→                </div>
+   588→
+   589→                {/* Row 2: Content */}
+   590→                <p className="text-xs text-foreground/80 line-clamp-3 mb-2.5 leading-relaxed">{post.content}</p>
+   591→
+   592→                {/* Row 3: Sentiment + Category badges */}
+   593→                <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
+   594→                  <Badge className={cn('text-[10px] h-5 border', sentimentStyle(post.sentiment))}>
+   595→                    {post.sentiment}
+   596→                  </Badge>
+   597→                  <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground border-border">
+   598→                    {post.category}
+   599→                  </Badge>
+   600→
+   601→                  {/* Special badges */}
+   602→                  {post.isFakeNews && (
+   603→                    <Badge className="text-[10px] h-5 bg-rose/15 text-rose border-rose/30">
+   604→                      <FileWarning className="h-2.5 w-2.5 mr-1" />
+   605→                      FAKE NEWS
+   606→                    </Badge>
+   607→                  )}
+   608→                  {post.isBotSuspect && (
+   609→                    <Badge className="text-[10px] h-5 bg-amber/15 text-amber border-amber/30">
+   610→                      <Bot className="h-2.5 w-2.5 mr-1" />
+   611→                      BOT SUSPECT
+   612→                    </Badge>
+   613→                  )}
+   614→                  {post.cibScore > 0.5 && (
+   615→                    <Badge className="text-[10px] h-5 bg-violet/15 text-violet border-violet/30">
+   616→                      <Fingerprint className="h-2.5 w-2.5 mr-1" />
+   617→                      CIB
+   618→                    </Badge>
+   619→                  )}
+   620→                  {post.isVerified && !post.isFakeNews && (
+   621→                    <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30">
+   622→                      <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+   623→                      VERIFIED
+   624→                    </Badge>
+   625→                  )}
+   626→                </div>
+   627→
+   628→                {/* Row 4: Virality score bar */}
+   629→                <div className="flex items-center gap-2 mb-2.5">
+   630→                  <span className="text-[10px] text-muted-foreground shrink-0 w-14">Virality</span>
+   631→                  <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+   632→                    <motion.div
+   633→                      className={cn(
+   634→                        'h-full rounded-full transition-colors',
+   635→                        post.viralityScore > 70 ? 'bg-rose' : post.viralityScore > 40 ? 'bg-amber' : 'bg-emerald'
+   636→                      )}
+   637→                      initial={{ width: 0 }}
+   638→                      animate={{ width: `${Math.min(post.viralityScore, 100)}%` }}
+   639→                      transition={{ duration: 0.6, delay: idx * 0.02 }}
+   640→                    />
+   641→                  </div>
+   642→                  <span className={cn(
+   643→                    'text-[10px] font-bold tabular-nums w-8 text-right',
+   644→                    post.viralityScore > 70 ? 'text-rose' : post.viralityScore > 40 ? 'text-amber' : 'text-emerald'
+   645→                  )}>
+   646→                    {post.viralityScore}
+   647→                  </span>
+   648→                </div>
+   649→
+   650→                {/* Row 5: Engagement stats */}
+   651→                <div className="flex items-center gap-3 text-[10px] text-muted-foreground mb-2">
+   652→                  <span className="flex items-center gap-1">
+   653→                    <Heart className="h-3 w-3" />{formatNumber(post.engagement.likes)}
+   654→                  </span>
+   655→                  <span className="flex items-center gap-1">
+   656→                    <Share2 className="h-3 w-3" />{formatNumber(post.engagement.shares)}
+   657→                  </span>
+   658→                  <span className="flex items-center gap-1">
+   659→                    <MessageSquare className="h-3 w-3" />{formatNumber(post.engagement.comments)}
+   660→                  </span>
+   661→                  <span className="flex items-center gap-1">
+   662→                    <Eye className="h-3 w-3" />{formatNumber(post.engagement.views)}
+   663→                  </span>
+   664→                  {post.location && (
+   665→                    <span className="flex items-center gap-1 ml-auto text-violet">
+   666→                      <MapPin className="h-3 w-3" />{post.location}
+   667→                    </span>
+   668→                  )}
+   669→                </div>
+   670→
+   671→                {/* Row 6: Collapsible AI Summary */}
+   672→                {post.aiSummary && (
+   673→                  <Collapsible
+   674→                    open={expandedSummaries.has(post.id)}
+   675→                    onOpenChange={() => toggleSummary(post.id)}
+   676→                  >
+   677→                    <CollapsibleTrigger asChild>
+   678→                      <button
+   679→                        className="flex items-center gap-1.5 text-[10px] text-cyan hover:text-cyan/80 transition-colors"
+   680→                        onClick={(e) => e.stopPropagation()}
+   681→                      >
+   682→                        <Sparkles className="h-3 w-3" />
+   683→                        AI Summary
+   684→                        {expandedSummaries.has(post.id)
+   685→                          ? <ChevronUp className="h-3 w-3" />
+   686→                          : <ChevronDown className="h-3 w-3" />}
+   687→                      </button>
+   688→                    </CollapsibleTrigger>
+   689→                    <CollapsibleContent>
+   690→                      <div className="mt-1.5 p-2 rounded-lg bg-cyan/5 border border-cyan/15">
+   691→                        <p className="text-[11px] text-foreground/60 leading-relaxed">{post.aiSummary}</p>
+   692→                      </div>
+   693→                    </CollapsibleContent>
+   694→                  </Collapsible>
+   695→                )}
+   696→              </motion.div>
+   697→            ))}
+   698→          </div>
+   699→        </div>
+   700→      </div>
+   701→
+   702→      {/* ── Post Detail Dialog ───────────────────────────────────────────── */}
+   703→      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   704→        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto bg-background/95 backdrop-blur-xl border-border">
+   705→          <DialogTitle className="sr-only">Post Detail</DialogTitle>
+   706→          <DialogHeader>
+   707→            <DialogTitle className="text-sm font-semibold flex items-center gap-2 not-sr-only">
+   708→              {selectedPost && platformIcon(selectedPost.platform)}
+   709→              {selectedPost?.author}
+   710→              {selectedPost?.url && (
+   711→                <a
+   712→                  href={selectedPost.url}
+   713→                  target="_blank"
+   714→                  rel="noopener noreferrer"
+   715→                  className="ml-auto"
+   716→                  onClick={(e) => e.stopPropagation()}
+   717→                >
+   718→                  <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
+   719→                </a>
+   720→              )}
+   721→            </DialogTitle>
+   722→            <DialogDescription className="text-[11px] text-muted-foreground">
+   723→              Full post analysis &amp; AI insights
+   724→            </DialogDescription>
+   725→          </DialogHeader>
+   726→
+   727→          {selectedPost && (
+   728→            <div className="space-y-4">
+   729→              {/* Platform + Time */}
+   730→              <div className="flex items-center gap-2 flex-wrap">
+   731→                <Badge className={cn('text-[10px] h-5 border gap-1', platformColor(selectedPost.platform))}>
+   732→                  {platformIcon(selectedPost.platform)}
+   733→                  {selectedPost.platform}
+   734→                </Badge>
+   735→                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+   736→                  <Clock className="h-3 w-3" />
+   737→                  Published {formatTime(selectedPost.publishedAt)}
+   738→                </span>
+   739→                {selectedPost.authorFollowers > 0 && (
+   740→                  <span className="text-[11px] text-muted-foreground">
+   741→                    {formatNumber(selectedPost.authorFollowers)} followers
+   742→                  </span>
+   743→                )}
+   744→                {selectedPost.isVerified && (
+   745→                  <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30">
+   746→                    <CheckCircle2 className="h-2.5 w-2.5 mr-1" />VERIFIED
+   747→                  </Badge>
+   748→                )}
+   749→              </div>
+   750→
+   751→              {/* Full content */}
+   752→              <div className="rounded-lg border border-border bg-card/40 p-4">
+   753→                <p className="text-sm text-foreground/90 leading-relaxed">{selectedPost.content}</p>
+   754→              </div>
+   755→
+   756→              {/* Badges row */}
+   757→              <div className="flex items-center gap-1.5 flex-wrap">
+   758→                <Badge className={cn('text-[10px] h-5 border', sentimentStyle(selectedPost.sentiment))}>
+   759→                  {selectedPost.sentiment}
+   760→                </Badge>
+   761→                <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground border-border">
+   762→                  {selectedPost.category}
+   763→                </Badge>
+   764→                {selectedPost.isFakeNews && (
+   765→                  <Badge className="text-[10px] h-5 bg-rose/15 text-rose border-rose/30">
+   766→                    <FileWarning className="h-2.5 w-2.5 mr-1" />FAKE NEWS
+   767→                  </Badge>
+   768→                )}
+   769→                {selectedPost.isBotSuspect && (
+   770→                  <Badge className="text-[10px] h-5 bg-amber/15 text-amber border-amber/30">
+   771→                    <Bot className="h-2.5 w-2.5 mr-1" />BOT SUSPECT
+   772→                  </Badge>
+   773→                )}
+   774→                {selectedPost.cibScore > 0.5 && (
+   775→                  <Badge className="text-[10px] h-5 bg-violet/15 text-violet border-violet/30">
+   776→                    <Fingerprint className="h-2.5 w-2.5 mr-1" />CIB (score: {selectedPost.cibScore.toFixed(2)})
+   777→                  </Badge>
+   778→                )}
+   779→                {selectedPost.location && (
+   780→                  <Badge variant="outline" className="text-[10px] h-5 text-violet border-violet/30">
+   781→                    <MapPin className="h-2.5 w-2.5 mr-1" />{selectedPost.location}
+   782→                  </Badge>
+   783→                )}
+   784→              </div>
+   785→
+   786→              {/* Tabs: Analysis | Engagement */}
+   787→              <Tabs defaultValue="analysis">
+   788→                <TabsList className="h-8">
+   789→                  <TabsTrigger value="analysis" className="text-xs h-6 px-3">AI Analysis</TabsTrigger>
+   790→                  <TabsTrigger value="engagement" className="text-xs h-6 px-3">Engagement</TabsTrigger>
+   791→                  <TabsTrigger value="keywords" className="text-xs h-6 px-3">Keywords</TabsTrigger>
+   792→                </TabsList>
+   793→
+   794→                <TabsContent value="analysis" className="mt-3 space-y-3">
+   795→                  {selectedPost.aiSummary && (
+   796→                    <div className="rounded-lg border border-cyan/15 bg-cyan/5 p-3">
+   797→                      <p className="text-[10px] font-medium text-cyan mb-1.5 flex items-center gap-1">
+   798→                        <Sparkles className="h-3 w-3" />AI SUMMARY
+   799→                      </p>
+   800→                      <p className="text-xs text-foreground/70 leading-relaxed">{selectedPost.aiSummary}</p>
+   801→                    </div>
+   802→                  )}
+   803→                  {selectedPost.aiFlags && selectedPost.aiFlags.length > 0 && (
+   804→                    <div className="rounded-lg border border-amber/15 bg-amber/5 p-3">
+   805→                      <p className="text-[10px] font-medium text-amber mb-1.5 flex items-center gap-1">
+   806→                        <AlertTriangle className="h-3 w-3" />AI FLAGS
+   807→                      </p>
+   808→                      <div className="flex flex-wrap gap-1.5">
+   809→                        {selectedPost.aiFlags.map((flag) => (
+   810→                          <Badge key={flag} variant="outline" className="text-[10px] h-5 text-amber border-amber/30">
+   811→                            {flag}
+   812→                          </Badge>
+   813→                        ))}
+   814→                      </div>
+   815→                    </div>
+   816→                  )}
+   817→                  {selectedPost.cibScore > 0 && (
+   818→                    <div className="rounded-lg border border-violet/15 bg-violet/5 p-3">
+   819→                      <p className="text-[10px] font-medium text-violet mb-1.5 flex items-center gap-1">
+   820→                        <Fingerprint className="h-3 w-3" />CIB ANALYSIS
+   821→                      </p>
+   822→                      <div className="flex items-center gap-2">
+   823→                        <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
+   824→                          <motion.div
+   825→                            className="h-full rounded-full bg-violet"
+   826→                            initial={{ width: 0 }}
+   827→                            animate={{ width: `${Math.min(selectedPost.cibScore * 100, 100)}%` }}
+   828→                            transition={{ duration: 0.4 }}
+   829→                          />
+   830→                        </div>
+   831→                        <span className="text-xs font-bold tabular-nums text-violet">
+   832→                          {(selectedPost.cibScore * 100).toFixed(0)}%
+   833→                        </span>
+   834→                      </div>
+   835→                      <p className="text-[10px] text-muted-foreground mt-1">
+   836→                        {selectedPost.cibScore > 0.5
+   837→                          ? 'High probability of coordinated inauthentic behavior'
+   838→                          : selectedPost.cibScore > 0.25
+   839→                          ? 'Moderate indicators of coordinated activity'
+   840→                          : 'Low CIB indicators detected'}
+   841→                      </p>
+   842→                    </div>
+   843→                  )}
+   844→                  <Button
+   845→                    size="sm"
+   846→                    className="w-full h-8 text-xs gap-1.5 bg-violet/15 text-violet border border-violet/30 hover:bg-violet/25"
+   847→                    variant="outline"
+   848→                  >
+   849→                    <Sparkles className="h-3.5 w-3.5" />
+   850→                    Generate Counter-Narrative
+   851→                  </Button>
+   852→                </TabsContent>
+   853→
+   854→                <TabsContent value="engagement" className="mt-3">
+   855→                  <div className="grid grid-cols-2 gap-3">
+   856→                    {[
+   857→                      { label: 'Likes', value: selectedPost.engagement.likes, icon: <Heart className="h-4 w-4 text-rose" />, color: 'text-rose' },
+   858→                      { label: 'Shares', value: selectedPost.engagement.shares, icon: <Share2 className="h-4 w-4 text-cyan" />, color: 'text-cyan' },
+   859→                      { label: 'Comments', value: selectedPost.engagement.comments, icon: <MessageSquare className="h-4 w-4 text-amber" />, color: 'text-amber' },
+   860→                      { label: 'Views', value: selectedPost.engagement.views, icon: <Eye className="h-4 w-4 text-violet" />, color: 'text-violet' },
+   861→                    ].map((stat) => (
+   862→                      <div
+   863→                        key={stat.label}
+   864→                        className="rounded-lg border border-border bg-card/40 p-3 flex items-center gap-3"
+   865→                      >
+   866→                        <div className="p-2 rounded-md bg-muted/50">
+   867→                          {stat.icon}
+   868→                        </div>
+   869→                        <div>
+   870→                          <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+   871→                          <p className={cn('text-lg font-bold tabular-nums', stat.color)}>
+   872→                            {formatNumber(stat.value)}
+   873→                          </p>
+   874→                        </div>
+   875→                      </div>
+   876→                    ))}
+   877→                  </div>
+   878→                  <div className="mt-3 rounded-lg border border-border bg-card/40 p-3">
+   879→                    <p className="text-[10px] text-muted-foreground mb-2">Virality Score</p>
+   880→                    <div className="flex items-center gap-3">
+   881→                      <div className="flex-1 h-3 rounded-full bg-muted/50 overflow-hidden">
+   882→                        <motion.div
+   883→                          className={cn(
+   884→                            'h-full rounded-full',
+   885→                            selectedPost.viralityScore > 70 ? 'bg-rose' : selectedPost.viralityScore > 40 ? 'bg-amber' : 'bg-emerald'
+   886→                          )}
+   887→                          initial={{ width: 0 }}
+   888→                          animate={{ width: `${Math.min(selectedPost.viralityScore, 100)}%` }}
+   889→                          transition={{ duration: 0.6 }}
+   890→                        />
+   891→                      </div>
+   892→                      <span className={cn(
+   893→                        'text-xl font-bold tabular-nums',
+   894→                        selectedPost.viralityScore > 70 ? 'text-rose' : selectedPost.viralityScore > 40 ? 'text-amber' : 'text-emerald'
+   895→                      )}>
+   896→                        {selectedPost.viralityScore}
+   897→                      </span>
+   898→                    </div>
+   899→                  </div>
+   900→                </TabsContent>
+   901→
+   902→                <TabsContent value="keywords" className="mt-3">
+   903→                  <div className="flex flex-wrap gap-1.5">
+   904→                    {selectedPost.keywords && selectedPost.keywords.length > 0
+   905→                      ? selectedPost.keywords.map((kw) => (
+   906→                          <Badge key={kw} variant="outline" className="text-[10px] h-6 text-muted-foreground border-border">
+   907→                            {kw}
+   908→                          </Badge>
+   909→                        ))
+   910→                      : <p className="text-xs text-muted-foreground">No keywords extracted</p>
+   911→                    }
+   912→                  </div>
+   913→                </TabsContent>
+   914→              </Tabs>
+   915→            </div>
+   916→          )}
+   917→        </DialogContent>
+   918→      </Dialog>
+   919→    </div>
+   920→  );
+   921→}

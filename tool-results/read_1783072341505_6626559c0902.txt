@@ -1,0 +1,1289 @@
+     1→'use client';
+     2→
+     3→import { useState } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { Card, CardContent } from '@/components/ui/card';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { Button } from '@/components/ui/button';
+     8→import { Input } from '@/components/ui/input';
+     9→import { Label } from '@/components/ui/label';
+    10→import { Textarea } from '@/components/ui/textarea';
+    11→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    12→import {
+    13→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    14→} from '@/components/ui/select';
+    15→import {
+    16→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+    17→} from '@/components/ui/dialog';
+    18→import { useDashboardStore } from '@/store/dashboard';
+    19→import {
+    20→  Calendar, MapPin, Users, AlertTriangle, Flag, Eye, CheckCircle,
+    21→  XCircle, TrendingUp, Mic, Megaphone, Shield, Plus,
+    22→  Loader2, ImageIcon, Radio,
+    23→} from 'lucide-react';
+    24→import { motion, AnimatePresence } from 'framer-motion';
+    25→import { cn } from '@/lib/utils';
+    26→import { fetchJson } from '@/lib/api';
+    27→import { toast } from 'sonner';
+    28→
+    29→// ─── Types ───────────────────────────────────────────────────────────────────
+    30→
+    31→interface CampaignEvent {
+    32→  id: string;
+    33→  eventType: string;
+    34→  title: string;
+    35→  description: string;
+    36→  party: string;
+    37→  state: string;
+    38→  lga: string;
+    39→  venue: string;
+    40→  latitude: number | null;
+    41→  longitude: number | null;
+    42→  estimatedCrowd: number | null;
+    43→  tone: string;
+    44→  mediaUrls: string[];
+    45→  aiFlags: string[];
+    46→  incidentCount: number;
+    47→  eventDate: string;
+    48→  createdAt: string;
+    49→  reporter: { name: string } | null;
+    50→}
+    51→
+    52→interface CampaignEventsData {
+    53→  events: CampaignEvent[];
+    54→  counts: {
+    55→    total: number;
+    56→    byType: Record<string, number>;
+    57→    byParty: Record<string, number>;
+    58→    byState: Record<string, number>;
+    59→    hateSpeechFlags: number;
+    60→    stateResourceFlags: number;
+    61→  };
+    62→}
+    63→
+    64→interface SuppressionReport {
+    65→  id: string;
+    66→  reportType: string;
+    67→  title: string;
+    68→  description: string;
+    69→  state: string;
+    70→  lga: string;
+    71→  source: string;
+    72→  platform: string;
+    73→  severity: string;
+    74→  status: string;
+    75→  isDisinformation: boolean;
+    76→  affectedArea: string;
+    77→  affectedVoters: number;
+    78→  evidenceUrls: string[];
+    79→  counterMeasure: string | null;
+    80→  aiAnalysis: string | null;
+    81→  createdAt: string;
+    82→}
+    83→
+    84→interface SuppressionData {
+    85→  reports: SuppressionReport[];
+    86→  counts: {
+    87→    total: number;
+    88→    byType: Record<string, number>;
+    89→    bySeverity: Record<string, number>;
+    90→    byStatus: Record<string, number>;
+    91→    disinformationCount: number;
+    92→  };
+    93→}
+    94→
+    95→// ─── Constants ───────────────────────────────────────────────────────────────
+    96→
+    97→const EVENT_TYPES: Record<string, string> = {
+    98→  RALLY: 'Rally',
+    99→  TOWN_HALL: 'Town Hall',
+   100→  DEBATE: 'Debate',
+   101→  PRESS_CONF: 'Press Conference',
+   102→  DOOR_TO_DOOR: 'Door-to-Door',
+   103→};
+   104→
+   105→const EVENT_ICONS: Record<string, React.ReactNode> = {
+   106→  RALLY: <Megaphone className="h-4 w-4" />,
+   107→  TOWN_HALL: <Users className="h-4 w-4" />,
+   108→  DEBATE: <Mic className="h-4 w-4" />,
+   109→  PRESS_CONF: <Radio className="h-4 w-4" />,
+   110→  DOOR_TO_DOOR: <Flag className="h-4 w-4" />,
+   111→};
+   112→
+   113→const PARTY_COLORS: Record<string, string> = {
+   114→  APC: 'bg-emerald/15 text-emerald border-emerald/30',
+   115→  PDP: 'bg-rose/15 text-rose border-rose/30',
+   116→  LP: 'bg-violet/15 text-violet border-violet/30',
+   117→  NNPP: 'bg-amber/15 text-amber border-amber/30',
+   118→  APGA: 'bg-cyan/15 text-cyan border-cyan/30',
+   119→};
+   120→
+   121→const TONE_STYLES: Record<string, string> = {
+   122→  POSITIVE: 'bg-emerald/15 text-emerald border-emerald/30',
+   123→  NEUTRAL: 'bg-cyan/15 text-cyan border-cyan/30',
+   124→  NEGATIVE: 'bg-rose/15 text-rose border-rose/30',
+   125→  AGGRESSIVE: 'bg-rose text-white border-rose/40',
+   126→  INCITING: 'bg-rose text-white border-rose/40',
+   127→};
+   128→
+   129→const SUPPRESSION_TYPES: Record<string, string> = {
+   130→  FALSE_POLLING_INFO: 'False Polling Info',
+   131→  INTIMIDATION_THREAT: 'Intimidation / Threat',
+   132→  VOTER_ID_BLOCKED: 'Voter ID Blocked',
+   133→  MATERIALS_WITHHELD: 'Materials Withheld',
+   134→  FAKE_SCHEDULE: 'Fake Schedule',
+   135→};
+   136→
+   137→const SEVERITY_STYLES: Record<string, string> = {
+   138→  CRITICAL: 'bg-rose text-white border-rose/40',
+   139→  HIGH: 'bg-amber/15 text-amber border-amber/30',
+   140→  MEDIUM: 'bg-cyan/15 text-cyan border-cyan/30',
+   141→  LOW: 'bg-muted text-muted-foreground border-border',
+   142→};
+   143→
+   144→const STATUS_STYLES: Record<string, string> = {
+   145→  VERIFIED: 'border-emerald/30 text-emerald',
+   146→  PENDING: 'border-amber/30 text-amber',
+   147→  DISMISSED: 'border-muted text-muted-foreground',
+   148→  ESCALATED: 'border-rose/30 text-rose',
+   149→  INVESTIGATING: 'border-cyan/30 text-cyan',
+   150→};
+   151→
+   152→// ─── Helpers ─────────────────────────────────────────────────────────────────
+   153→
+   154→function formatTime(date: string) {
+   155→  const d = new Date(date);
+   156→  const now = new Date();
+   157→  const diff = Math.floor((now.getTime() - d.getTime()) / 60000);
+   158→  if (diff < 1) return 'Just now';
+   159→  if (diff < 60) return `${diff}m ago`;
+   160→  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+   161→  return d.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+   162→}
+   163→
+   164→function formatNumber(n: number | null | undefined): string {
+   165→  if (n == null) return '—';
+   166→  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+   167→  return n.toLocaleString();
+   168→}
+   169→
+   170→function getWeekCount(events: CampaignEvent[]): number {
+   171→  const now = new Date();
+   172→  const weekAgo = new Date(now.getTime() - 7 * 86400000);
+   173→  return events.filter(e => new Date(e.eventDate) >= weekAgo).length;
+   174→}
+   175→
+   176→// ─── Main Component ──────────────────────────────────────────────────────────
+   177→
+   178→export function CampaignMonitor() {
+   179→  const { tenantId } = useDashboardStore();
+   180→  const queryClient = useQueryClient();
+   181→
+   182→  // ── Fetch Campaign Events ──
+   183→  const {
+   184→    data: eventsData,
+   185→    isLoading: eventsLoading,
+   186→    error: eventsError,
+   187→  } = useQuery<CampaignEventsData>({
+   188→    queryKey: ['campaign-events', tenantId],
+   189→    queryFn: () => fetchJson(`/api/campaign-events?tenantId=${tenantId}`),
+   190→    enabled: !!tenantId,
+   191→    refetchInterval: 30000,
+   192→  });
+   193→
+   194→  // ── Fetch Voter Suppression ──
+   195→  const {
+   196→    data: suppressionData,
+   197→    isLoading: suppressionLoading,
+   198→    error: suppressionError,
+   199→  } = useQuery<SuppressionData>({
+   200→    queryKey: ['voter-suppression', tenantId],
+   201→    queryFn: () => fetchJson(`/api/voter-suppression?tenantId=${tenantId}`),
+   202→    enabled: !!tenantId,
+   203→    refetchInterval: 30000,
+   204→  });
+   205→
+   206→  const events = eventsData?.events || [];
+   207→  const eventCounts = eventsData?.counts || {
+   208→    total: 0, byType: {}, byParty: {}, byState: {}, hateSpeechFlags: 0, stateResourceFlags: 0,
+   209→  };
+   210→
+   211→  const reports = suppressionData?.reports || [];
+   212→  const suppressionCounts = suppressionData?.counts || {
+   213→    total: 0, byType: {}, bySeverity: {}, byStatus: {}, disinformationCount: 0,
+   214→  };
+   215→
+   216→  const verifiedCount = suppressionCounts.byStatus?.VERIFIED || 0;
+   217→  const pendingCount = suppressionCounts.byStatus?.PENDING || 0;
+   218→
+   219→  // ── Log Event Mutation ──
+   220→  const logEventMutation = useMutation({
+   221→    mutationFn: async (payload: Record<string, unknown>) => {
+   222→      const res = await fetch(`/api/campaign-events?tenantId=${tenantId}`, {
+   223→        method: 'POST',
+   224→        headers: { 'Content-Type': 'application/json' },
+   225→        body: JSON.stringify(payload),
+   226→      });
+   227→      const data = await res.json();
+   228→      if (!res.ok) throw new Error(data.error || 'Failed to log event');
+   229→      return data;
+   230→    },
+   231→    onSuccess: () => {
+   232→      queryClient.invalidateQueries({ queryKey: ['campaign-events', tenantId] });
+   233→      toast.success('Campaign event logged successfully');
+   234→      setEventDialogOpen(false);
+   235→      resetEventForm();
+   236→    },
+   237→    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to log campaign event'),
+   238→  });
+   239→
+   240→  // ── Report Suppression Mutation ──
+   241→  const reportSuppressionMutation = useMutation({
+   242→    mutationFn: async (payload: Record<string, unknown>) => {
+   243→      const res = await fetch(`/api/voter-suppression?tenantId=${tenantId}`, {
+   244→        method: 'POST',
+   245→        headers: { 'Content-Type': 'application/json' },
+   246→        body: JSON.stringify(payload),
+   247→      });
+   248→      const data = await res.json();
+   249→      if (!res.ok) throw new Error(data.error || 'Failed to submit report');
+   250→      return data;
+   251→    },
+   252→    onSuccess: () => {
+   253→      queryClient.invalidateQueries({ queryKey: ['voter-suppression', tenantId] });
+   254→      toast.success('Suppression report submitted successfully');
+   255→      setSuppressionDialogOpen(false);
+   256→      resetSuppressionForm();
+   257→    },
+   258→    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to submit suppression report'),
+   259→  });
+   260→
+   261→  // ── Event Dialog State ──
+   262→  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+   263→  const [eventForm, setEventForm] = useState({
+   264→    eventType: '', title: '', party: '', state: '', lga: '', venue: '',
+   265→    estimatedCrowd: '', tone: '', description: '',
+   266→  });
+   267→
+   268→  const resetEventForm = () => setEventForm({
+   269→    eventType: '', title: '', party: '', state: '', lga: '', venue: '',
+   270→    estimatedCrowd: '', tone: '', description: '',
+   271→  });
+   272→
+   273→  // ── Suppression Dialog State ──
+   274→  const [suppressionDialogOpen, setSuppressionDialogOpen] = useState(false);
+   275→  const [suppressionForm, setSuppressionForm] = useState({
+   276→    reportType: '', title: '', description: '', state: '', lga: '', source: '', severity: '',
+   277→  });
+   278→
+   279→  const resetSuppressionForm = () => setSuppressionForm({
+   280→    reportType: '', title: '', description: '', state: '', lga: '', source: '', severity: '',
+   281→  });
+   282→
+   283→  // ── Tab Filters ──
+   284→  const [eventPartyFilter, setEventPartyFilter] = useState('ALL');
+   285→  const [eventTypeFilter, setEventTypeFilter] = useState('ALL');
+   286→  const [suppressionTypeFilter, setSuppressionTypeFilter] = useState('ALL');
+   287→  const [suppressionSeverityFilter, setSuppressionSeverityFilter] = useState('ALL');
+   288→  const [suppressionStatusFilter, setSuppressionStatusFilter] = useState('ALL');
+   289→
+   290→  // ── Filtered Data ──
+   291→  const filteredEvents = events.filter(e => {
+   292→    if (eventPartyFilter !== 'ALL' && e.party !== eventPartyFilter) return false;
+   293→    if (eventTypeFilter !== 'ALL' && e.eventType !== eventTypeFilter) return false;
+   294→    return true;
+   295→  });
+   296→
+   297→  const filteredReports = reports.filter(r => {
+   298→    if (suppressionTypeFilter !== 'ALL' && r.reportType !== suppressionTypeFilter) return false;
+   299→    if (suppressionSeverityFilter !== 'ALL' && r.severity !== suppressionSeverityFilter) return false;
+   300→    if (suppressionStatusFilter !== 'ALL' && r.status !== suppressionStatusFilter) return false;
+   301→    return true;
+   302→  });
+   303→
+   304→  // ── Hate Speech Items ──
+   305→  const hateSpeechItems = events.filter(e =>
+   306→    e.aiFlags?.includes('hate_speech_detected')
+   307→  );
+   308→
+   309→  // ── Billboard Simulated Data ──
+   310→  const billboards = [
+   311→    { id: 'bb-1', party: 'APC', location: 'Lagos – Ikeja GRA', extractedText: 'Progress for All – Vote APC', photoCount: 4, dominance: 92 },
+   312→    { id: 'bb-2', party: 'PDP', location: 'Abuja – Central Business District', extractedText: 'Rescue Mission Continues – Atiku 2027', photoCount: 3, dominance: 87 },
+   313→    { id: 'bb-3', party: 'LP', location: 'Lagos – Lekki Expressway', extractedText: 'New Nigeria – Obi', photoCount: 5, dominance: 78 },
+   314→    { id: 'bb-4', party: 'APC', location: 'Kano – Nassarawa GRA', extractedText: 'Renewed Hope – Tinubu', photoCount: 2, dominance: 95 },
+   315→    { id: 'bb-5', party: 'PDP', location: 'Rivers – Port Harcourt', extractedText: 'Power to the People – PDP', photoCount: 3, dominance: 71 },
+   316→    { id: 'bb-6', party: 'NNPP', location: 'Kano – Kano City', extractedText: 'Kwankwaso for Kano', photoCount: 6, dominance: 64 },
+   317→    { id: 'bb-7', party: 'APC', location: 'Oyo – Ibadan Ring Road', extractedText: 'APC: Moving Forward Together', photoCount: 2, dominance: 83 },
+   318→    { id: 'bb-8', party: 'LP', location: 'Anambra – Awka', extractedText: 'Obi-Datti: The Youth Choice', photoCount: 4, dominance: 59 },
+   319→  ];
+   320→
+   321→  const billboardByParty = billboards.reduce((acc, b) => {
+   322→    acc[b.party] = (acc[b.party] || 0) + 1;
+   323→    return acc;
+   324→  }, {} as Record<string, number>);
+   325→
+   326→  const uniqueStates = [...new Set(billboards.map(b => b.location.split(' – ')[0]))];
+   327→
+   328→  return (
+   329→    <div className="h-full flex flex-col">
+   330→      {/* Header */}
+   331→      <div className="px-4 py-3 border-b border-border shrink-0">
+   332→        <div className="flex items-center gap-2">
+   333→          <Shield className="h-4 w-4 text-violet" />
+   334→          <h3 className="text-sm font-semibold">Pre-Election Campaign Monitoring</h3>
+   335→        </div>
+   336→        <p className="text-[11px] text-muted-foreground mt-0.5">
+   337→          Track campaign events, voter suppression, billboards &amp; hate speech
+   338→        </p>
+   339→      </div>
+   340→
+   341→      {/* Tabs */}
+   342→      <Tabs defaultValue="events" className="flex-1 flex flex-col min-h-0">
+   343→        <div className="px-4 pt-2 shrink-0">
+   344→          <TabsList className="h-9 bg-card/60 border border-border w-full">
+   345→            <TabsTrigger value="events" className="text-xs h-7 flex-1 gap-1.5">
+   346→              <Megaphone className="h-3 w-3" /> Campaign Events
+   347→            </TabsTrigger>
+   348→            <TabsTrigger value="suppression" className="text-xs h-7 flex-1 gap-1.5">
+   349→              <AlertTriangle className="h-3 w-3" /> Voter Suppression
+   350→            </TabsTrigger>
+   351→            <TabsTrigger value="billboards" className="text-xs h-7 flex-1 gap-1.5">
+   352→              <ImageIcon className="h-3 w-3" /> Billboards
+   353→            </TabsTrigger>
+   354→            <TabsTrigger value="hate-speech" className="text-xs h-7 flex-1 gap-1.5">
+   355→              <Flag className="h-3 w-3" /> Hate Speech
+   356→            </TabsTrigger>
+   357→          </TabsList>
+   358→        </div>
+   359→
+   360→        {/* ── Campaign Events Tab ── */}
+   361→        <TabsContent value="events" className="flex-1 min-h-0 mt-0 flex flex-col">
+   362→          <EventsTab
+   363→            events={filteredEvents}
+   364→            counts={eventCounts}
+   365→            weekCount={getWeekCount(events)}
+   366→            isLoading={eventsLoading}
+   367→            error={eventsError}
+   368→            partyFilter={eventPartyFilter}
+   369→            setPartyFilter={setEventPartyFilter}
+   370→            typeFilter={eventTypeFilter}
+   371→            setTypeFilter={setEventTypeFilter}
+   372→            onLogEvent={() => setEventDialogOpen(true)}
+   373→            refetch={() => queryClient.invalidateQueries({ queryKey: ['campaign-events', tenantId] })}
+   374→          />
+   375→        </TabsContent>
+   376→
+   377→        {/* ── Voter Suppression Tab ── */}
+   378→        <TabsContent value="suppression" className="flex-1 min-h-0 mt-0 flex flex-col">
+   379→          <SuppressionTab
+   380→            reports={filteredReports}
+   381→            counts={suppressionCounts}
+   382→            verifiedCount={verifiedCount}
+   383→            pendingCount={pendingCount}
+   384→            isLoading={suppressionLoading}
+   385→            error={suppressionError}
+   386→            typeFilter={suppressionTypeFilter}
+   387→            setTypeFilter={setSuppressionTypeFilter}
+   388→            severityFilter={suppressionSeverityFilter}
+   389→            setSeverityFilter={setSuppressionSeverityFilter}
+   390→            statusFilter={suppressionStatusFilter}
+   391→            setStatusFilter={setSuppressionStatusFilter}
+   392→            onReportSuppression={() => setSuppressionDialogOpen(true)}
+   393→            refetch={() => queryClient.invalidateQueries({ queryKey: ['voter-suppression', tenantId] })}
+   394→          />
+   395→        </TabsContent>
+   396→
+   397→        {/* ── Billboards Tab ── */}
+   398→        <TabsContent value="billboards" className="flex-1 min-h-0 mt-0 flex flex-col">
+   399→          <BillboardsTab billboards={billboards} byParty={billboardByParty} states={uniqueStates} />
+   400→        </TabsContent>
+   401→
+   402→        {/* ── Hate Speech Tab ── */}
+   403→        <TabsContent value="hate-speech" className="flex-1 min-h-0 mt-0 flex flex-col">
+   404→          <HateSpeechTab items={hateSpeechItems} isLoading={eventsLoading} />
+   405→        </TabsContent>
+   406→      </Tabs>
+   407→
+   408→      {/* ── Log Event Dialog ── */}
+   409→      <Dialog open={eventDialogOpen} onOpenChange={setEventDialogOpen}>
+   410→        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+   411→          <DialogHeader>
+   412→            <DialogTitle>Log Campaign Event</DialogTitle>
+   413→            <DialogDescription>Record a new campaign event for monitoring and AI analysis.</DialogDescription>
+   414→          </DialogHeader>
+   415→          <div className="grid gap-3 py-2">
+   416→            <div className="grid gap-1.5">
+   417→              <Label className="text-xs">Event Type</Label>
+   418→              <Select value={eventForm.eventType} onValueChange={v => setEventForm(f => ({ ...f, eventType: v }))}>
+   419→                <SelectTrigger size="sm" className="w-full text-xs">
+   420→                  <SelectValue placeholder="Select event type..." />
+   421→                </SelectTrigger>
+   422→                <SelectContent>
+   423→                  {Object.entries(EVENT_TYPES).map(([key, label]) => (
+   424→                    <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+   425→                  ))}
+   426→                </SelectContent>
+   427→              </Select>
+   428→            </div>
+   429→            <div className="grid gap-1.5">
+   430→              <Label className="text-xs">Title</Label>
+   431→              <Input
+   432→                placeholder="e.g. Gubernatorial Rally – Lagos"
+   433→                className="text-xs h-8"
+   434→                value={eventForm.title}
+   435→                onChange={e => setEventForm(f => ({ ...f, title: e.target.value }))}
+   436→              />
+   437→            </div>
+   438→            <div className="grid grid-cols-2 gap-3">
+   439→              <div className="grid gap-1.5">
+   440→                <Label className="text-xs">Party</Label>
+   441→                <Select value={eventForm.party} onValueChange={v => setEventForm(f => ({ ...f, party: v }))}>
+   442→                  <SelectTrigger size="sm" className="w-full text-xs">
+   443→                    <SelectValue placeholder="Select party..." />
+   444→                  </SelectTrigger>
+   445→                  <SelectContent>
+   446→                    {Object.keys(PARTY_COLORS).map(p => (
+   447→                      <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>
+   448→                    ))}
+   449→                  </SelectContent>
+   450→                </Select>
+   451→              </div>
+   452→              <div className="grid gap-1.5">
+   453→                <Label className="text-xs">Tone</Label>
+   454→                <Select value={eventForm.tone} onValueChange={v => setEventForm(f => ({ ...f, tone: v }))}>
+   455→                  <SelectTrigger size="sm" className="w-full text-xs">
+   456→                    <SelectValue placeholder="Select tone..." />
+   457→                  </SelectTrigger>
+   458→                  <SelectContent>
+   459→                    {Object.keys(TONE_STYLES).map(t => (
+   460→                      <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+   461→                    ))}
+   462→                  </SelectContent>
+   463→                </Select>
+   464→              </div>
+   465→            </div>
+   466→            <div className="grid grid-cols-2 gap-3">
+   467→              <div className="grid gap-1.5">
+   468→                <Label className="text-xs">State</Label>
+   469→                <Input
+   470→                  placeholder="e.g. Lagos"
+   471→                  className="text-xs h-8"
+   472→                  value={eventForm.state}
+   473→                  onChange={e => setEventForm(f => ({ ...f, state: e.target.value }))}
+   474→                />
+   475→              </div>
+   476→              <div className="grid gap-1.5">
+   477→                <Label className="text-xs">LGA</Label>
+   478→                <Input
+   479→                  placeholder="e.g. Ikeja"
+   480→                  className="text-xs h-8"
+   481→                  value={eventForm.lga}
+   482→                  onChange={e => setEventForm(f => ({ ...f, lga: e.target.value }))}
+   483→                />
+   484→              </div>
+   485→            </div>
+   486→            <div className="grid gap-1.5">
+   487→              <Label className="text-xs">Venue</Label>
+   488→              <Input
+   489→                placeholder="e.g. Tafawa Balewa Square"
+   490→                className="text-xs h-8"
+   491→                value={eventForm.venue}
+   492→                onChange={e => setEventForm(f => ({ ...f, venue: e.target.value }))}
+   493→              />
+   494→            </div>
+   495→            <div className="grid gap-1.5">
+   496→              <Label className="text-xs">Estimated Crowd Size</Label>
+   497→              <Input
+   498→                type="number"
+   499→                placeholder="e.g. 5000"
+   500→                className="text-xs h-8"
+   501→                value={eventForm.estimatedCrowd}
+   502→                onChange={e => setEventForm(f => ({ ...f, estimatedCrowd: e.target.value }))}
+   503→              />
+   504→            </div>
+   505→            <div className="grid gap-1.5">
+   506→              <Label className="text-xs">Description</Label>
+   507→              <Textarea
+   508→                placeholder="Describe the event details..."
+   509→                className="text-xs min-h-[60px]"
+   510→                value={eventForm.description}
+   511→                onChange={e => setEventForm(f => ({ ...f, description: e.target.value }))}
+   512→              />
+   513→            </div>
+   514→            <div className="flex justify-end gap-2 pt-2">
+   515→              <Button variant="outline" size="sm" className="text-xs" onClick={() => setEventDialogOpen(false)}>
+   516→                Cancel
+   517→              </Button>
+   518→              <Button
+   519→                size="sm"
+   520→                className="text-xs bg-emerald hover:bg-emerald/90 text-white"
+   521→                disabled={!eventForm.eventType || !eventForm.title || !eventForm.state || logEventMutation.isPending}
+   522→                onClick={() => logEventMutation.mutate({
+   523→                  eventType: eventForm.eventType,
+   524→                  title: eventForm.title,
+   525→                  party: eventForm.party || null,
+   526→                  state: eventForm.state,
+   527→                  lga: eventForm.lga || null,
+   528→                  venue: eventForm.venue || null,
+   529→                  estimatedCrowd: eventForm.estimatedCrowd ? parseInt(eventForm.estimatedCrowd) : null,
+   530→                  tone: eventForm.tone || null,
+   531→                  description: eventForm.description || null,
+   532→                })}
+   533→              >
+   534→                {logEventMutation.isPending && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+   535→                Log Event
+   536→              </Button>
+   537→            </div>
+   538→          </div>
+   539→        </DialogContent>
+   540→      </Dialog>
+   541→
+   542→      {/* ── Report Suppression Dialog ── */}
+   543→      <Dialog open={suppressionDialogOpen} onOpenChange={setSuppressionDialogOpen}>
+   544→        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+   545→          <DialogHeader>
+   546→            <DialogTitle>Report Voter Suppression</DialogTitle>
+   547→            <DialogDescription>Submit a verified report of voter suppression or intimidation.</DialogDescription>
+   548→          </DialogHeader>
+   549→          <div className="grid gap-3 py-2">
+   550→            <div className="grid gap-1.5">
+   551→              <Label className="text-xs">Report Type</Label>
+   552→              <Select value={suppressionForm.reportType} onValueChange={v => setSuppressionForm(f => ({ ...f, reportType: v }))}>
+   553→                <SelectTrigger size="sm" className="w-full text-xs">
+   554→                  <SelectValue placeholder="Select report type..." />
+   555→                </SelectTrigger>
+   556→                <SelectContent>
+   557→                  {Object.entries(SUPPRESSION_TYPES).map(([key, label]) => (
+   558→                    <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+   559→                  ))}
+   560→                </SelectContent>
+   561→              </Select>
+   562→            </div>
+   563→            <div className="grid gap-1.5">
+   564→              <Label className="text-xs">Title</Label>
+   565→              <Input
+   566→                placeholder="Brief title for this report"
+   567→                className="text-xs h-8"
+   568→                value={suppressionForm.title}
+   569→                onChange={e => setSuppressionForm(f => ({ ...f, title: e.target.value }))}
+   570→              />
+   571→            </div>
+   572→            <div className="grid grid-cols-2 gap-3">
+   573→              <div className="grid gap-1.5">
+   574→                <Label className="text-xs">Severity</Label>
+   575→                <Select value={suppressionForm.severity} onValueChange={v => setSuppressionForm(f => ({ ...f, severity: v }))}>
+   576→                  <SelectTrigger size="sm" className="w-full text-xs">
+   577→                    <SelectValue placeholder="Select severity..." />
+   578→                  </SelectTrigger>
+   579→                  <SelectContent>
+   580→                    {Object.keys(SEVERITY_STYLES).map(s => (
+   581→                      <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+   582→                    ))}
+   583→                  </SelectContent>
+   584→                </Select>
+   585→              </div>
+   586→              <div className="grid gap-1.5">
+   587→                <Label className="text-xs">Source</Label>
+   588→                <Input
+   589→                  placeholder="e.g. Field Agent, Social Media"
+   590→                  className="text-xs h-8"
+   591→                  value={suppressionForm.source}
+   592→                  onChange={e => setSuppressionForm(f => ({ ...f, source: e.target.value }))}
+   593→                />
+   594→              </div>
+   595→            </div>
+   596→            <div className="grid grid-cols-2 gap-3">
+   597→              <div className="grid gap-1.5">
+   598→                <Label className="text-xs">State</Label>
+   599→                <Input
+   600→                  placeholder="e.g. Rivers"
+   601→                  className="text-xs h-8"
+   602→                  value={suppressionForm.state}
+   603→                  onChange={e => setSuppressionForm(f => ({ ...f, state: e.target.value }))}
+   604→                />
+   605→              </div>
+   606→              <div className="grid gap-1.5">
+   607→                <Label className="text-xs">LGA</Label>
+   608→                <Input
+   609→                  placeholder="e.g. Obio-Akpor"
+   610→                  className="text-xs h-8"
+   611→                  value={suppressionForm.lga}
+   612→                  onChange={e => setSuppressionForm(f => ({ ...f, lga: e.target.value }))}
+   613→                />
+   614→              </div>
+   615→            </div>
+   616→            <div className="grid gap-1.5">
+   617→              <Label className="text-xs">Description</Label>
+   618→              <Textarea
+   619→                placeholder="Describe the suppression incident in detail..."
+   620→                className="text-xs min-h-[80px]"
+   621→                value={suppressionForm.description}
+   622→                onChange={e => setSuppressionForm(f => ({ ...f, description: e.target.value }))}
+   623→              />
+   624→            </div>
+   625→            <div className="flex justify-end gap-2 pt-2">
+   626→              <Button variant="outline" size="sm" className="text-xs" onClick={() => setSuppressionDialogOpen(false)}>
+   627→                Cancel
+   628→              </Button>
+   629→              <Button
+   630→                size="sm"
+   631→                className="text-xs bg-rose hover:bg-rose/90 text-white"
+   632→                disabled={!suppressionForm.reportType || !suppressionForm.title || reportSuppressionMutation.isPending}
+   633→                onClick={() => reportSuppressionMutation.mutate({
+   634→                  reportType: suppressionForm.reportType,
+   635→                  title: suppressionForm.title,
+   636→                  description: suppressionForm.description || null,
+   637→                  state: suppressionForm.state || null,
+   638→                  lga: suppressionForm.lga || null,
+   639→                  source: suppressionForm.source || null,
+   640→                  severity: suppressionForm.severity || null,
+   641→                })}
+   642→              >
+   643→                {reportSuppressionMutation.isPending && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
+   644→                Submit Report
+   645→              </Button>
+   646→            </div>
+   647→          </div>
+   648→        </DialogContent>
+   649→      </Dialog>
+   650→    </div>
+   651→  );
+   652→}
+   653→
+   654→// ─── Events Tab ──────────────────────────────────────────────────────────────
+   655→
+   656→function EventsTab({
+   657→  events, counts, weekCount, isLoading, error, partyFilter, setPartyFilter,
+   658→  typeFilter, setTypeFilter, onLogEvent, refetch,
+   659→}: {
+   660→  events: CampaignEvent[];
+   661→  counts: CampaignEventsData['counts'];
+   662→  weekCount: number;
+   663→  isLoading: boolean;
+   664→  error: Error | null;
+   665→  partyFilter: string;
+   666→  setPartyFilter: (v: string) => void;
+   667→  typeFilter: string;
+   668→  setTypeFilter: (v: string) => void;
+   669→  onLogEvent: () => void;
+   670→  refetch: () => void;
+   671→}) {
+   672→  if (isLoading) {
+   673→    return (
+   674→      <div className="flex-1 flex items-center justify-center">
+   675→        <div className="text-center space-y-3">
+   676→          <Loader2 className="h-6 w-6 animate-spin text-emerald mx-auto" />
+   677→          <p className="text-sm text-muted-foreground">Loading campaign events...</p>
+   678→        </div>
+   679→      </div>
+   680→    );
+   681→  }
+   682→
+   683→  if (error) {
+   684→    return (
+   685→      <div className="flex-1 flex items-center justify-center">
+   686→        <div className="text-center space-y-3">
+   687→          <AlertTriangle className="h-6 w-6 text-amber mx-auto" />
+   688→          <p className="text-sm text-muted-foreground">Failed to load campaign events</p>
+   689→          <Button variant="outline" size="sm" onClick={refetch}>Retry</Button>
+   690→        </div>
+   691→      </div>
+   692→    );
+   693→  }
+   694→
+   695→  return (
+   696→    <>
+   697→      {/* KPI Row */}
+   698→      <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
+   699→        <KpiCard label="Total Events" value={counts.total} icon={<Megaphone className="h-3.5 w-3.5" />} color="text-emerald" />
+   700→        <KpiCard label="This Week" value={weekCount} icon={<Calendar className="h-3.5 w-3.5" />} color="text-cyan" />
+   701→        <KpiCard label="Hate Speech Flags" value={counts.hateSpeechFlags} icon={<Flag className="h-3.5 w-3.5" />} color="text-rose" />
+   702→        <KpiCard label="State Resource Misuse" value={counts.stateResourceFlags} icon={<Shield className="h-3.5 w-3.5" />} color="text-amber" />
+   703→      </div>
+   704→
+   705→      {/* Filters + Actions */}
+   706→      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0 flex-wrap">
+   707→        <Select value={partyFilter} onValueChange={setPartyFilter}>
+   708→          <SelectTrigger size="sm" className="w-28 text-[11px]">
+   709→            <SelectValue placeholder="Party" />
+   710→          </SelectTrigger>
+   711→          <SelectContent>
+   712→            <SelectItem value="ALL" className="text-xs">All Parties</SelectItem>
+   713→            {Object.keys(PARTY_COLORS).map(p => (
+   714→              <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>
+   715→            ))}
+   716→          </SelectContent>
+   717→        </Select>
+   718→        <Select value={typeFilter} onValueChange={setTypeFilter}>
+   719→          <SelectTrigger size="sm" className="w-36 text-[11px]">
+   720→            <SelectValue placeholder="Event Type" />
+   721→          </SelectTrigger>
+   722→          <SelectContent>
+   723→            <SelectItem value="ALL" className="text-xs">All Types</SelectItem>
+   724→            {Object.entries(EVENT_TYPES).map(([k, v]) => (
+   725→              <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+   726→            ))}
+   727→          </SelectContent>
+   728→        </Select>
+   729→        <div className="ml-auto">
+   730→          <Button size="sm" className="text-xs h-7 gap-1.5 bg-emerald hover:bg-emerald/90 text-white" onClick={onLogEvent}>
+   731→            <Plus className="h-3 w-3" /> Log Event
+   732→          </Button>
+   733→        </div>
+   734→      </div>
+   735→
+   736→      {/* Events Grid */}
+   737→      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+   738→        {events.length === 0 ? (
+   739→          <div className="h-full flex items-center justify-center">
+   740→            <div className="text-center space-y-2">
+   741→              <Megaphone className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+   742→              <p className="text-sm text-muted-foreground">No campaign events found</p>
+   743→              <p className="text-[11px] text-muted-foreground/60">Log your first campaign event to begin monitoring</p>
+   744→            </div>
+   745→          </div>
+   746→        ) : (
+   747→          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+   748→            <AnimatePresence>
+   749→              {events.map((event, idx) => (
+   750→                <motion.div
+   751→                  key={event.id}
+   752→                  initial={{ opacity: 0, y: 8 }}
+   753→                  animate={{ opacity: 1, y: 0 }}
+   754→                  transition={{ delay: Math.min(idx, 15) * 0.03, duration: 0.25 }}
+   755→                >
+   756→                  <Card className="border-border bg-card/40 rounded-xl overflow-hidden">
+   757→                    <CardContent className="p-3 space-y-2.5">
+   758→                      {/* Top row: icon + type + party */}
+   759→                      <div className="flex items-start gap-2">
+   760→                        <div className={cn(
+   761→                          'shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
+   762→                          event.eventType === 'RALLY' ? 'bg-emerald/15 text-emerald' :
+   763→                          event.eventType === 'DEBATE' ? 'bg-violet/15 text-violet' :
+   764→                          event.eventType === 'TOWN_HALL' ? 'bg-cyan/15 text-cyan' :
+   765→                          event.eventType === 'PRESS_CONF' ? 'bg-amber/15 text-amber' :
+   766→                          'bg-muted text-muted-foreground'
+   767→                        )}>
+   768→                          {EVENT_ICONS[event.eventType] || <Megaphone className="h-4 w-4" />}
+   769→                        </div>
+   770→                        <div className="flex-1 min-w-0">
+   771→                          <p className="text-xs font-semibold truncate">{event.title}</p>
+   772→                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+   773→                            <Badge className={cn('text-[9px] h-4 border', PARTY_COLORS[event.party] || 'border-muted text-muted-foreground')}>
+   774→                              {event.party}
+   775→                            </Badge>
+   776→                            <Badge className={cn('text-[9px] h-4 border', TONE_STYLES[event.tone] || 'border-muted text-muted-foreground')}>
+   777→                              {event.tone}
+   778→                            </Badge>
+   779→                          </div>
+   780→                        </div>
+   781→                      </div>
+   782→
+   783→                      {/* Location */}
+   784→                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+   785→                        <MapPin className="h-3 w-3 shrink-0" />
+   786→                        <span className="truncate">{event.venue || 'Unknown venue'}</span>
+   787→                      </div>
+   788→                      <div className="text-[11px] text-muted-foreground">
+   789→                        {event.state}{event.lga ? ` / ${event.lga}` : ''}
+   790→                      </div>
+   791→
+   792→                      {/* Stats row */}
+   793→                      <div className="flex items-center gap-3 text-[11px]">
+   794→                        <span className="flex items-center gap-1 text-muted-foreground">
+   795→                          <Users className="h-3 w-3" />
+   796→                          {formatNumber(event.estimatedCrowd)}
+   797→                        </span>
+   798→                        <span className="flex items-center gap-1 text-muted-foreground">
+   799→                          <Calendar className="h-3 w-3" />
+   800→                          {event.eventDate ? formatTime(event.eventDate) : '—'}
+   801→                        </span>
+   802→                      </div>
+   803→
+   804→                      {/* AI Flags */}
+   805→                      {event.aiFlags && event.aiFlags.length > 0 && (
+   806→                        <div className="flex items-center gap-1 flex-wrap">
+   807→                          {event.aiFlags.map(flag => (
+   808→                            <Badge
+   809→                              key={flag}
+   810→                              variant="outline"
+   811→                              className={cn(
+   812→                                'text-[9px] h-4',
+   813→                                flag === 'hate_speech_detected'
+   814→                                  ? 'border-rose/30 text-rose'
+   815→                                  : flag.includes('state_resource')
+   816→                                    ? 'border-amber/30 text-amber'
+   817→                                    : 'border-cyan/30 text-cyan'
+   818→                              )}
+   819→                            >
+   820→                              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+   821→                              {flag.replace(/_/g, ' ')}
+   822→                            </Badge>
+   823→                          ))}
+   824→                        </div>
+   825→                      )}
+   826→
+   827→                      {/* Reporter */}
+   828→                      {event.reporter && (
+   829→                        <p className="text-[10px] text-muted-foreground/60 truncate">
+   830→                          Reported by {event.reporter.name}
+   831→                        </p>
+   832→                      )}
+   833→                    </CardContent>
+   834→                  </Card>
+   835→                </motion.div>
+   836→              ))}
+   837→            </AnimatePresence>
+   838→          </div>
+   839→        )}
+   840→      </div>
+   841→    </>
+   842→  );
+   843→}
+   844→
+   845→// ─── Suppression Tab ─────────────────────────────────────────────────────────
+   846→
+   847→function SuppressionTab({
+   848→  reports, counts, verifiedCount, pendingCount, isLoading, error,
+   849→  typeFilter, setTypeFilter, severityFilter, setSeverityFilter,
+   850→  statusFilter, setStatusFilter, onReportSuppression, refetch,
+   851→}: {
+   852→  reports: SuppressionReport[];
+   853→  counts: SuppressionData['counts'];
+   854→  verifiedCount: number;
+   855→  pendingCount: number;
+   856→  isLoading: boolean;
+   857→  error: Error | null;
+   858→  typeFilter: string;
+   859→  setTypeFilter: (v: string) => void;
+   860→  severityFilter: string;
+   861→  setSeverityFilter: (v: string) => void;
+   862→  statusFilter: string;
+   863→  setStatusFilter: (v: string) => void;
+   864→  onReportSuppression: () => void;
+   865→  refetch: () => void;
+   866→}) {
+   867→  if (isLoading) {
+   868→    return (
+   869→      <div className="flex-1 flex items-center justify-center">
+   870→        <div className="text-center space-y-3">
+   871→          <Loader2 className="h-6 w-6 animate-spin text-rose mx-auto" />
+   872→          <p className="text-sm text-muted-foreground">Loading suppression reports...</p>
+   873→        </div>
+   874→      </div>
+   875→    );
+   876→  }
+   877→
+   878→  if (error) {
+   879→    return (
+   880→      <div className="flex-1 flex items-center justify-center">
+   881→        <div className="text-center space-y-3">
+   882→          <AlertTriangle className="h-6 w-6 text-amber mx-auto" />
+   883→          <p className="text-sm text-muted-foreground">Failed to load suppression reports</p>
+   884→          <Button variant="outline" size="sm" onClick={refetch}>Retry</Button>
+   885→        </div>
+   886→      </div>
+   887→    );
+   888→  }
+   889→
+   890→  return (
+   891→    <>
+   892→      {/* KPI Row */}
+   893→      <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
+   894→        <KpiCard label="Total Reports" value={counts.total} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="text-rose" />
+   895→        <KpiCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-3.5 w-3.5" />} color="text-emerald" />
+   896→        <KpiCard label="Pending" value={pendingCount} icon={<Eye className="h-3.5 w-3.5" />} color="text-amber" />
+   897→        <KpiCard label="Disinformation" value={counts.disinformationCount} icon={<XCircle className="h-3.5 w-3.5" />} color="text-violet" />
+   898→      </div>
+   899→
+   900→      {/* Filters + Actions */}
+   901→      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0 flex-wrap">
+   902→        <Select value={typeFilter} onValueChange={setTypeFilter}>
+   903→          <SelectTrigger size="sm" className="w-36 text-[11px]">
+   904→            <SelectValue placeholder="Type" />
+   905→          </SelectTrigger>
+   906→          <SelectContent>
+   907→            <SelectItem value="ALL" className="text-xs">All Types</SelectItem>
+   908→            {Object.entries(SUPPRESSION_TYPES).map(([k, v]) => (
+   909→              <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+   910→            ))}
+   911→          </SelectContent>
+   912→        </Select>
+   913→        <Select value={severityFilter} onValueChange={setSeverityFilter}>
+   914→          <SelectTrigger size="sm" className="w-28 text-[11px]">
+   915→            <SelectValue placeholder="Severity" />
+   916→          </SelectTrigger>
+   917→          <SelectContent>
+   918→            <SelectItem value="ALL" className="text-xs">All Severity</SelectItem>
+   919→            {Object.keys(SEVERITY_STYLES).map(s => (
+   920→              <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+   921→            ))}
+   922→          </SelectContent>
+   923→        </Select>
+   924→        <Select value={statusFilter} onValueChange={setStatusFilter}>
+   925→          <SelectTrigger size="sm" className="w-32 text-[11px]">
+   926→            <SelectValue placeholder="Status" />
+   927→          </SelectTrigger>
+   928→          <SelectContent>
+   929→            <SelectItem value="ALL" className="text-xs">All Status</SelectItem>
+   930→            {Object.keys(STATUS_STYLES).map(s => (
+   931→              <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+   932→            ))}
+   933→          </SelectContent>
+   934→        </Select>
+   935→        <div className="ml-auto">
+   936→          <Button size="sm" className="text-xs h-7 gap-1.5 bg-rose hover:bg-rose/90 text-white" onClick={onReportSuppression}>
+   937→            <Plus className="h-3 w-3" /> Report Suppression
+   938→          </Button>
+   939→        </div>
+   940→      </div>
+   941→
+   942→      {/* Reports Table */}
+   943→      <div className="flex-1 min-h-0 overflow-y-auto">
+   944→        {reports.length === 0 ? (
+   945→          <div className="h-full flex items-center justify-center">
+   946→            <div className="text-center space-y-2">
+   947→              <AlertTriangle className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+   948→              <p className="text-sm text-muted-foreground">No suppression reports found</p>
+   949→              <p className="text-[11px] text-muted-foreground/60">Submit a report or adjust your filters</p>
+   950→            </div>
+   951→          </div>
+   952→        ) : (
+   953→          <div className="p-3">
+   954→            <div className="rounded-xl border border-border overflow-hidden">
+   955→              <div className="overflow-x-auto">
+   956→                <table className="w-full text-xs">
+   957→                  <thead>
+   958→                    <tr className="bg-card/60 border-b border-border">
+   959→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Type</th>
+   960→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Title</th>
+   961→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">State</th>
+   962→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Severity</th>
+   963→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Source</th>
+   964→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+   965→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Disinfo</th>
+   966→                      <th className="text-right py-2 px-3 font-medium text-muted-foreground">Affected</th>
+   967→                      <th className="text-left py-2 px-3 font-medium text-muted-foreground">Date</th>
+   968→                      <th className="text-center py-2 px-3 font-medium text-muted-foreground">Actions</th>
+   969→                    </tr>
+   970→                  </thead>
+   971→                  <tbody>
+   972→                    <AnimatePresence>
+   973→                      {reports.map((report, idx) => (
+   974→                        <motion.tr
+   975→                          key={report.id}
+   976→                          initial={{ opacity: 0 }}
+   977→                          animate={{ opacity: 1 }}
+   978→                          transition={{ delay: Math.min(idx, 20) * 0.02, duration: 0.2 }}
+   979→                          className="border-b border-border/50 hover:bg-card/40 transition-colors"
+   980→                        >
+   981→                          <td className="py-2 px-3">
+   982→                            <Badge variant="outline" className="text-[9px] h-4">
+   983→                              {SUPPRESSION_TYPES[report.reportType] || report.reportType}
+   984→                            </Badge>
+   985→                          </td>
+   986→                          <td className="py-2 px-3 max-w-[180px] truncate font-medium">{report.title}</td>
+   987→                          <td className="py-2 px-3 text-muted-foreground">
+   988→                            {report.state}{report.lga ? ` / ${report.lga}` : ''}
+   989→                          </td>
+   990→                          <td className="py-2 px-3">
+   991→                            <Badge className={cn('text-[9px] h-4 border', SEVERITY_STYLES[report.severity] || 'border-muted text-muted-foreground')}>
+   992→                              {report.severity}
+   993→                            </Badge>
+   994→                          </td>
+   995→                          <td className="py-2 px-3 text-muted-foreground">{report.source || '—'}</td>
+   996→                          <td className="py-2 px-3">
+   997→                            <Badge variant="outline" className={cn('text-[9px] h-4', STATUS_STYLES[report.status] || 'border-muted text-muted-foreground')}>
+   998→                              {report.status}
+   999→                            </Badge>
+  1000→                          </td>
+  1001→                          <td className="py-2 px-3">
+  1002→                            {report.isDisinformation ? (
+  1003→                              <Badge className="bg-violet/15 text-violet border-violet/30 text-[9px] h-4">
+  1004→                                <XCircle className="h-2.5 w-2.5 mr-0.5" /> Yes
+  1005→                              </Badge>
+  1006→                            ) : (
+  1007→                              <span className="text-muted-foreground">—</span>
+  1008→                            )}
+  1009→                          </td>
+  1010→                          <td className="py-2 px-3 text-right tabular-nums">
+  1011→                            {report.affectedVoters ? report.affectedVoters.toLocaleString() : '—'}
+  1012→                          </td>
+  1013→                          <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
+  1014→                            {formatTime(report.createdAt)}
+  1015→                          </td>
+  1016→                          <td className="py-2 px-3 text-center">
+  1017→                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground">
+  1018→                              <Eye className="h-3 w-3" />
+  1019→                            </Button>
+  1020→                          </td>
+  1021→                        </motion.tr>
+  1022→                      ))}
+  1023→                    </AnimatePresence>
+  1024→                  </tbody>
+  1025→                </table>
+  1026→              </div>
+  1027→            </div>
+  1028→          </div>
+  1029→        )}
+  1030→      </div>
+  1031→    </>
+  1032→  );
+  1033→}
+  1034→
+  1035→// ─── Billboards Tab ──────────────────────────────────────────────────────────
+  1036→
+  1037→function BillboardsTab({
+  1038→  billboards, byParty, states,
+  1039→}: {
+  1040→  billboards: {
+  1041→    id: string; party: string; location: string; extractedText: string;
+  1042→    photoCount: number; dominance: number;
+  1043→  }[];
+  1044→  byParty: Record<string, number>;
+  1045→  states: string[];
+  1046→}) {
+  1047→  return (
+  1048→    <>
+  1049→      {/* Stats Row */}
+  1050→      <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
+  1051→        <KpiCard label="Total Tracked" value={billboards.length} icon={<ImageIcon className="h-3.5 w-3.5" />} color="text-emerald" />
+  1052→        <KpiCard label="Parties Covered" value={Object.keys(byParty).length} icon={<TrendingUp className="h-3.5 w-3.5" />} color="text-cyan" />
+  1053→        <KpiCard label="States Covered" value={states.length} icon={<MapPin className="h-3.5 w-3.5" />} color="text-amber" />
+  1054→      </div>
+  1055→
+  1056→      {/* Party Breakdown */}
+  1057→      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
+  1058→        <span className="text-[10px] text-muted-foreground font-medium">By Party:</span>
+  1059→        {Object.entries(byParty).map(([party, count]) => (
+  1060→          <Badge key={party} className={cn('text-[9px] h-5 border', PARTY_COLORS[party] || 'border-muted text-muted-foreground')}>
+  1061→            {party}: {count}
+  1062→          </Badge>
+  1063→        ))}
+  1064→      </div>
+  1065→
+  1066→      {/* Billboards Grid */}
+  1067→      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+  1068→        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+  1069→          <AnimatePresence>
+  1070→            {billboards.map((bb, idx) => (
+  1071→              <motion.div
+  1072→                key={bb.id}
+  1073→                initial={{ opacity: 0, y: 8 }}
+  1074→                animate={{ opacity: 1, y: 0 }}
+  1075→                transition={{ delay: idx * 0.04, duration: 0.25 }}
+  1076→              >
+  1077→                <Card className="border-border bg-card/40 rounded-xl overflow-hidden">
+  1078→                  <CardContent className="p-3 space-y-2.5">
+  1079→                    {/* Header */}
+  1080→                    <div className="flex items-start justify-between gap-2">
+  1081→                      <Badge className={cn('text-[9px] h-5 border', PARTY_COLORS[bb.party] || 'border-muted text-muted-foreground')}>
+  1082→                        {bb.party}
+  1083→                      </Badge>
+  1084→                      <div className="flex items-center gap-1">
+  1085→                        <ImageIcon className="h-3 w-3 text-muted-foreground" />
+  1086→                        <span className="text-[10px] text-muted-foreground">{bb.photoCount} photos</span>
+  1087→                      </div>
+  1088→                    </div>
+  1089→
+  1090→                    {/* Extracted Text */}
+  1091→                    <p className="text-xs font-medium text-foreground/90 leading-relaxed line-clamp-2">
+  1092→                      &ldquo;{bb.extractedText}&rdquo;
+  1093→                    </p>
+  1094→
+  1095→                    {/* Location */}
+  1096→                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+  1097→                      <MapPin className="h-3 w-3 shrink-0" />
+  1098→                      <span className="truncate">{bb.location}</span>
+  1099→                    </div>
+  1100→
+  1101→                    {/* Dominance Score */}
+  1102→                    <div className="space-y-1">
+  1103→                      <div className="flex items-center justify-between text-[10px]">
+  1104→                        <span className="text-muted-foreground">Dominance Score</span>
+  1105→                        <span className={cn(
+  1106→                          'font-semibold tabular-nums',
+  1107→                          bb.dominance >= 80 ? 'text-emerald' :
+  1108→                          bb.dominance >= 60 ? 'text-amber' : 'text-rose'
+  1109→                        )}>
+  1110→                          {bb.dominance}%
+  1111→                        </span>
+  1112→                      </div>
+  1113→                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+  1114→                        <motion.div
+  1115→                          initial={{ width: 0 }}
+  1116→                          animate={{ width: `${bb.dominance}%` }}
+  1117→                          transition={{ delay: 0.2 + idx * 0.04, duration: 0.6, ease: 'easeOut' }}
+  1118→                          className={cn(
+  1119→                            'h-full rounded-full',
+  1120→                            bb.dominance >= 80 ? 'bg-emerald' :
+  1121→                            bb.dominance >= 60 ? 'bg-amber' : 'bg-rose'
+  1122→                          )}
+  1123→                        />
+  1124→                      </div>
+  1125→                    </div>
+  1126→                  </CardContent>
+  1127→                </Card>
+  1128→              </motion.div>
+  1129→            ))}
+  1130→          </AnimatePresence>
+  1131→        </div>
+  1132→      </div>
+  1133→    </>
+  1134→  );
+  1135→}
+  1136→
+  1137→// ─── Hate Speech Tab ─────────────────────────────────────────────────────────
+  1138→
+  1139→function HateSpeechTab({
+  1140→  items, isLoading,
+  1141→}: {
+  1142→  items: CampaignEvent[];
+  1143→  isLoading: boolean;
+  1144→}) {
+  1145→  if (isLoading) {
+  1146→    return (
+  1147→      <div className="flex-1 flex items-center justify-center">
+  1148→        <div className="text-center space-y-3">
+  1149→          <Loader2 className="h-6 w-6 animate-spin text-rose mx-auto" />
+  1150→          <p className="text-sm text-muted-foreground">Scanning for hate speech...</p>
+  1151→        </div>
+  1152→      </div>
+  1153→    );
+  1154→  }
+  1155→
+  1156→  return (
+  1157→    <>
+  1158→      {/* Header stat */}
+  1159→      <div className="px-4 py-3 border-b border-border shrink-0 bg-card/30">
+  1160→        <div className="flex items-center gap-3">
+  1161→          <div className="flex items-center gap-1.5">
+  1162→            <Flag className="h-4 w-4 text-rose" />
+  1163→            <span className="text-sm font-semibold text-rose">{items.length}</span>
+  1164→            <span className="text-xs text-muted-foreground">hate speech flags detected</span>
+  1165→          </div>
+  1166→          {items.length > 0 && (
+  1167→            <Badge className="bg-rose text-white text-[10px] h-5 border-0">
+  1168→              <AlertTriangle className="h-2.5 w-2.5 mr-1" /> Requires Review
+  1169→            </Badge>
+  1170→          )}
+  1171→        </div>
+  1172→      </div>
+  1173→
+  1174→      {/* Feed */}
+  1175→      <div className="flex-1 min-h-0 overflow-y-auto p-3">
+  1176→        {items.length === 0 ? (
+  1177→          <div className="h-full flex items-center justify-center">
+  1178→            <div className="text-center space-y-2">
+  1179→              <CheckCircle className="h-8 w-8 text-emerald/30 mx-auto" />
+  1180→              <p className="text-sm text-muted-foreground">No hate speech flags detected</p>
+  1181→              <p className="text-[11px] text-muted-foreground/60">AI scans campaign events for hate speech in real-time</p>
+  1182→            </div>
+  1183→          </div>
+  1184→        ) : (
+  1185→          <div className="space-y-2">
+  1186→            <AnimatePresence>
+  1187→              {items.map((item, idx) => (
+  1188→                <motion.div
+  1189→                  key={item.id}
+  1190→                  initial={{ opacity: 0, x: -8 }}
+  1191→                  animate={{ opacity: 1, x: 0 }}
+  1192→                  transition={{ delay: idx * 0.04, duration: 0.25 }}
+  1193→                  className="rounded-xl border border-border bg-card/40 p-3 space-y-2"
+  1194→                >
+  1195→                  {/* Header row */}
+  1196→                  <div className="flex items-center gap-2 flex-wrap">
+  1197→                    <Badge className="bg-rose text-white text-[9px] h-5 border-0">
+  1198→                      <Flag className="h-2.5 w-2.5 mr-0.5" /> HATE SPEECH
+  1199→                    </Badge>
+  1200→                    <Badge className={cn('text-[9px] h-5 border', PARTY_COLORS[item.party] || 'border-muted text-muted-foreground')}>
+  1201→                      {item.party}
+  1202→                    </Badge>
+  1203→                    <Badge className={cn('text-[9px] h-5 border', TONE_STYLES[item.tone] || 'border-muted text-muted-foreground')}>
+  1204→                      {item.tone}
+  1205→                    </Badge>
+  1206→                    <Badge className={cn(
+  1207→                      'text-[9px] h-5 border',
+  1208→                      item.incidentCount > 0 ? 'bg-rose text-white border-rose/40' : 'border-amber/30 text-amber'
+  1209→                    )}>
+  1210→                      {item.incidentCount > 0 ? 'CRITICAL' : 'WARNING'}
+  1211→                    </Badge>
+  1212→                  </div>
+  1213→
+  1214→                  {/* Title & Description */}
+  1215→                  <div>
+  1216→                    <p className="text-xs font-semibold">{item.title}</p>
+  1217→                    {item.description && (
+  1218→                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-3 leading-relaxed">
+  1219→                        {item.description}
+  1220→                      </p>
+  1221→                    )}
+  1222→                  </div>
+  1223→
+  1224→                  {/* AI Analysis / Flags */}
+  1225→                  {item.aiFlags && item.aiFlags.length > 0 && (
+  1226→                    <div className="flex items-start gap-2 rounded-lg bg-rose/5 border border-rose/10 p-2">
+  1227→                      <Shield className="h-3.5 w-3.5 text-rose shrink-0 mt-0.5" />
+  1228→                      <div className="space-y-1">
+  1229→                        <p className="text-[10px] font-medium text-rose">AI Analysis</p>
+  1230→                        <div className="flex items-center gap-1 flex-wrap">
+  1231→                          {item.aiFlags.map(flag => (
+  1232→                            <Badge key={flag} variant="outline" className="text-[9px] h-4 border-rose/30 text-rose">
+  1233→                              {flag.replace(/_/g, ' ')}
+  1234→                            </Badge>
+  1235→                          ))}
+  1236→                        </div>
+  1237→                      </div>
+  1238→                    </div>
+  1239→                  )}
+  1240→
+  1241→                  {/* Meta */}
+  1242→                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+  1243→                    <span className="flex items-center gap-1">
+  1244→                      <MapPin className="h-3 w-3" />{item.state}{item.lga ? ` / ${item.lga}` : ''}
+  1245→                    </span>
+  1246→                    <span className="flex items-center gap-1">
+  1247→                      <Calendar className="h-3 w-3" />{item.eventDate ? formatTime(item.eventDate) : '—'}
+  1248→                    </span>
+  1249→                    {item.reporter && (
+  1250→                      <span className="flex items-center gap-1">
+  1251→                        <Users className="h-3 w-3" />{item.reporter.name}
+  1252→                      </span>
+  1253→                    )}
+  1254→                    <span className="flex items-center gap-1">
+  1255→                      <Mic className="h-3 w-3" />{EVENT_TYPES[item.eventType] || item.eventType}
+  1256→                    </span>
+  1257→                  </div>
+  1258→                </motion.div>
+  1259→              ))}
+  1260→            </AnimatePresence>
+  1261→          </div>
+  1262→        )}
+  1263→      </div>
+  1264→    </>
+  1265→  );
+  1266→}
+  1267→
+  1268→// ─── KPI Card ────────────────────────────────────────────────────────────────
+  1269→
+  1270→function KpiCard({
+  1271→  label, value, icon, color,
+  1272→}: {
+  1273→  label: string;
+  1274→  value: number;
+  1275→  icon: React.ReactNode;
+  1276→  color: string;
+  1277→}) {
+  1278→  return (
+  1279→    <Card className="border-border bg-card/40 rounded-xl">
+  1280→      <CardContent className="p-2.5 flex flex-col items-center justify-center gap-1">
+  1281→        <div className="flex items-center gap-1">
+  1282→          <span className={color}>{icon}</span>
+  1283→          <span className={cn('text-base font-bold tabular-nums', color)}>{value}</span>
+  1284→        </div>
+  1285→        <span className="text-[10px] text-muted-foreground text-center leading-tight">{label}</span>
+  1286→      </CardContent>
+  1287→    </Card>
+  1288→  );
+  1289→}

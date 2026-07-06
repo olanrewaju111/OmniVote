@@ -1,0 +1,1210 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import {
+     7→  Megaphone, Upload, Users, Send, CheckCircle, AlertTriangle, Clock,
+     8→  BarChart3, Plus, Phone, Shield, FileText, Pause, Play, Loader2,
+     9→  X, Eye, MessageCircle, UserPlus, Check,
+    10→} from 'lucide-react';
+    11→import { Card, CardContent } from '@/components/ui/card';
+    12→import { Badge } from '@/components/ui/badge';
+    13→import { Button } from '@/components/ui/button';
+    14→import { Input } from '@/components/ui/input';
+    15→import { Textarea } from '@/components/ui/textarea';
+    16→import { Checkbox } from '@/components/ui/checkbox';
+    17→import { Label } from '@/components/ui/label';
+    18→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    19→import {
+    20→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    21→} from '@/components/ui/table';
+    22→import {
+    23→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    24→  DialogHeader, DialogTitle,
+    25→} from '@/components/ui/dialog';
+    26→import {
+    27→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    28→} from '@/components/ui/select';
+    29→import { cn } from '@/lib/utils';
+    30→import { toast } from 'sonner';
+    31→import { useDashboardStore } from '@/store/dashboard';
+    32→
+    33→// ─── Types ───────────────────────────────────────────────────────────
+    34→
+    35→interface Campaign {
+    36→  id: string;
+    37→  name: string;
+    38→  templateName: string | null;
+    39→  templateBody: string | null;
+    40→  templateStatus: string | null;
+    41→  contactListId: string | null;
+    42→  segment: string | null;
+    43→  status: string;
+    44→  channel: string;
+    45→  scheduledAt: string | null;
+    46→  startedAt: string | null;
+    47→  completedAt: string | null;
+    48→  rateLimitPerMin: number | null;
+    49→  totalRecipients: number;
+    50→  sentCount: number;
+    51→  deliveredCount: number;
+    52→  readCount: number;
+    53→  failedCount: number;
+    54→  optOutCount: number;
+    55→  consentEnforced: boolean;
+    56→  wabaCompliant: boolean;
+    57→  createdAt: string;
+    58→  contactList: { id: string; name: string; segment: string; contactCount: number } | null;
+    59→}
+    60→
+    61→interface ContactList {
+    62→  id: string;
+    63→  name: string;
+    64→  segment: string;
+    65→  contactCount: number;
+    66→  optedOutCount: number;
+    67→  consentVerified: boolean;
+    68→  createdAt: string;
+    69→}
+    70→
+    71→interface CampaignStats {
+    72→  totalCampaigns: number;
+    73→  activeSending: number;
+    74→  totalDelivered: number;
+    75→  totalOptOuts: number;
+    76→  totalContacts: number;
+    77→}
+    78→
+    79→interface CampaignData {
+    80→  campaigns: Campaign[];
+    81→  contactLists: ContactList[];
+    82→  stats: CampaignStats;
+    83→}
+    84→
+    85→interface MessageTemplate {
+    86→  id: string;
+    87→  name: string;
+    88→  body: string;
+    89→  category: string;
+    90→  isBuiltIn: boolean;
+    91→}
+    92→
+    93→// ─── Constants ───────────────────────────────────────────────────────
+    94→
+    95→const SEGMENT_OPTIONS = [
+    96→  { value: 'PARTY_MEMBERS', label: 'Party Members' },
+    97→  { value: 'POLLING_AGENTS', label: 'Polling Agents' },
+    98→  { value: 'VOLUNTEERS', label: 'Volunteers' },
+    99→  { value: 'SUBSCRIBERS', label: 'Subscribers' },
+   100→  { value: 'ALL', label: 'All Segments' },
+   101→];
+   102→
+   103→const CHANNEL_OPTIONS = [
+   104→  { value: 'WHATSAPP', label: 'WhatsApp' },
+   105→  { value: 'SMS', label: 'SMS' },
+   106→];
+   107→
+   108→const STATUS_STYLES: Record<string, string> = {
+   109→  DRAFT: 'border-amber/30 text-amber bg-amber/10',
+   110→  SCHEDULED: 'border-cyan/30 text-cyan bg-cyan/10',
+   111→  SENDING: 'border-violet/30 text-violet bg-violet/10',
+   112→  COMPLETED: 'border-emerald/30 text-emerald bg-emerald/10',
+   113→  PAUSED: 'border-amber/30 text-amber bg-amber/10',
+   114→  FAILED: 'border-rose/30 text-rose bg-rose/10',
+   115→  CANCELLED: 'border-muted-foreground/30 text-muted-foreground bg-muted-foreground/10',
+   116→};
+   117→
+   118→const STATUS_ICONS: Record<string, React.ReactNode> = {
+   119→  DRAFT: <FileText className="h-3 w-3" />,
+   120→  SCHEDULED: <Clock className="h-3 w-3" />,
+   121→  SENDING: <Send className="h-3 w-3" />,
+   122→  COMPLETED: <CheckCircle className="h-3 w-3" />,
+   123→  PAUSED: <Pause className="h-3 w-3" />,
+   124→  FAILED: <AlertTriangle className="h-3 w-3" />,
+   125→  CANCELLED: <X className="h-3 w-3" />,
+   126→};
+   127→
+   128→const BUILT_IN_TEMPLATES: MessageTemplate[] = [
+   129→  {
+   130→    id: 'tmpl-gotv',
+   131→    name: 'GOTV Reminder',
+   132→    body: '🗳️ *Election Day Reminder*\n\nDear {name},\n\nTomorrow is election day! Your polling unit is at *{polling_unit}*.\n\n📅 Date: {election_date}\n🕐 Time: 8:00 AM – 2:00 PM\n\nRemember to come with your PVC and arrive early. Every vote counts!\n\n_If you have moved, visit the INEC portal to confirm your unit._\n\nPowered by OmniVote',
+   133→    category: 'GOTV',
+   134→    isBuiltIn: true,
+   135→  },
+   136→  {
+   137→    id: 'tmpl-rally',
+   138→    name: 'Rally Invitation',
+   139→    body: '📢 *You\'re Invited to Our Campaign Rally!*\n\nDear {name},\n\nJoin us for a mass rally:\n\n📍 Venue: {venue}\n📅 Date: {date}\n🕐 Time: {time}\n\nCome with friends and family. Let\'s show our strength together!\n\n_Reply STOP to opt out._',
+   140→    category: 'RALLY',
+   141→    isBuiltIn: true,
+   142→  },
+   143→  {
+   144→    id: 'tmpl-factcheck',
+   145→    name: 'Fact-Check Bulletin',
+   146→    body: '🔍 *Fact-Check Alert*\n\n⚠️ *Claim:* "{claim}"\n✅ *Verdict:* {verdict}\n\n_{explanation}_\n\nStay informed. Verify before you share.\n\nReport misinformation: reply FACT {phone_number}',
+   147→    category: 'FACT_CHECK',
+   148→    isBuiltIn: true,
+   149→  },
+   150→  {
+   151→    id: 'tmpl-polling',
+   152→    name: 'Polling Location Update',
+   153→    body: '📍 *Polling Unit Update*\n\nDear {name},\n\nYour polling unit has been updated:\n\n🏛️ PU Code: {pu_code}\n📍 Location: {pu_address}\nward: {ward}\nLGA: {lga}\n\nPlease verify at voters.inecnigeria.org\n\n_Reply HELP for support._',
+   154→    category: 'LOGISTICS',
+   155→    isBuiltIn: true,
+   156→  },
+   157→  {
+   158→    id: 'tmpl-education',
+   159→    name: 'Voter Education Tip',
+   160→    body: '📚 *Did You Know?*\n\n{tip}\n\n💡 *Quick tip:* {action_item}\n\nShare this with 5 friends. An informed voter is a powerful voter!\n\n_This is an educational message from OmniVote._',
+   161→    category: 'EDUCATION',
+   162→    isBuiltIn: true,
+   163→  },
+   164→];
+   165→
+   166→// ─── Helpers ─────────────────────────────────────────────────────────
+   167→
+   168→function generateNigerianNumbers(count: number): string[] {
+   169→  const prefixes = ['0703', '0803', '0806', '0809', '0810', '0811', '0812', '0813', '0814', '0815', '0816', '0817', '0818', '0902', '0903', '0905', '0906', '0907', '0908', '0909', '0913', '0915', '0916'];
+   170→  const numbers: string[] = [];
+   171→  for (let i = 0; i < count; i++) {
+   172→    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+   173→    const suffix = String(Math.floor(Math.random() * 10_000_000)).padStart(7, '0');
+   174→    numbers.push(`${prefix}${suffix}`);
+   175→  }
+   176→  return numbers;
+   177→}
+   178→
+   179→function formatNumber(n: number): string {
+   180→  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+   181→  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+   182→  return String(n);
+   183→}
+   184→
+   185→function formatDate(d: string | null) {
+   186→  if (!d) return '—';
+   187→  return new Date(d).toLocaleDateString('en-NG', {
+   188→    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+   189→  });
+   190→}
+   191→
+   192→function segmentLabel(seg: string) {
+   193→  return SEGMENT_OPTIONS.find(s => s.value === seg)?.label ?? seg;
+   194→}
+   195→
+   196→// ─── Component ───────────────────────────────────────────────────────
+   197→
+   198→export function MobilizationEngine() {
+   199→  const queryClient = useQueryClient();
+   200→  const { tenantId } = useDashboardStore();
+   201→
+   202→  // Local UI state
+   203→  const [activeTab, setActiveTab] = useState('campaigns');
+   204→  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+   205→  const [detailOpen, setDetailOpen] = useState(false);
+   206→  const [newCampaignOpen, setNewCampaignOpen] = useState(false);
+   207→  const [uploadOpen, setUploadOpen] = useState(false);
+   208→  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+   209→  const [customTemplates, setCustomTemplates] = useState<MessageTemplate[]>([]);
+   210→
+   211→  // New campaign form
+   212→  const [campaignForm, setCampaignForm] = useState({
+   213→    name: '',
+   214→    templateBody: '',
+   215→    contactListId: '',
+   216→    segment: 'ALL',
+   217→    channel: 'WHATSAPP',
+   218→    scheduledAt: '',
+   219→    rateLimitPerMin: '50',
+   220→  });
+   221→
+   222→  // Upload contacts form
+   223→  const [uploadForm, setUploadForm] = useState({
+   224→    name: '',
+   225→    segment: 'VOLUNTEERS',
+   226→    consentChecked: false,
+   227→  });
+   228→
+   229→  // New template form
+   230→  const [templateForm, setTemplateForm] = useState({
+   231→    name: '',
+   232→    body: '',
+   233→  });
+   234→
+   235→  // ─── Data fetching ────────────────────────────────────────────────
+   236→
+   237→  const { data, isLoading } = useQuery<CampaignData>({
+   238→    queryKey: ['campaigns', tenantId],
+   239→    queryFn: async () => {
+   240→      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`);
+   241→      if (!res.ok) throw new Error('Failed to fetch campaigns');
+   242→      return res.json();
+   243→    },
+   244→    enabled: !!tenantId,
+   245→  });
+   246→
+   247→  const campaigns = data?.campaigns ?? [];
+   248→  const contactLists = data?.contactLists ?? [];
+   249→  const stats = data?.stats ?? { totalCampaigns: 0, activeSending: 0, totalDelivered: 0, totalOptOuts: 0, totalContacts: 0 };
+   250→
+   251→  const allTemplates = useMemo(
+   252→    () => [...BUILT_IN_TEMPLATES, ...customTemplates],
+   253→    [customTemplates],
+   254→  );
+   255→
+   256→  // ─── Mutations ────────────────────────────────────────────────────
+   257→
+   258→  const createCampaign = useMutation({
+   259→    mutationFn: async (payload: typeof campaignForm) => {
+   260→      const res = await fetch('/api/campaigns', {
+   261→        method: 'POST',
+   262→        headers: { 'Content-Type': 'application/json' },
+   263→        body: JSON.stringify({ ...payload, tenantId }),
+   264→      });
+   265→      if (!res.ok) throw new Error('Failed to create campaign');
+   266→      return res.json();
+   267→    },
+   268→    onSuccess: () => {
+   269→      queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
+   270→      toast.success('Campaign created successfully');
+   271→      setNewCampaignOpen(false);
+   272→      setCampaignForm({ name: '', templateBody: '', contactListId: '', segment: 'ALL', channel: 'WHATSAPP', scheduledAt: '', rateLimitPerMin: '50' });
+   273→    },
+   274→    onError: () => toast.error('Failed to create campaign'),
+   275→  });
+   276→
+   277→  const updateCampaign = useMutation({
+   278→    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+   279→      const res = await fetch('/api/campaigns', {
+   280→        method: 'PUT',
+   281→        headers: { 'Content-Type': 'application/json' },
+   282→        body: JSON.stringify({ id, status, tenantId }),
+   283→      });
+   284→      if (!res.ok) throw new Error('Failed to update campaign');
+   285→      return res.json();
+   286→    },
+   287→    onSuccess: () => {
+   288→      queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
+   289→      toast.success('Campaign updated');
+   290→    },
+   291→    onError: () => toast.error('Failed to update campaign'),
+   292→  });
+   293→
+   294→  const deleteCampaign = useMutation({
+   295→    mutationFn: async (id: string) => {
+   296→      const res = await fetch(`/api/campaigns?id=${id}&tenantId=${tenantId}`, { method: 'DELETE' });
+   297→      if (!res.ok) throw new Error('Failed to delete campaign');
+   298→      return res.json();
+   299→    },
+   300→    onSuccess: () => {
+   301→      queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
+   302→      toast.success('Campaign deleted');
+   303→      setDetailOpen(false);
+   304→    },
+   305→    onError: () => toast.error('Failed to delete campaign'),
+   306→  });
+   307→
+   308→  const uploadContacts = useMutation({
+   309→    mutationFn: async (payload: { name: string; segment: string; contacts: string[] }) => {
+   310→      const res = await fetch('/api/campaigns/contacts', {
+   311→        method: 'POST',
+   312→        headers: { 'Content-Type': 'application/json' },
+   313→        body: JSON.stringify({ ...payload, tenantId }),
+   314→      });
+   315→      if (!res.ok) throw new Error('Failed to upload contacts');
+   316→      return res.json();
+   317→    },
+   318→    onSuccess: () => {
+   319→      queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
+   320→      toast.success('Contacts uploaded successfully');
+   321→      setUploadOpen(false);
+   322→      setUploadForm({ name: '', segment: 'VOLUNTEERS', consentChecked: false });
+   323→    },
+   324→    onError: () => toast.error('Failed to upload contacts'),
+   325→  });
+   326→
+   327→  // ─── Handlers ─────────────────────────────────────────────────────
+   328→
+   329→  function handleCreateCampaign() {
+   330→    if (!campaignForm.name.trim()) { toast.error('Campaign name is required'); return; }
+   331→    if (!campaignForm.templateBody.trim()) { toast.error('Message body is required'); return; }
+   332→    createCampaign.mutate(campaignForm);
+   333→  }
+   334→
+   335→  function handleUploadContacts() {
+   336→    if (!uploadForm.name.trim()) { toast.error('List name is required'); return; }
+   337→    if (!uploadForm.consentChecked) { toast.error('You must confirm consent'); return; }
+   338→    const count = Math.floor(Math.random() * 151) + 50; // 50–200
+   339→    const contacts = generateNigerianNumbers(count);
+   340→    uploadContacts.mutate({ name: uploadForm.name, segment: uploadForm.segment, contacts });
+   341→  }
+   342→
+   343→  function handleCreateTemplate() {
+   344→    if (!templateForm.name.trim()) { toast.error('Template name is required'); return; }
+   345→    if (!templateForm.body.trim()) { toast.error('Template body is required'); return; }
+   346→    const newTmpl: MessageTemplate = {
+   347→      id: `tmpl-custom-${Date.now()}`,
+   348→      name: templateForm.name,
+   349→      body: templateForm.body,
+   350→      category: 'CUSTOM',
+   351→      isBuiltIn: false,
+   352→    };
+   353→    setCustomTemplates(prev => [...prev, newTmpl]);
+   354→    toast.success('Template saved');
+   355→    setTemplateDialogOpen(false);
+   356→    setTemplateForm({ name: '', body: '' });
+   357→  }
+   358→
+   359→  function useTemplateInCampaign(tmpl: MessageTemplate) {
+   360→    setCampaignForm(prev => ({ ...prev, templateBody: tmpl.body }));
+   361→    setNewCampaignOpen(true);
+   362→    toast.success(`Template "${tmpl.name}" loaded into campaign`);
+   363→  }
+   364→
+   365→  function openCampaignDetail(c: Campaign) {
+   366→    setSelectedCampaign(c);
+   367→    setDetailOpen(true);
+   368→  }
+   369→
+   370→  // ─── Loading state ────────────────────────────────────────────────
+   371→
+   372→  if (isLoading) {
+   373→    return (
+   374→      <div className="h-full flex items-center justify-center">
+   375→        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+   376→      </div>
+   377→    );
+   378→  }
+   379→
+   380→  // ─── KPI Row ──────────────────────────────────────────────────────
+   381→
+   382→  const kpis = [
+   383→    { label: 'Total Campaigns', value: stats.totalCampaigns, icon: <Megaphone className="h-4 w-4 text-emerald" />, color: 'text-emerald' },
+   384→    { label: 'Active Sending', value: stats.activeSending, icon: <Send className="h-4 w-4 text-cyan" />, color: 'text-cyan' },
+   385→    { label: 'Messages Delivered', value: stats.totalDelivered, icon: <CheckCircle className="h-4 w-4 text-violet" />, color: 'text-violet' },
+   386→    { label: 'Opt-Out Rate', value: stats.totalContacts > 0 ? `${((stats.totalOptOuts / Math.max(stats.totalContacts, 1)) * 100).toFixed(1)}%` : '0%', icon: <AlertTriangle className="h-4 w-4 text-amber" />, color: 'text-amber' },
+   387→  ];
+   388→
+   389→  // ─── Render ───────────────────────────────────────────────────────
+   390→
+   391→  return (
+   392→    <div className="h-full flex flex-col gap-4 overflow-hidden">
+   393→      {/* Header */}
+   394→      <div className="flex items-center justify-between shrink-0 px-1">
+   395→        <div className="flex items-center gap-2">
+   396→          <div className="p-2 rounded-lg bg-emerald/10 border border-emerald/20">
+   397→            <Megaphone className="h-5 w-5 text-emerald" />
+   398→          </div>
+   399→          <div>
+   400→            <h2 className="text-lg font-semibold tracking-tight">Mobilization Engine</h2>
+   401→            <p className="text-xs text-muted-foreground">WhatsApp campaigns &amp; voter outreach</p>
+   402→          </div>
+   403→        </div>
+   404→        <div className="flex items-center gap-2">
+   405→          <Badge variant="outline" className="text-[10px] h-5 border-emerald/30 text-emerald bg-emerald/10">
+   406→            <Shield className="h-2.5 w-2.5 mr-1" />
+   407→            WABA Compliant
+   408→          </Badge>
+   409→          <Badge variant="outline" className="text-[10px] h-5 border-cyan/30 text-cyan bg-cyan/10">
+   410→            <Phone className="h-2.5 w-2.5 mr-1" />
+   411→            {formatNumber(stats.totalContacts)} Contacts
+   412→          </Badge>
+   413→        </div>
+   414→      </div>
+   415→
+   416→      {/* KPI Row */}
+   417→      <div className="grid grid-cols-4 gap-3 shrink-0">
+   418→        {kpis.map((kpi) => (
+   419→          <motion.div
+   420→            key={kpi.label}
+   421→            initial={{ opacity: 0, y: 8 }}
+   422→            animate={{ opacity: 1, y: 0 }}
+   423→            transition={{ duration: 0.3 }}
+   424→          >
+   425→            <Card className="border-border bg-card/40 rounded-xl">
+   426→              <CardContent className="p-4">
+   427→                <div className="flex items-center justify-between mb-2">
+   428→                  <span className="text-[11px] text-muted-foreground font-medium">{kpi.label}</span>
+   429→                  {kpi.icon}
+   430→                </div>
+   431→                <p className={cn('text-2xl font-bold tabular-nums', kpi.color)}>
+   432→                  {typeof kpi.value === 'number' ? formatNumber(kpi.value) : kpi.value}
+   433→                </p>
+   434→              </CardContent>
+   435→            </Card>
+   436→          </motion.div>
+   437→        ))}
+   438→      </div>
+   439→
+   440→      {/* Tabs */}
+   441→      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+   442→        <TabsList className="shrink-0 bg-card/40 border border-border rounded-xl h-10 p-1">
+   443→          <TabsTrigger
+   444→            value="campaigns"
+   445→            className="rounded-lg text-xs data-[state=active]:bg-emerald/15 data-[state=active]:text-emerald"
+   446→          >
+   447→            <Megaphone className="h-3.5 w-3.5 mr-1.5" />
+   448→            Campaigns
+   449→            {campaigns.length > 0 && (
+   450→              <Badge variant="secondary" className="ml-1.5 text-[10px] h-4 px-1.5">{campaigns.length}</Badge>
+   451→            )}
+   452→          </TabsTrigger>
+   453→          <TabsTrigger
+   454→            value="contacts"
+   455→            className="rounded-lg text-xs data-[state=active]:bg-cyan/15 data-[state=active]:text-cyan"
+   456→          >
+   457→            <Users className="h-3.5 w-3.5 mr-1.5" />
+   458→            Contacts
+   459→            {contactLists.length > 0 && (
+   460→              <Badge variant="secondary" className="ml-1.5 text-[10px] h-4 px-1.5">{contactLists.length}</Badge>
+   461→            )}
+   462→          </TabsTrigger>
+   463→          <TabsTrigger
+   464→            value="templates"
+   465→            className="rounded-lg text-xs data-[state=active]:bg-violet/15 data-[state=active]:text-violet"
+   466→          >
+   467→            <FileText className="h-3.5 w-3.5 mr-1.5" />
+   468→            Templates
+   469→          </TabsTrigger>
+   470→        </TabsList>
+   471→
+   472→        {/* ─── Campaigns Tab ─────────────────────────────────────── */}
+   473→        <TabsContent value="campaigns" className="flex-1 min-h-0 mt-3 flex flex-col gap-3">
+   474→          <div className="flex items-center justify-between shrink-0">
+   475→            <p className="text-xs text-muted-foreground">
+   476→              {campaigns.length} campaign{campaigns.length !== 1 ? 's' : ''} found
+   477→            </p>
+   478→            <Button
+   479→              size="sm"
+   480→              className="h-8 text-xs bg-emerald hover:bg-emerald/90 text-emerald-foreground rounded-lg"
+   481→              onClick={() => setNewCampaignOpen(true)}
+   482→            >
+   483→              <Plus className="h-3.5 w-3.5 mr-1.5" />
+   484→              New Campaign
+   485→            </Button>
+   486→          </div>
+   487→
+   488→          <Card className="border-border bg-card/40 rounded-xl flex-1 min-h-0 overflow-auto">
+   489→            <CardContent className="p-0">
+   490→              <Table>
+   491→                <TableHeader>
+   492→                  <TableRow className="border-border hover:bg-transparent">
+   493→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Name</TableHead>
+   494→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Status</TableHead>
+   495→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Channel</TableHead>
+   496→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Recipients</TableHead>
+   497→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Sent</TableHead>
+   498→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Delivered</TableHead>
+   499→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Read</TableHead>
+   500→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Scheduled</TableHead>
+   501→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Actions</TableHead>
+   502→                  </TableRow>
+   503→                </TableHeader>
+   504→                <TableBody>
+   505→                  <AnimatePresence>
+   506→                    {campaigns.length === 0 ? (
+   507→                      <TableRow>
+   508→                        <TableCell colSpan={9} className="h-40 text-center">
+   509→                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+   510→                            <Megaphone className="h-8 w-8 opacity-30" />
+   511→                            <p className="text-sm">No campaigns yet</p>
+   512→                            <Button
+   513→                              size="sm"
+   514→                              variant="outline"
+   515→                              className="text-xs rounded-lg mt-1"
+   516→                              onClick={() => setNewCampaignOpen(true)}
+   517→                            >
+   518→                              <Plus className="h-3 w-3 mr-1" /> Create your first campaign
+   519→                            </Button>
+   520→                          </div>
+   521→                        </TableCell>
+   522→                      </TableRow>
+   523→                    ) : (
+   524→                      campaigns.map((c, idx) => (
+   525→                        <motion.tr
+   526→                          key={c.id}
+   527→                          initial={{ opacity: 0, y: 4 }}
+   528→                          animate={{ opacity: 1, y: 0 }}
+   529→                          transition={{ delay: idx * 0.03 }}
+   530→                          className="border-border hover:bg-muted/30 cursor-pointer transition-colors"
+   531→                          onClick={() => openCampaignDetail(c)}
+   532→                        >
+   533→                          <TableCell className="py-2.5">
+   534→                            <div className="flex items-center gap-2">
+   535→                              {c.channel === 'WHATSAPP' ? (
+   536→                                <MessageCircle className="h-3.5 w-3.5 text-emerald shrink-0" />
+   537→                              ) : (
+   538→                                <Phone className="h-3.5 w-3.5 text-amber shrink-0" />
+   539→                              )}
+   540→                              <div className="min-w-0">
+   541→                                <p className="text-xs font-medium truncate max-w-[180px]">{c.name}</p>
+   542→                                {c.contactList && (
+   543→                                  <p className="text-[10px] text-muted-foreground truncate">{c.contactList.name}</p>
+   544→                                )}
+   545→                              </div>
+   546→                            </div>
+   547→                          </TableCell>
+   548→                          <TableCell className="py-2.5">
+   549→                            <Badge variant="outline" className={cn('text-[10px] h-5 border', STATUS_STYLES[c.status] ?? 'border-border text-muted-foreground')}>
+   550→                              {STATUS_ICONS[c.status] ?? null}
+   551→                              {c.status}
+   552→                            </Badge>
+   553→                          </TableCell>
+   554→                          <TableCell className="py-2.5">
+   555→                            <span className="text-xs text-muted-foreground">{c.channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}</span>
+   556→                          </TableCell>
+   557→                          <TableCell className="py-2.5 text-right">
+   558→                            <span className="text-xs font-medium tabular-nums">{formatNumber(c.totalRecipients)}</span>
+   559→                          </TableCell>
+   560→                          <TableCell className="py-2.5 text-right">
+   561→                            <span className="text-xs tabular-nums text-muted-foreground">{formatNumber(c.sentCount)}</span>
+   562→                          </TableCell>
+   563→                          <TableCell className="py-2.5 text-right">
+   564→                            <span className="text-xs tabular-nums text-emerald font-medium">{formatNumber(c.deliveredCount)}</span>
+   565→                          </TableCell>
+   566→                          <TableCell className="py-2.5 text-right">
+   567→                            <span className="text-xs tabular-nums text-violet">{formatNumber(c.readCount)}</span>
+   568→                          </TableCell>
+   569→                          <TableCell className="py-2.5">
+   570→                            <span className="text-[11px] text-muted-foreground">{formatDate(c.scheduledAt)}</span>
+   571→                          </TableCell>
+   572→                          <TableCell className="py-2.5 text-right" onClick={e => e.stopPropagation()}>
+   573→                            <div className="flex items-center justify-end gap-1">
+   574→                              <Button
+   575→                                variant="ghost"
+   576→                                size="sm"
+   577→                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+   578→                                onClick={() => openCampaignDetail(c)}
+   579→                              >
+   580→                                <Eye className="h-3.5 w-3.5" />
+   581→                              </Button>
+   582→                              {c.status === 'SCHEDULED' && (
+   583→                                <Button
+   584→                                  variant="ghost"
+   585→                                  size="sm"
+   586→                                  className="h-7 w-7 p-0 text-emerald hover:text-emerald"
+   587→                                  onClick={() => updateCampaign.mutate({ id: c.id, status: 'SENDING' })}
+   588→                                  disabled={updateCampaign.isPending}
+   589→                                >
+   590→                                  <Play className="h-3.5 w-3.5" />
+   591→                                </Button>
+   592→                              )}
+   593→                              {c.status === 'SENDING' && (
+   594→                                <Button
+   595→                                  variant="ghost"
+   596→                                  size="sm"
+   597→                                  className="h-7 w-7 p-0 text-amber hover:text-amber"
+   598→                                  onClick={() => updateCampaign.mutate({ id: c.id, status: 'PAUSED' })}
+   599→                                  disabled={updateCampaign.isPending}
+   600→                                >
+   601→                                  <Pause className="h-3.5 w-3.5" />
+   602→                                </Button>
+   603→                              )}
+   604→                            </div>
+   605→                          </TableCell>
+   606→                        </motion.tr>
+   607→                      ))
+   608→                    )}
+   609→                  </AnimatePresence>
+   610→                </TableBody>
+   611→              </Table>
+   612→            </CardContent>
+   613→          </Card>
+   614→        </TabsContent>
+   615→
+   616→        {/* ─── Contacts Tab ──────────────────────────────────────── */}
+   617→        <TabsContent value="contacts" className="flex-1 min-h-0 mt-3 flex flex-col gap-3">
+   618→          <div className="flex items-center justify-between shrink-0">
+   619→            <div className="flex items-center gap-3">
+   620→              <p className="text-xs text-muted-foreground">
+   621→                {contactLists.length} list{contactLists.length !== 1 ? 's' : ''}
+   622→              </p>
+   623→              <Badge variant="outline" className="text-[10px] h-5 border-cyan/30 text-cyan bg-cyan/10">
+   624→                <Users className="h-2.5 w-2.5 mr-1" />
+   625→                {formatNumber(stats.totalContacts)} Total Contacts
+   626→              </Badge>
+   627→            </div>
+   628→            <Button
+   629→              size="sm"
+   630→              className="h-8 text-xs bg-cyan hover:bg-cyan/90 text-cyan-foreground rounded-lg"
+   631→              onClick={() => setUploadOpen(true)}
+   632→            >
+   633→              <Upload className="h-3.5 w-3.5 mr-1.5" />
+   634→              Upload Contacts
+   635→            </Button>
+   636→          </div>
+   637→
+   638→          <Card className="border-border bg-card/40 rounded-xl flex-1 min-h-0 overflow-auto">
+   639→            <CardContent className="p-0">
+   640→              <Table>
+   641→                <TableHeader>
+   642→                  <TableRow className="border-border hover:bg-transparent">
+   643→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">List Name</TableHead>
+   644→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Segment</TableHead>
+   645→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Contacts</TableHead>
+   646→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9 text-right">Opted-Out</TableHead>
+   647→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Consent</TableHead>
+   648→                    <TableHead className="text-[11px] font-semibold text-muted-foreground h-9">Created</TableHead>
+   649→                  </TableRow>
+   650→                </TableHeader>
+   651→                <TableBody>
+   652→                  <AnimatePresence>
+   653→                    {contactLists.length === 0 ? (
+   654→                      <TableRow>
+   655→                        <TableCell colSpan={6} className="h-40 text-center">
+   656→                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+   657→                            <Users className="h-8 w-8 opacity-30" />
+   658→                            <p className="text-sm">No contact lists yet</p>
+   659→                            <Button
+   660→                              size="sm"
+   661→                              variant="outline"
+   662→                              className="text-xs rounded-lg mt-1"
+   663→                              onClick={() => setUploadOpen(true)}
+   664→                            >
+   665→                              <Upload className="h-3 w-3 mr-1" /> Upload your first list
+   666→                            </Button>
+   667→                          </div>
+   668→                        </TableCell>
+   669→                      </TableRow>
+   670→                    ) : (
+   671→                      contactLists.map((cl, idx) => (
+   672→                        <motion.tr
+   673→                          key={cl.id}
+   674→                          initial={{ opacity: 0, y: 4 }}
+   675→                          animate={{ opacity: 1, y: 0 }}
+   676→                          transition={{ delay: idx * 0.03 }}
+   677→                          className="border-border hover:bg-muted/30 transition-colors"
+   678→                        >
+   679→                          <TableCell className="py-2.5">
+   680→                            <div className="flex items-center gap-2">
+   681→                              <UserPlus className="h-3.5 w-3.5 text-cyan shrink-0" />
+   682→                              <span className="text-xs font-medium">{cl.name}</span>
+   683→                            </div>
+   684→                          </TableCell>
+   685→                          <TableCell className="py-2.5">
+   686→                            <Badge variant="outline" className="text-[10px] h-5 border-border text-muted-foreground">
+   687→                              {segmentLabel(cl.segment)}
+   688→                            </Badge>
+   689→                          </TableCell>
+   690→                          <TableCell className="py-2.5 text-right">
+   691→                            <span className="text-xs font-medium tabular-nums">{formatNumber(cl.contactCount)}</span>
+   692→                          </TableCell>
+   693→                          <TableCell className="py-2.5 text-right">
+   694→                            <span className={cn(
+   695→                              'text-xs tabular-nums',
+   696→                              cl.optedOutCount > 0 ? 'text-amber font-medium' : 'text-muted-foreground',
+   697→                            )}>
+   698→                              {formatNumber(cl.optedOutCount)}
+   699→                            </span>
+   700→                          </TableCell>
+   701→                          <TableCell className="py-2.5">
+   702→                            {cl.consentVerified ? (
+   703→                              <Badge variant="outline" className="text-[10px] h-5 border-emerald/30 text-emerald bg-emerald/10">
+   704→                                <Check className="h-2.5 w-2.5 mr-0.5" /> Verified
+   705→                              </Badge>
+   706→                            ) : (
+   707→                              <Badge variant="outline" className="text-[10px] h-5 border-amber/30 text-amber bg-amber/10">
+   708→                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> Pending
+   709→                              </Badge>
+   710→                            )}
+   711→                          </TableCell>
+   712→                          <TableCell className="py-2.5">
+   713→                            <span className="text-[11px] text-muted-foreground">{formatDate(cl.createdAt)}</span>
+   714→                          </TableCell>
+   715→                        </motion.tr>
+   716→                      ))
+   717→                    )}
+   718→                  </AnimatePresence>
+   719→                </TableBody>
+   720→              </Table>
+   721→            </CardContent>
+   722→          </Card>
+   723→        </TabsContent>
+   724→
+   725→        {/* ─── Templates Tab ─────────────────────────────────────── */}
+   726→        <TabsContent value="templates" className="flex-1 min-h-0 mt-3 flex flex-col gap-3">
+   727→          <div className="flex items-center justify-between shrink-0">
+   728→            <p className="text-xs text-muted-foreground">
+   729→              {allTemplates.length} template{allTemplates.length !== 1 ? 's' : ''} available
+   730→            </p>
+   731→            <Button
+   732→              size="sm"
+   733→              className="h-8 text-xs bg-violet hover:bg-violet/90 text-violet-foreground rounded-lg"
+   734→              onClick={() => setTemplateDialogOpen(true)}
+   735→            >
+   736→              <Plus className="h-3.5 w-3.5 mr-1.5" />
+   737→              Create Template
+   738→            </Button>
+   739→          </div>
+   740→
+   741→          <div className="flex-1 min-h-0 overflow-auto grid gap-3 content-start">
+   742→            <AnimatePresence>
+   743→              {allTemplates.map((tmpl, idx) => (
+   744→                <motion.div
+   745→                  key={tmpl.id}
+   746→                  initial={{ opacity: 0, y: 4 }}
+   747→                  animate={{ opacity: 1, y: 0 }}
+   748→                  transition={{ delay: idx * 0.04 }}
+   749→                >
+   750→                  <Card className="border-border bg-card/40 rounded-xl">
+   751→                    <CardContent className="p-4">
+   752→                      <div className="flex items-start justify-between gap-3">
+   753→                        <div className="min-w-0 flex-1">
+   754→                          <div className="flex items-center gap-2 mb-1.5">
+   755→                            <FileText className="h-3.5 w-3.5 text-violet shrink-0" />
+   756→                            <span className="text-sm font-medium">{tmpl.name}</span>
+   757→                            {tmpl.isBuiltIn && (
+   758→                              <Badge variant="outline" className="text-[10px] h-5 border-violet/30 text-violet bg-violet/10">
+   759→                                Built-in
+   760→                              </Badge>
+   761→                            )}
+   762→                            <Badge variant="outline" className="text-[10px] h-5 border-border text-muted-foreground">
+   763→                              {tmpl.category}
+   764→                            </Badge>
+   765→                          </div>
+   766→                          <p className="text-[11px] text-muted-foreground line-clamp-2 whitespace-pre-line mb-2 leading-relaxed">
+   767→                            {tmpl.body}
+   768→                          </p>
+   769→                          <div className="flex items-center gap-3">
+   770→                            <span className="text-[10px] text-muted-foreground">
+   771→                              <BarChart3 className="h-3 w-3 inline mr-0.5" />
+   772→                              {tmpl.body.length} chars
+   773→                            </span>
+   774→                            {tmpl.body.length > 4096 && (
+   775→                              <span className="text-[10px] text-amber">
+   776→                                <AlertTriangle className="h-3 w-3 inline mr-0.5" />
+   777→                                Exceeds 4096 char limit
+   778→                              </span>
+   779→                            )}
+   780→                          </div>
+   781→                        </div>
+   782→                        <Button
+   783→                          size="sm"
+   784→                          variant="outline"
+   785→                          className="h-8 text-xs rounded-lg border-emerald/30 text-emerald hover:bg-emerald/10 hover:text-emerald shrink-0"
+   786→                          onClick={() => useTemplateInCampaign(tmpl)}
+   787→                        >
+   788→                          <Send className="h-3 w-3 mr-1.5" />
+   789→                          Use in Campaign
+   790→                        </Button>
+   791→                      </div>
+   792→                    </CardContent>
+   793→                  </Card>
+   794→                </motion.div>
+   795→              ))}
+   796→            </AnimatePresence>
+   797→          </div>
+   798→        </TabsContent>
+   799→      </Tabs>
+   800→
+   801→      {/* ─── New Campaign Dialog ─────────────────────────────────── */}
+   802→      <Dialog open={newCampaignOpen} onOpenChange={setNewCampaignOpen}>
+   803→        <DialogContent className="border-border bg-card rounded-xl max-w-lg">
+   804→          <DialogHeader>
+   805→            <DialogTitle className="flex items-center gap-2">
+   806→              <Megaphone className="h-4 w-4 text-emerald" />
+   807→              New Campaign
+   808→            </DialogTitle>
+   809→            <DialogDescription>
+   810→              Create a new WhatsApp or SMS campaign. Ensure all recipients have opted in.
+   811→            </DialogDescription>
+   812→          </DialogHeader>
+   813→          <div className="space-y-4 py-2">
+   814→            <div className="space-y-1.5">
+   815→              <Label className="text-xs">Campaign Name</Label>
+   816→              <Input
+   817→                placeholder="e.g. GOTV Push – Lagos Island"
+   818→                value={campaignForm.name}
+   819→                onChange={e => setCampaignForm(p => ({ ...p, name: e.target.value }))}
+   820→                className="h-9 text-sm rounded-lg"
+   821→              />
+   822→            </div>
+   823→            <div className="space-y-1.5">
+   824→              <Label className="text-xs">Message Body</Label>
+   825→              <Textarea
+   826→                placeholder="Type your message here. Use {name}, {polling_unit} for personalization."
+   827→                value={campaignForm.templateBody}
+   828→                onChange={e => setCampaignForm(p => ({ ...p, templateBody: e.target.value }))}
+   829→                className="min-h-[120px] text-sm rounded-lg"
+   830→              />
+   831→              <p className="text-[10px] text-muted-foreground text-right">
+   832→                {campaignForm.templateBody.length} / 4096 characters
+   833→              </p>
+   834→            </div>
+   835→            <div className="grid grid-cols-2 gap-3">
+   836→              <div className="space-y-1.5">
+   837→                <Label className="text-xs">Contact List</Label>
+   838→                <Select
+   839→                  value={campaignForm.contactListId}
+   840→                  onValueChange={v => setCampaignForm(p => ({ ...p, contactListId: v }))}
+   841→                >
+   842→                  <SelectTrigger className="h-9 text-sm rounded-lg">
+   843→                    <SelectValue placeholder="Select list" />
+   844→                  </SelectTrigger>
+   845→                  <SelectContent>
+   846→                    {contactLists.map(cl => (
+   847→                      <SelectItem key={cl.id} value={cl.id} className="text-xs">
+   848→                        {cl.name} ({formatNumber(cl.contactCount)} contacts)
+   849→                      </SelectItem>
+   850→                    ))}
+   851→                  </SelectContent>
+   852→                </Select>
+   853→              </div>
+   854→              <div className="space-y-1.5">
+   855→                <Label className="text-xs">Segment</Label>
+   856→                <Select
+   857→                  value={campaignForm.segment}
+   858→                  onValueChange={v => setCampaignForm(p => ({ ...p, segment: v }))}
+   859→                >
+   860→                  <SelectTrigger className="h-9 text-sm rounded-lg">
+   861→                    <SelectValue />
+   862→                  </SelectTrigger>
+   863→                  <SelectContent>
+   864→                    {SEGMENT_OPTIONS.map(s => (
+   865→                      <SelectItem key={s.value} value={s.value} className="text-xs">
+   866→                        {s.label}
+   867→                      </SelectItem>
+   868→                    ))}
+   869→                  </SelectContent>
+   870→                </Select>
+   871→              </div>
+   872→            </div>
+   873→            <div className="grid grid-cols-2 gap-3">
+   874→              <div className="space-y-1.5">
+   875→                <Label className="text-xs">Channel</Label>
+   876→                <Select
+   877→                  value={campaignForm.channel}
+   878→                  onValueChange={v => setCampaignForm(p => ({ ...p, channel: v }))}
+   879→                >
+   880→                  <SelectTrigger className="h-9 text-sm rounded-lg">
+   881→                    <SelectValue />
+   882→                  </SelectTrigger>
+   883→                  <SelectContent>
+   884→                    {CHANNEL_OPTIONS.map(ch => (
+   885→                      <SelectItem key={ch.value} value={ch.value} className="text-xs">
+   886→                        {ch.label}
+   887→                      </SelectItem>
+   888→                    ))}
+   889→                  </SelectContent>
+   890→                </Select>
+   891→              </div>
+   892→              <div className="space-y-1.5">
+   893→                <Label className="text-xs">Rate Limit / min</Label>
+   894→                <Input
+   895→                  type="number"
+   896→                  min={1}
+   897→                  max={200}
+   898→                  value={campaignForm.rateLimitPerMin}
+   899→                  onChange={e => setCampaignForm(p => ({ ...p, rateLimitPerMin: e.target.value }))}
+   900→                  className="h-9 text-sm rounded-lg"
+   901→                />
+   902→              </div>
+   903→            </div>
+   904→            <div className="space-y-1.5">
+   905→              <Label className="text-xs">Schedule (optional)</Label>
+   906→              <Input
+   907→                type="datetime-local"
+   908→                value={campaignForm.scheduledAt}
+   909→                onChange={e => setCampaignForm(p => ({ ...p, scheduledAt: e.target.value }))}
+   910→                className="h-9 text-sm rounded-lg"
+   911→              />
+   912→            </div>
+   913→          </div>
+   914→          <DialogFooter className="gap-2">
+   915→            <Button variant="outline" onClick={() => setNewCampaignOpen(false)} className="rounded-lg text-xs">
+   916→              Cancel
+   917→            </Button>
+   918→            <Button
+   919→              onClick={handleCreateCampaign}
+   920→              disabled={createCampaign.isPending}
+   921→              className="bg-emerald hover:bg-emerald/90 text-emerald-foreground rounded-lg text-xs"
+   922→            >
+   923→              {createCampaign.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+   924→              Create Campaign
+   925→            </Button>
+   926→          </DialogFooter>
+   927→        </DialogContent>
+   928→      </Dialog>
+   929→
+   930→      {/* ─── Campaign Detail Dialog ──────────────────────────────── */}
+   931→      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+   932→        <DialogContent className="border-border bg-card rounded-xl max-w-lg">
+   933→          <DialogHeader>
+   934→            <DialogTitle className="flex items-center gap-2">
+   935→              <BarChart3 className="h-4 w-4 text-emerald" />
+   936→              {selectedCampaign?.name ?? 'Campaign Details'}
+   937→            </DialogTitle>
+   938→            <DialogDescription>
+   939→              Delivery analytics and campaign configuration.
+   940→            </DialogDescription>
+   941→          </DialogHeader>
+   942→          {selectedCampaign && (
+   943→            <div className="space-y-4 py-2">
+   944→              {/* Status row */}
+   945→              <div className="flex items-center gap-2 flex-wrap">
+   946→                <Badge variant="outline" className={cn('text-[10px] h-5 border', STATUS_STYLES[selectedCampaign.status] ?? 'border-border text-muted-foreground')}>
+   947→                  {STATUS_ICONS[selectedCampaign.status] ?? null}
+   948→                  {selectedCampaign.status}
+   949→                </Badge>
+   950→                <Badge variant="outline" className="text-[10px] h-5 border-border text-muted-foreground">
+   951→                  {selectedCampaign.channel}
+   952→                </Badge>
+   953→                {selectedCampaign.consentEnforced && (
+   954→                  <Badge variant="outline" className="text-[10px] h-5 border-emerald/30 text-emerald bg-emerald/10">
+   955→                    <Shield className="h-2.5 w-2.5 mr-0.5" /> Consent Enforced
+   956→                  </Badge>
+   957→                )}
+   958→                {selectedCampaign.wabaCompliant && (
+   959→                  <Badge variant="outline" className="text-[10px] h-5 border-cyan/30 text-cyan bg-cyan/10">
+   960→                    <CheckCircle className="h-2.5 w-2.5 mr-0.5" /> WABA Compliant
+   961→                  </Badge>
+   962→                )}
+   963→              </div>
+   964→
+   965→              {/* Message preview */}
+   966→              {selectedCampaign.templateBody && (
+   967→                <Card className="border-emerald/20 bg-emerald/5 rounded-lg">
+   968→                  <CardContent className="p-3">
+   969→                    <p className="text-[10px] font-medium text-emerald mb-1.5 flex items-center gap-1">
+   970→                      <MessageCircle className="h-3 w-3" /> Message Preview
+   971→                    </p>
+   972→                    <pre className="text-[11px] text-foreground whitespace-pre-wrap leading-relaxed font-sans">
+   973→                      {selectedCampaign.templateBody}
+   974→                    </pre>
+   975→                  </CardContent>
+   976→                </Card>
+   977→              )}
+   978→
+   979→              {/* Delivery analytics */}
+   980→              <div className="space-y-2.5">
+   981→                <p className="text-xs font-semibold text-muted-foreground">Delivery Analytics</p>
+   982→                {[
+   983→                  { label: 'Sent', value: selectedCampaign.sentCount, color: 'bg-cyan', text: 'text-cyan' },
+   984→                  { label: 'Delivered', value: selectedCampaign.deliveredCount, color: 'bg-emerald', text: 'text-emerald' },
+   985→                  { label: 'Read', value: selectedCampaign.readCount, color: 'bg-violet', text: 'text-violet' },
+   986→                  { label: 'Failed', value: selectedCampaign.failedCount, color: 'bg-rose', text: 'text-rose' },
+   987→                  { label: 'Opted Out', value: selectedCampaign.optOutCount, color: 'bg-amber', text: 'text-amber' },
+   988→                ].map(bar => {
+   989→                  const pct = selectedCampaign.totalRecipients > 0
+   990→                    ? (bar.value / selectedCampaign.totalRecipients) * 100
+   991→                    : 0;
+   992→                  return (
+   993→                    <div key={bar.label} className="space-y-1">
+   994→                      <div className="flex items-center justify-between">
+   995→                        <span className="text-[11px] text-muted-foreground">{bar.label}</span>
+   996→                        <span className={cn('text-[11px] font-medium tabular-nums', bar.text)}>
+   997→                          {formatNumber(bar.value)} ({pct.toFixed(1)}%)
+   998→                        </span>
+   999→                      </div>
+  1000→                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+  1001→                        <motion.div
+  1002→                          className={cn('h-full rounded-full', bar.color)}
+  1003→                          initial={{ width: 0 }}
+  1004→                          animate={{ width: `${Math.min(pct, 100)}%` }}
+  1005→                          transition={{ duration: 0.6, ease: 'easeOut' }}
+  1006→                        />
+  1007→                      </div>
+  1008→                    </div>
+  1009→                  );
+  1010→                })}
+  1011→              </div>
+  1012→
+  1013→              {/* Meta */}
+  1014→              <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+  1015→                <div>Recipients: <span className="text-foreground font-medium">{formatNumber(selectedCampaign.totalRecipients)}</span></div>
+  1016→                <div>Segment: <span className="text-foreground font-medium">{segmentLabel(selectedCampaign.segment ?? 'ALL')}</span></div>
+  1017→                <div>Rate limit: <span className="text-foreground font-medium">{selectedCampaign.rateLimitPerMin ?? '—'}/min</span></div>
+  1018→                {selectedCampaign.scheduledAt && (
+  1019→                  <div>Scheduled: <span className="text-foreground font-medium">{formatDate(selectedCampaign.scheduledAt)}</span></div>
+  1020→                )}
+  1021→                {selectedCampaign.startedAt && (
+  1022→                  <div>Started: <span className="text-foreground font-medium">{formatDate(selectedCampaign.startedAt)}</span></div>
+  1023→                )}
+  1024→                {selectedCampaign.completedAt && (
+  1025→                  <div>Completed: <span className="text-foreground font-medium">{formatDate(selectedCampaign.completedAt)}</span></div>
+  1026→                )}
+  1027→              </div>
+  1028→            </div>
+  1029→          )}
+  1030→          <DialogFooter className="gap-2">
+  1031→            {selectedCampaign && (selectedCampaign.status === 'DRAFT' || selectedCampaign.status === 'CANCELLED') && (
+  1032→              <Button
+  1033→                variant="outline"
+  1034→                className="rounded-lg text-xs border-rose/30 text-rose hover:bg-rose/10 hover:text-rose"
+  1035→                onClick={() => deleteCampaign.mutate(selectedCampaign.id)}
+  1036→                disabled={deleteCampaign.isPending}
+  1037→              >
+  1038→                {deleteCampaign.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <X className="h-3.5 w-3.5 mr-1.5" />}
+  1039→                Delete
+  1040→              </Button>
+  1041→            )}
+  1042→            <Button variant="outline" onClick={() => setDetailOpen(false)} className="rounded-lg text-xs">
+  1043→              Close
+  1044→            </Button>
+  1045→          </DialogFooter>
+  1046→        </DialogContent>
+  1047→      </Dialog>
+  1048→
+  1049→      {/* ─── Upload Contacts Dialog ──────────────────────────────── */}
+  1050→      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+  1051→        <DialogContent className="border-border bg-card rounded-xl max-w-md">
+  1052→          <DialogHeader>
+  1053→            <DialogTitle className="flex items-center gap-2">
+  1054→              <Upload className="h-4 w-4 text-cyan" />
+  1055→              Upload Contacts
+  1056→            </DialogTitle>
+  1057→            <DialogDescription>
+  1058→              Create a new contact list. Phone numbers will be simulated for demo purposes.
+  1059→            </DialogDescription>
+  1060→          </DialogHeader>
+  1061→          <div className="space-y-4 py-2">
+  1062→            <div className="space-y-1.5">
+  1063→              <Label className="text-xs">List Name</Label>
+  1064→              <Input
+  1065→                placeholder="e.g. Lagos Party Members"
+  1066→                value={uploadForm.name}
+  1067→                onChange={e => setUploadForm(p => ({ ...p, name: e.target.value }))}
+  1068→                className="h-9 text-sm rounded-lg"
+  1069→              />
+  1070→            </div>
+  1071→            <div className="space-y-1.5">
+  1072→              <Label className="text-xs">Segment</Label>
+  1073→              <Select
+  1074→                value={uploadForm.segment}
+  1075→                onValueChange={v => setUploadForm(p => ({ ...p, segment: v }))}
+  1076→              >
+  1077→                <SelectTrigger className="h-9 text-sm rounded-lg">
+  1078→                  <SelectValue />
+  1079→                </SelectTrigger>
+  1080→                <SelectContent>
+  1081→                  {SEGMENT_OPTIONS.filter(s => s.value !== 'ALL').map(s => (
+  1082→                    <SelectItem key={s.value} value={s.value} className="text-xs">
+  1083→                      {s.label}
+  1084→                    </SelectItem>
+  1085→                  ))}
+  1086→                </SelectContent>
+  1087→              </Select>
+  1088→            </div>
+  1089→            <Card className="border-amber/20 bg-amber/5 rounded-lg">
+  1090→              <CardContent className="p-3">
+  1091→                <div className="flex items-start gap-2">
+  1092→                  <Shield className="h-4 w-4 text-amber shrink-0 mt-0.5" />
+  1093→                  <div>
+  1094→                    <p className="text-xs font-medium text-amber mb-1">Consent Requirement</p>
+  1095→                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+  1096→                      All contacts must have explicitly opted in to receive messages. Uploading contacts without consent violates NDPR and WhatsApp Terms of Service.
+  1097→                    </p>
+  1098→                  </div>
+  1099→                </div>
+  1100→              </CardContent>
+  1101→            </Card>
+  1102→            <div className="flex items-start gap-2.5">
+  1103→              <Checkbox
+  1104→                id="consent-check"
+  1105→                checked={uploadForm.consentChecked}
+  1106→                onCheckedChange={v => setUploadForm(p => ({ ...p, consentChecked: !!v }))}
+  1107→                className="mt-0.5"
+  1108→              />
+  1109→              <Label htmlFor="consent-check" className="text-[11px] text-muted-foreground leading-relaxed cursor-pointer">
+  1110→                I confirm that all contacts on this list have given explicit consent to receive election-related communications via the selected channel.
+  1111→              </Label>
+  1112→            </div>
+  1113→          </div>
+  1114→          <DialogFooter className="gap-2">
+  1115→            <Button variant="outline" onClick={() => setUploadOpen(false)} className="rounded-lg text-xs">
+  1116→              Cancel
+  1117→            </Button>
+  1118→            <Button
+  1119→              onClick={handleUploadContacts}
+  1120→              disabled={uploadContacts.isPending || !uploadForm.consentChecked}
+  1121→              className="bg-cyan hover:bg-cyan/90 text-cyan-foreground rounded-lg text-xs"
+  1122→            >
+  1123→              {uploadContacts.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
+  1124→              Upload Contacts
+  1125→            </Button>
+  1126→          </DialogFooter>
+  1127→        </DialogContent>
+  1128→      </Dialog>
+  1129→
+  1130→      {/* ─── Create Template Dialog ──────────────────────────────── */}
+  1131→      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+  1132→        <DialogContent className="border-border bg-card rounded-xl max-w-lg">
+  1133→          <DialogHeader>
+  1134→            <DialogTitle className="flex items-center gap-2">
+  1135→              <FileText className="h-4 w-4 text-violet" />
+  1136→              Create Template
+  1137→            </DialogTitle>
+  1138→            <DialogDescription>
+  1139→              Design a reusable message template for your campaigns.
+  1140→            </DialogDescription>
+  1141→          </DialogHeader>
+  1142→          <div className="space-y-4 py-2">
+  1143→            <div className="space-y-1.5">
+  1144→              <Label className="text-xs">Template Name</Label>
+  1145→              <Input
+  1146→                placeholder="e.g. Election Day Safety Tips"
+  1147→                value={templateForm.name}
+  1148→                onChange={e => setTemplateForm(p => ({ ...p, name: e.target.value }))}
+  1149→                className="h-9 text-sm rounded-lg"
+  1150→              />
+  1151→            </div>
+  1152→            <div className="space-y-1.5">
+  1153→              <Label className="text-xs">Message Body</Label>
+  1154→              <Textarea
+  1155→                placeholder="Type your template message. Use {name}, {polling_unit}, {date} for placeholders."
+  1156→                value={templateForm.body}
+  1157→                onChange={e => setTemplateForm(p => ({ ...p, body: e.target.value }))}
+  1158→                className="min-h-[120px] text-sm rounded-lg"
+  1159→              />
+  1160→              <p className="text-[10px] text-muted-foreground text-right">
+  1161→                {templateForm.body.length} / 4096 characters
+  1162→              </p>
+  1163→            </div>
+  1164→
+  1165→            {/* WhatsApp-style preview */}
+  1166→            {templateForm.body && (
+  1167→              <div className="space-y-1.5">
+  1168→                <Label className="text-xs flex items-center gap-1">
+  1169→                  <MessageCircle className="h-3 w-3 text-emerald" /> WhatsApp Preview
+  1170→                </Label>
+  1171→                <div className="rounded-xl bg-[#0b141a] p-3 max-h-[180px] overflow-auto">
+  1172→                  <div className="flex gap-2.5">
+  1173→                    <div className="w-7 h-7 rounded-full bg-emerald/20 flex items-center justify-center shrink-0">
+  1174→                      <UserPlus className="h-3.5 w-3.5 text-emerald" />
+  1175→                    </div>
+  1176→                    <div className="flex-1 min-w-0">
+  1177→                      <div className="bg-[#005c4b] rounded-xl rounded-tl-sm px-3 py-2">
+  1178→                        <pre className="text-[12px] text-white/90 whitespace-pre-wrap font-sans leading-relaxed">
+  1179→                          {templateForm.body}
+  1180→                        </pre>
+  1181→                        <div className="flex items-center justify-end gap-1 mt-1">
+  1182→                          <span className="text-[9px] text-white/40">
+  1183→                            {new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' })}
+  1184→                          </span>
+  1185→                          <CheckCircle className="h-3 w-3 text-cyan/60" />
+  1186→                        </div>
+  1187→                      </div>
+  1188→                    </div>
+  1189→                  </div>
+  1190→                </div>
+  1191→              </div>
+  1192→            )}
+  1193→          </div>
+  1194→          <DialogFooter className="gap-2">
+  1195→            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)} className="rounded-lg text-xs">
+  1196→              Cancel
+  1197→            </Button>
+  1198→            <Button
+  1199→              onClick={handleCreateTemplate}
+  1200→              className="bg-violet hover:bg-violet/90 text-violet-foreground rounded-lg text-xs"
+  1201→            >
+  1202→              <Plus className="h-3.5 w-3.5 mr-1.5" />
+  1203→              Save Template
+  1204→            </Button>
+  1205→          </DialogFooter>
+  1206→        </DialogContent>
+  1207→      </Dialog>
+  1208→    </div>
+  1209→  );
+  1210→}
