@@ -33,6 +33,7 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserR
   { id: 'honeypot', label: 'Honeypot / PWD', icon: <Eye className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
   { id: 'agents', label: 'Agent Roster', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+  { id: 'audit-logs', label: 'Audit Logs', icon: <FileText className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
   { id: 'system', label: 'System Health', icon: <Server className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
   { id: 'tenants', label: 'Settings', icon: <Building2 className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
   { id: 'submit', label: 'Submit Report', icon: <Send className="h-5 w-5" />, roles: ['FIELD_AGENT'] },

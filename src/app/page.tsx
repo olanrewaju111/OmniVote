@@ -48,6 +48,7 @@ const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-qui
 const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evidence-dossier').then(m => ({ default: m.EvidenceDossier })));
 const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })));
 const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })));
+const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-log-viewer').then(m => ({ default: m.AuditLogViewer })));
 
 // ---- Types ----
 export interface Incident {
@@ -353,6 +354,13 @@ export default function Home() {
                 <ErrorBoundary title="Honeypot Biometrics">
                   <div className="h-full">
                     <HoneypotBiometrics />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {activeTab === 'audit-logs' && (
+                <ErrorBoundary title="Audit Logs">
+                  <div className="h-full">
+                    <AuditLogViewer />
                   </div>
                 </ErrorBoundary>
               )}

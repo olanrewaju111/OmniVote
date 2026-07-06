@@ -1,0 +1,252 @@
+     1→/home/z/my-project/src/components/ui/select.tsx:40:        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+     2→/home/z/my-project/src/components/ui/command.tsx:76:          "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
+     3→/home/z/my-project/src/components/ui/input.tsx:11:        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+     4→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:457:              <Input placeholder="e.g. Lagos, Southeast, Kano Central" value={mapLabel} onChange={(e) => setMapLabel(e.target.value)} className="h-9 text-sm" />
+     5→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:462:                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select a region preset..." /></SelectTrigger>
+     6→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:476:                <Input type="number" step="0.1" placeholder="4.0" value={minLat} onChange={(e) => setMinLat(e.target.value)} className="h-9 text-sm" />
+     7→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:480:                <Input type="number" step="0.1" placeholder="14.0" value={maxLat} onChange={(e) => setMaxLat(e.target.value)} className="h-9 text-sm" />
+     8→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:484:                <Input type="number" step="0.1" placeholder="2.5" value={minLng} onChange={(e) => setMinLng(e.target.value)} className="h-9 text-sm" />
+     9→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:488:                <Input type="number" step="0.1" placeholder="15.0" value={maxLng} onChange={(e) => setMaxLng(e.target.value)} className="h-9 text-sm" />
+    10→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:528:              <Input placeholder="e.g. Ekiti State Election Monitor" value={newTenantName} onChange={(e) => { setNewTenantName(e.target.value); setNewTenantSlug(''); }} className="h-9 text-sm" />
+    11→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:532:              <Input placeholder="e.g. ekiti-state" value={newTenantSlug} onChange={(e) => setNewTenantSlug(e.target.value)} className="h-9 text-sm" />
+    12→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:546:              <Input placeholder="e.g. Adebayo Johnson" value={newAdminName} onChange={(e) => setNewAdminName(e.target.value)} className="h-9 text-sm" />
+    13→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:550:              <Input type="email" placeholder="e.g. admin@ekiti.omnivote.ng" value={newAdminEmail} onChange={(e) => setNewAdminEmail(e.target.value)} className="h-9 text-sm" />
+    14→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:583:              <Input placeholder="e.g. Adebayo Johnson" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="h-9 text-sm" />
+    15→/home/z/my-project/src/components/dashboard/tenant-mgmt.tsx:587:              <Input type="email" placeholder="e.g. agent@omnivote.ng" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className="h-9 text-sm" />
+    16→/home/z/my-project/src/components/dashboard/media-gallery.tsx:279:                {/* Thumbnail placeholder */}
+    17→/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:499:                              gridTemplateColumns: `140px repeat(${uniqueDates.length}, minmax(52px, 1fr))`,
+    18→/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:519:                                gridTemplateColumns: `140px repeat(${uniqueDates.length}, minmax(52px, 1fr))`,
+    19→/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:922:                                placeholder="Enter score"
+    20→/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:1118:                placeholder="e.g. Post-Election Violence Simulation"
+    21→/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:1128:                placeholder="Describe the scenario objectives..."
+    22→/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:1172:                placeholder='{"key": "value"}'
+    23→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:933:                placeholder="e.g. Ghost PU-001"
+    24→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:945:                  placeholder="e.g. Lagos"
+    25→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:955:                  placeholder="e.g. Ikeja"
+    26→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:965:                  <SelectValue placeholder="Select trap type" />
+    27→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:1011:                    placeholder="Party name"
+    28→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:1017:                    placeholder="Votes"
+    29→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:1098:                placeholder="e.g. PU-12-03-005"
+    30→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:1158:                  placeholder="0"
+    31→/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:1170:                  placeholder="0"
+    32→/home/z/my-project/src/components/dashboard/field-safety.tsx:660:              <Input className="h-8 text-sm" placeholder="e.g. Ikeja PU-01" value={formState.name} onChange={e => setFormState(s => ({ ...s, name: e.target.value }))} />
+    33→/home/z/my-project/src/components/dashboard/field-safety.tsx:666:                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select state" /></SelectTrigger>
+    34→/home/z/my-project/src/components/dashboard/field-safety.tsx:676:                <Input className="h-8 text-sm" placeholder="Local Gov Area" value={formState.lga} onChange={e => setFormState(s => ({ ...s, lga: e.target.value }))} />
+    35→/home/z/my-project/src/components/dashboard/field-safety.tsx:682:                <Input className="h-8 text-sm" type="number" step="any" placeholder="6.5244" value={formState.centerLat} onChange={e => setFormState(s => ({ ...s, centerLat: e.target.value }))} />
+    36→/home/z/my-project/src/components/dashboard/field-safety.tsx:686:                <Input className="h-8 text-sm" type="number" step="any" placeholder="3.3792" value={formState.centerLng} onChange={e => setFormState(s => ({ ...s, centerLng: e.target.value }))} />
+    37→/home/z/my-project/src/components/dashboard/field-safety.tsx:692:                <Input className="h-8 text-sm" type="number" placeholder="500" value={formState.radiusMeters} onChange={e => setFormState(s => ({ ...s, radiusMeters: e.target.value }))} />
+    38→/home/z/my-project/src/components/dashboard/field-safety.tsx:696:                <Input className="h-8 text-sm" type="number" placeholder="60" value={formState.checkInIntervalMin} onChange={e => setFormState(s => ({ ...s, checkInIntervalMin: e.target.value }))} />
+    39→/home/z/my-project/src/components/dashboard/field-safety.tsx:700:                <Input className="h-8 text-sm" type="number" placeholder="3" value={formState.maxMissedCheckIns} onChange={e => setFormState(s => ({ ...s, maxMissedCheckIns: e.target.value }))} />
+    40→/home/z/my-project/src/components/dashboard/header.tsx:161:            placeholder="Search polling units, incidents, agents..."
+    41→/home/z/my-project/src/components/ui/textarea.tsx:10:        "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+    42→/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:826:                placeholder="e.g. Ballot Box Snatching — Ward 12"
+    43→/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:836:                placeholder="Describe the evidence being compiled..."
+    44→/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:847:                placeholder="Link to an existing incident"
+    45→/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:932:                placeholder="e.g. ballot_photo_ward12.jpg"
+    46→/home/z/my-project/src/components/dashboard/media-viewer.tsx:228:                        // Hide broken thumbnail images, show placeholder
+    47→/home/z/my-project/src/components/dashboard/field-reports.tsx:195:                <SelectValue placeholder="Filter by agent..." />
+    48→/home/z/my-project/src/components/dashboard/osint-monitor.tsx:271:              placeholder="Search posts, authors..."
+    49→/home/z/my-project/src/components/dashboard/osint-monitor.tsx:281:              <SelectValue placeholder="Platform" />
+    50→/home/z/my-project/src/components/dashboard/osint-monitor.tsx:293:              <SelectValue placeholder="Category" />
+    51→/home/z/my-project/src/components/dashboard/login.tsx:277:                        placeholder="your@email.com"
+    52→/home/z/my-project/src/components/dashboard/login.tsx:297:                        placeholder="Enter your password"
+    53→/home/z/my-project/src/components/dashboard/mobilization.tsx:33:import { BUILT_IN_TEMPLATES, MEDIA_LABELS, type MessageTemplate, type MediaType } from '@/data/templates';
+    54→/home/z/my-project/src/components/dashboard/mobilization.tsx:40:  templateName: string | null;
+    55→/home/z/my-project/src/components/dashboard/mobilization.tsx:41:  templateBody: string | null;
+    56→/home/z/my-project/src/components/dashboard/mobilization.tsx:42:  templateStatus: string | null;
+    57→/home/z/my-project/src/components/dashboard/mobilization.tsx:162:  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+    58→/home/z/my-project/src/components/dashboard/mobilization.tsx:163:  const [customTemplates, setCustomTemplates] = useState<MessageTemplate[]>([]);
+    59→/home/z/my-project/src/components/dashboard/mobilization.tsx:168:    templateBody: '',
+    60→/home/z/my-project/src/components/dashboard/mobilization.tsx:183:  // New template form
+    61→/home/z/my-project/src/components/dashboard/mobilization.tsx:184:  const [templateForm, setTemplateForm] = useState({
+    62→/home/z/my-project/src/components/dashboard/mobilization.tsx:206:  const allTemplates = useMemo(
+    63→/home/z/my-project/src/components/dashboard/mobilization.tsx:208:      let list = [...BUILT_IN_TEMPLATES, ...customTemplates];
+    64→/home/z/my-project/src/components/dashboard/mobilization.tsx:212:    [customTemplates, mediaFilter],
+    65→/home/z/my-project/src/components/dashboard/mobilization.tsx:229:      setCampaignForm({ name: '', templateBody: '', contactListId: '', segment: 'ALL', channel: 'WHATSAPP', scheduledAt: '', rateLimitPerMin: '50' });
+    66→/home/z/my-project/src/components/dashboard/mobilization.tsx:282:    if (!campaignForm.templateBody.trim()) { toast.error('Message body is required'); return; }
+    67→/home/z/my-project/src/components/dashboard/mobilization.tsx:294:  function handleCreateTemplate() {
+    68→/home/z/my-project/src/components/dashboard/mobilization.tsx:295:    if (!templateForm.name.trim()) { toast.error('Template name is required'); return; }
+    69→/home/z/my-project/src/components/dashboard/mobilization.tsx:296:    if (!templateForm.body.trim()) { toast.error('Template body is required'); return; }
+    70→/home/z/my-project/src/components/dashboard/mobilization.tsx:297:    const newTmpl: MessageTemplate = {
+    71→/home/z/my-project/src/components/dashboard/mobilization.tsx:299:      name: templateForm.name,
+    72→/home/z/my-project/src/components/dashboard/mobilization.tsx:300:      body: templateForm.body,
+    73→/home/z/my-project/src/components/dashboard/mobilization.tsx:303:      mediaType: templateForm.mediaType,
+    74→/home/z/my-project/src/components/dashboard/mobilization.tsx:304:      mediaUrl: templateForm.mediaType !== 'none' ? `/uploads/templates/custom-${Date.now()}.${templateForm.mediaType === 'image' ? 'jpg' : templateForm.mediaType === 'audio' ? 'mp3' : 'webm'}` : null,
+    75→/home/z/my-project/src/components/dashboard/mobilization.tsx:305:      mediaDescription: templateForm.mediaDescription || null,
+    76→/home/z/my-project/src/components/dashboard/mobilization.tsx:307:    setCustomTemplates(prev => [...prev, newTmpl]);
+    77→/home/z/my-project/src/components/dashboard/mobilization.tsx:308:    toast.success('Template saved');
+    78→/home/z/my-project/src/components/dashboard/mobilization.tsx:309:    setTemplateDialogOpen(false);
+    79→/home/z/my-project/src/components/dashboard/mobilization.tsx:310:    setTemplateForm({ name: '', body: '', mediaType: 'none', mediaDescription: '' });
+    80→/home/z/my-project/src/components/dashboard/mobilization.tsx:313:  function useTemplateInCampaign(tmpl: MessageTemplate) {
+    81→/home/z/my-project/src/components/dashboard/mobilization.tsx:314:    setCampaignForm(prev => ({ ...prev, templateBody: tmpl.body }));
+    82→/home/z/my-project/src/components/dashboard/mobilization.tsx:316:    toast.success(`Template "${tmpl.name}" loaded into campaign`);
+    83→/home/z/my-project/src/components/dashboard/mobilization.tsx:430:            value="templates"
+    84→/home/z/my-project/src/components/dashboard/mobilization.tsx:434:            Templates
+    85→/home/z/my-project/src/components/dashboard/mobilization.tsx:691:        {/* ─── Templates Tab ─────────────────────────────────────── */}
+    86→/home/z/my-project/src/components/dashboard/mobilization.tsx:692:        <TabsContent value="templates" className="flex-1 min-h-0 mt-3 flex flex-col gap-3">
+    87→/home/z/my-project/src/components/dashboard/mobilization.tsx:695:              {allTemplates.length} template{allTemplates.length !== 1 ? 's' : ''} available
+    88→/home/z/my-project/src/components/dashboard/mobilization.tsx:697:                ({allTemplates.filter(t => t.mediaType !== 'none').length} with media)
+    89→/home/z/my-project/src/components/dashboard/mobilization.tsx:716:                onClick={() => setTemplateDialogOpen(true)}
+    90→/home/z/my-project/src/components/dashboard/mobilization.tsx:719:                Create Template
+    91→/home/z/my-project/src/components/dashboard/mobilization.tsx:726:              {allTemplates.map((tmpl, idx) => (
+    92→/home/z/my-project/src/components/dashboard/mobilization.tsx:774:                          onClick={() => useTemplateInCampaign(tmpl)}
+    93→/home/z/my-project/src/components/dashboard/mobilization.tsx:805:                placeholder="e.g. GOTV Push – Lagos Island"
+    94→/home/z/my-project/src/components/dashboard/mobilization.tsx:814:                placeholder="Type your message here. Use {name}, {polling_unit} for personalization."
+    95→/home/z/my-project/src/components/dashboard/mobilization.tsx:815:                value={campaignForm.templateBody}
+    96→/home/z/my-project/src/components/dashboard/mobilization.tsx:816:                onChange={e => setCampaignForm(p => ({ ...p, templateBody: e.target.value }))}
+    97→/home/z/my-project/src/components/dashboard/mobilization.tsx:820:                {campaignForm.templateBody.length} / 4096 characters
+    98→/home/z/my-project/src/components/dashboard/mobilization.tsx:831:                    <SelectValue placeholder="Select list" />
+    99→/home/z/my-project/src/components/dashboard/mobilization.tsx:954:              {selectedCampaign.templateBody && (
+   100→/home/z/my-project/src/components/dashboard/mobilization.tsx:961:                      {selectedCampaign.templateBody}
+   101→/home/z/my-project/src/components/dashboard/mobilization.tsx:1053:                placeholder="e.g. Lagos Party Members"
+   102→/home/z/my-project/src/components/dashboard/mobilization.tsx:1118:      {/* ─── Create Template Dialog ──────────────────────────────── */}
+   103→/home/z/my-project/src/components/dashboard/mobilization.tsx:1119:      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+   104→/home/z/my-project/src/components/dashboard/mobilization.tsx:1124:              Create Template
+   105→/home/z/my-project/src/components/dashboard/mobilization.tsx:1127:              Design a reusable message template for your campaigns.
+   106→/home/z/my-project/src/components/dashboard/mobilization.tsx:1132:              <Label className="text-xs">Template Name</Label>
+   107→/home/z/my-project/src/components/dashboard/mobilization.tsx:1134:                placeholder="e.g. Election Day Safety Tips"
+   108→/home/z/my-project/src/components/dashboard/mobilization.tsx:1135:                value={templateForm.name}
+   109→/home/z/my-project/src/components/dashboard/mobilization.tsx:1136:                onChange={e => setTemplateForm(p => ({ ...p, name: e.target.value }))}
+   110→/home/z/my-project/src/components/dashboard/mobilization.tsx:1143:                placeholder="Type your template message. Use {name}, {polling_unit}, {date} for placeholders."
+   111→/home/z/my-project/src/components/dashboard/mobilization.tsx:1144:                value={templateForm.body}
+   112→/home/z/my-project/src/components/dashboard/mobilization.tsx:1145:                onChange={e => setTemplateForm(p => ({ ...p, body: e.target.value }))}
+   113→/home/z/my-project/src/components/dashboard/mobilization.tsx:1149:                {templateForm.body.length} / 4096 characters
+   114→/home/z/my-project/src/components/dashboard/mobilization.tsx:1154:              <Select value={templateForm.mediaType} onValueChange={v => setTemplateForm(p => ({ ...p, mediaType: v as MediaType }))}>
+   115→/home/z/my-project/src/components/dashboard/mobilization.tsx:1173:              {templateForm.mediaType !== 'none' && (
+   116→/home/z/my-project/src/components/dashboard/mobilization.tsx:1175:                  placeholder="e.g. Rally photo at TBS, Candidate speech excerpt"
+   117→/home/z/my-project/src/components/dashboard/mobilization.tsx:1176:                  value={templateForm.mediaDescription}
+   118→/home/z/my-project/src/components/dashboard/mobilization.tsx:1177:                  onChange={e => setTemplateForm(p => ({ ...p, mediaDescription: e.target.value }))}
+   119→/home/z/my-project/src/components/dashboard/mobilization.tsx:1184:            {templateForm.body && (
+   120→/home/z/my-project/src/components/dashboard/mobilization.tsx:1197:                          {templateForm.body}
+   121→/home/z/my-project/src/components/dashboard/mobilization.tsx:1213:            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)} className="rounded-lg text-xs">
+   122→/home/z/my-project/src/components/dashboard/mobilization.tsx:1217:              onClick={handleCreateTemplate}
+   123→/home/z/my-project/src/components/dashboard/mobilization.tsx:1221:              Save Template
+   124→/home/z/my-project/src/components/dashboard/field-submit.tsx:272:              <SelectValue placeholder="Choose your assigned polling unit..." />
+   125→/home/z/my-project/src/components/dashboard/field-submit.tsx:350:                        placeholder="0"
+   126→/home/z/my-project/src/components/dashboard/field-submit.tsx:360:                        placeholder="0"
+   127→/home/z/my-project/src/components/dashboard/field-submit.tsx:407:                              type="number" min="0" placeholder="0"
+   128→/home/z/my-project/src/components/dashboard/field-submit.tsx:522:                      placeholder="Any other observations about the polling unit environment, queue management, accessibility, etc."
+   129→/home/z/my-project/src/components/dashboard/field-submit.tsx:620:                      placeholder="Provide details: who was involved, what happened, time, location within the PU, names if known..."
+   130→/home/z/my-project/src/components/dashboard/agent-roster.tsx:312:                  placeholder="Search agents..."
+   131→/home/z/my-project/src/components/dashboard/agent-roster.tsx:493:                placeholder="e.g. Adebayo Johnson"
+   132→/home/z/my-project/src/components/dashboard/agent-roster.tsx:502:                placeholder="e.g. agent@nigeriaelectionwatch.org"
+   133→/home/z/my-project/src/components/dashboard/agent-roster.tsx:605:                placeholder="e.g. Adebayo Johnson"
+   134→/home/z/my-project/src/components/dashboard/agent-roster.tsx:614:                placeholder="e.g. +234 801 234 5678"
+   135→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:336:              <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Trigger" /></SelectTrigger>
+   136→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:348:              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Channel" /></SelectTrigger>
+   137→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:358:              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   138→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:690:                <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select agent..." /></SelectTrigger>
+   139→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:736:            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Message subject..." className="h-9 text-xs" />
+   140→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:742:            <Textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Type your message to the field agent..." rows={5} className="text-xs" />
+   141→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:745:          {/* Quick templates */}
+   142→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:747:            <label className="text-xs font-medium text-muted-foreground">Quick Templates</label>
+   143→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:851:                {mode === 'MOCK' && (
+   144→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:881:                  placeholder="+2348012345678"
+   145→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:906:              {mode === 'MOCK' ? (
+   146→/home/z/my-project/src/components/dashboard/agent-engagement.tsx:909:                  <p className="text-[9px] text-muted-foreground">MOCK QR</p>
+   147→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:428:                  <SelectValue placeholder="Select event type..." />
+   148→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:440:                placeholder="e.g. Gubernatorial Rally – Lagos"
+   149→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:451:                    <SelectValue placeholder="Select party..." />
+   150→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:464:                    <SelectValue placeholder="Select tone..." />
+   151→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:478:                  placeholder="e.g. Lagos"
+   152→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:487:                  placeholder="e.g. Ikeja"
+   153→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:497:                placeholder="e.g. Tafawa Balewa Square"
+   154→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:507:                placeholder="e.g. 5000"
+   155→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:516:                placeholder="Describe the event details..."
+   156→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:562:                  <SelectValue placeholder="Select report type..." />
+   157→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:574:                placeholder="Brief title for this report"
+   158→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:585:                    <SelectValue placeholder="Select severity..." />
+   159→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:597:                  placeholder="e.g. Field Agent, Social Media"
+   160→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:608:                  placeholder="e.g. Rivers"
+   161→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:617:                  placeholder="e.g. Obio-Akpor"
+   162→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:627:                placeholder="Describe the suppression incident in detail..."
+   163→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:717:            <SelectValue placeholder="Party" />
+   164→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:728:            <SelectValue placeholder="Event Type" />
+   165→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:912:            <SelectValue placeholder="Type" />
+   166→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:923:            <SelectValue placeholder="Severity" />
+   167→/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:934:            <SelectValue placeholder="Status" />
+   168→/home/z/my-project/src/components/dashboard/security-center.tsx:476:            <SelectValue placeholder="Severity" />
+   169→/home/z/my-project/src/components/dashboard/security-center.tsx:487:            <SelectValue placeholder="Event Type" />
+   170→/home/z/my-project/src/components/dashboard/security-center.tsx:1075:              placeholder="e.g. 192.168.1.0/24"
+   171→/home/z/my-project/src/components/dashboard/live-feed.tsx:89:            <SelectTrigger className="h-7 w-32 text-[11px]"><SelectValue placeholder="Type" /></SelectTrigger>
+   172→/home/z/my-project/src/components/dashboard/live-feed.tsx:102:            <SelectTrigger className="h-7 w-28 text-[11px]"><SelectValue placeholder="Severity" /></SelectTrigger>
+   173→/home/z/my-project/src/app/api/campaigns/route.ts:46:      templateName: c.templateName,
+   174→/home/z/my-project/src/app/api/campaigns/route.ts:47:      templateBody: c.templateBody,
+   175→/home/z/my-project/src/app/api/campaigns/route.ts:48:      templateStatus: c.templateStatus,
+   176→/home/z/my-project/src/app/api/campaigns/route.ts:99:      templateName,
+   177→/home/z/my-project/src/app/api/campaigns/route.ts:100:      templateBody,
+   178→/home/z/my-project/src/app/api/campaigns/route.ts:109:    if (!name || !templateBody) {
+   179→/home/z/my-project/src/app/api/campaigns/route.ts:111:        { error: 'name and templateBody are required' },
+   180→/home/z/my-project/src/app/api/campaigns/route.ts:120:        templateName: templateName || name,
+   181→/home/z/my-project/src/app/api/campaigns/route.ts:121:        templateBody,
+   182→/home/z/my-project/src/app/api/auth/route.ts:12:// Tracks failed login attempts per email. In production, replace with Redis.
+   183→/home/z/my-project/src/app/api/auth/route.ts:13:const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
+   184→/home/z/my-project/src/app/api/auth/route.ts:14:const MAX_ATTEMPTS = 5;
+   185→/home/z/my-project/src/app/api/auth/route.ts:16:const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes window
+   186→/home/z/my-project/src/app/api/auth/route.ts:19:  const entry = loginAttempts.get(email.toLowerCase());
+   187→/home/z/my-project/src/app/api/auth/route.ts:29:  // If attempt window has passed, reset
+   188→/home/z/my-project/src/app/api/auth/route.ts:30:  if (now - entry.firstAttempt > ATTEMPT_WINDOW_MS) {
+   189→/home/z/my-project/src/app/api/auth/route.ts:31:    loginAttempts.delete(email.toLowerCase());
+   190→/home/z/my-project/src/app/api/auth/route.ts:38:function recordFailedAttempt(email: string): void {
+   191→/home/z/my-project/src/app/api/auth/route.ts:41:  const entry = loginAttempts.get(key);
+   192→/home/z/my-project/src/app/api/auth/route.ts:44:    loginAttempts.set(key, { count: 1, firstAttempt: now, lockedUntil: 0 });
+   193→/home/z/my-project/src/app/api/auth/route.ts:47:    if (entry.count >= MAX_ATTEMPTS) {
+   194→/home/z/my-project/src/app/api/auth/route.ts:53:function clearAttempts(email: string): void {
+   195→/home/z/my-project/src/app/api/auth/route.ts:54:  loginAttempts.delete(email.toLowerCase());
+   196→/home/z/my-project/src/app/api/auth/route.ts:70:        { error: `Too many failed login attempts. Try again in ${retryAfterSecs} seconds.` },
+   197→/home/z/my-project/src/app/api/auth/route.ts:88:      recordFailedAttempt(email);
+   198→/home/z/my-project/src/app/api/auth/route.ts:109:      recordFailedAttempt(email);
+   199→/home/z/my-project/src/app/api/auth/route.ts:114:    clearAttempts(email);
+   200→/home/z/my-project/src/app/api/reports/route.ts:9://   ?reporterId=xxx       — single agent's reports (field agent view)
+   201→/home/z/my-project/src/app/api/reports/route.ts:11://   ?all=true&agentId=xxx — filter to a specific agent
+   202→/home/z/my-project/src/data/templates.ts:5:export interface MessageTemplate {
+   203→/home/z/my-project/src/data/templates.ts:25:// ─── Built-in Templates (100+) ────────────────────────────────────
+   204→/home/z/my-project/src/data/templates.ts:30:const T: MessageTemplate[] = [
+   205→/home/z/my-project/src/data/templates.ts:32:  // GOTV — Get Out The Vote (15 templates)
+   206→/home/z/my-project/src/data/templates.ts:51:    mediaUrl: '/uploads/templates/pvc-reminder.jpg',
+   207→/home/z/my-project/src/data/templates.ts:61:    mediaUrl: '/uploads/templates/rally-poster.jpg',
+   208→/home/z/my-project/src/data/templates.ts:91:    mediaUrl: '/uploads/templates/leader-appeal.mp3',
+   209→/home/z/my-project/src/data/templates.ts:101:    mediaUrl: '/uploads/templates/youth-mobilization.webm',
+   210→/home/z/my-project/src/data/templates.ts:111:    mediaUrl: '/uploads/templates/transport-map.jpg',
+   211→/home/z/my-project/src/data/templates.ts:131:    mediaUrl: '/uploads/templates/town-crier.mp3',
+   212→/home/z/my-project/src/data/templates.ts:141:    mediaUrl: '/uploads/templates/countdown-3days.jpg',
+   213→/home/z/my-project/src/data/templates.ts:161:    mediaUrl: '/uploads/templates/celeb-endorsement.webm',
+   214→/home/z/my-project/src/data/templates.ts:171:    mediaUrl: '/uploads/templates/market-women.mp3',
+   215→/home/z/my-project/src/data/templates.ts:186:  // VOTER_EDUCATION (12 templates)
+   216→/home/z/my-project/src/data/templates.ts:195:    mediaUrl: '/uploads/templates/voting-steps.jpg',
+   217→/home/z/my-project/src/data/templates.ts:205:    mediaUrl: '/uploads/templates/bvas-explainer.jpg',
+   218→/home/z/my-project/src/data/templates.ts:215:    mediaUrl: '/uploads/templates/secret-ballot.webm',
+   219→/home/z/my-project/src/data/templates.ts:225:    mediaUrl: '/uploads/templates/ballot-examples.jpg',
+   220→/home/z/my-project/src/data/templates.ts:235:    mediaUrl: '/uploads/templates/election-officials.jpg',
+   221→/home/z/my-project/src/data/templates.ts:265:    mediaUrl: '/uploads/templates/pwd-accessibility.jpg',
+   222→/home/z/my-project/src/data/templates.ts:275:    mediaUrl: '/uploads/templates/post-voting-process.webm',
+   223→/home/z/my-project/src/data/templates.ts:285:    mediaUrl: '/uploads/templates/irev-portal.jpg',
+   224→/home/z/my-project/src/data/templates.ts:310:  // INCIDENT_REPORTING (10 templates)
+   225→/home/z/my-project/src/data/templates.ts:319:    mediaUrl: '/uploads/templates/report-guide.jpg',
+   226→/home/z/my-project/src/data/templates.ts:329:    mediaUrl: '/uploads/templates/vote-buying-alert.jpg',
+   227→/home/z/my-project/src/data/templates.ts:339:    mediaUrl: '/uploads/templates/safety-video.webm',
+   228→/home/z/my-project/src/data/templates.ts:389:    mediaUrl: '/uploads/templates/result-verification.jpg',
+   229→/home/z/my-project/src/data/templates.ts:399:    mediaUrl: '/uploads/templates/intimidation-report.mp3',
+   230→/home/z/my-project/src/data/templates.ts:414:  // SAFETY (10 templates)
+   231→/home/z/my-project/src/data/templates.ts:423:    mediaUrl: '/uploads/templates/safety-tips.jpg',
+   232→/home/z/my-project/src/data/templates.ts:433:    mediaUrl: '/uploads/templates/dress-code.jpg',
+   233→/home/z/my-project/src/data/templates.ts:443:    mediaUrl: '/uploads/templates/emergency-contacts.jpg',
+   234→/home/z/my-project/src/data/templates.ts:463:    mediaUrl: '/uploads/templates/violence-response.webm',
+   235→/home/z/my-project/src/data/templates.ts:493:    mediaUrl: '/uploads/templates/night-travel.mp3',
+   236→/home/z/my-project/src/data/templates.ts:503:    mediaUrl: '/uploads/templates/digital-safety.jpg',
+   237→/home/z/my-project/src/data/templates.ts:513:    mediaUrl: '/uploads/templates/peace-message.mp3',
+   238→/home/z/my-project/src/data/templates.ts:518:  // RESULTS (8 templates)
+   239→/home/z/my-project/src/data/templates.ts:527:    mediaUrl: '/uploads/templates/watch-counting.webm',
+   240→/home/z/my-project/src/data/templates.ts:537:    mediaUrl: '/uploads/templates/ec8a-explainer.jpg',
+   241→/home/z/my-project/src/data/templates.ts:557:    mediaUrl: '/uploads/templates/collation-flow.jpg',
+   242→/home/z/my-project/src/data/templates.ts:577:    mediaUrl: '/uploads/templates/rejected-ballots.jpg',
+   243→/home/z/my-project/src/data/templates.ts:602:  // TRAINING (8 templates)
+   244→/home/z/my-project/src/data/templates.ts:611:    mediaUrl: '/uploads/templates/observer-training.webm',
+   245→/home/z/my-project/src/data/templates.ts:621:    mediaUrl: '/uploads/templates/platform-tutorial.webm',
+   246→/home/z/my-project/src/data/templates.ts:631:    mediaUrl: '/uploads/templates/incident-categories.jpg',
+   247→/home/z/my-project/src/data/templates.ts:641:    mediaUrl: '/uploads/templates/photo-guide.jpg',
+   248→/home/z/my-project/src/data/templates.ts:661:    mediaUrl: '/uploads/templates/pu-code-explainer.jpg',
+   249→/home/z/my-project/src/data/templates.ts:686:  // COMPLIANCE (8 templates)
+   250→/home/z/my-project/src/data/templates.ts:695:    mediaUrl: '/uploads/templates/electoral-act.jpg',
+   251→
+   252→[Showing results with pagination = limit: 250]
