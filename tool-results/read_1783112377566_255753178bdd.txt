@@ -1,0 +1,772 @@
+     1→'use client';
+     2→
+     3→import { useState, useCallback } from 'react';
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     5→import { motion, AnimatePresence } from 'framer-motion';
+     6→import { Badge } from '@/components/ui/badge';
+     7→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+     8→import { Button } from '@/components/ui/button';
+     9→import { Input } from '@/components/ui/input';
+    10→import { useDashboardStore } from '@/store/dashboard';
+    11→import {
+    12→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    13→} from '@/components/ui/table';
+    14→import {
+    15→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    16→  DialogHeader, DialogTitle,
+    17→} from '@/components/ui/dialog';
+    18→import {
+    19→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    20→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    21→} from '@/components/ui/alert-dialog';
+    22→import {
+    23→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    24→} from '@/components/ui/select';
+    25→import {
+    26→  Search, Users, UserCheck, UserX, Shield, ShieldAlert, Wrench,
+    27→  Loader2, FileText, Trash2, Eye, ToggleLeft, X, Pencil,
+    28→} from 'lucide-react';
+    29→import { cn } from '@/lib/utils';
+    30→import { fetchJson } from '@/lib/api';
+    31→import { toast } from 'sonner';
+    32→
+    33→interface AgentUser {
+    34→  id: string;
+    35→  email: string;
+    36→  name: string;
+    37→  role: string;
+    38→  isOnline: boolean;
+    39→  lastSeenAt: string | null;
+    40→  createdAt: string;
+    41→  _count?: { incidents: number; auditLogs: number };
+    42→}
+    43→
+    44→interface ReportsSlideOver {
+    45→  agent: AgentUser | null;
+    46→  open: boolean;
+    47→}
+    48→
+    49→export function AgentRoster() {
+    50→  const queryClient = useQueryClient();
+    51→  const { tenantId } = useDashboardStore();
+    52→  const [search, setSearch] = useState('');
+    53→  const [searchInput, setSearchInput] = useState('');
+    54→  const [roleFilter, setRoleFilter] = useState('ALL');
+    55→  const [addOpen, setAddOpen] = useState(false);
+    56→  const [reportsPanel, setReportsPanel] = useState<ReportsSlideOver>({ agent: null, open: false });
+    57→  const [confirmAction, setConfirmAction] = useState<{ type: string; agent: AgentUser | null }>({ type: '', agent: null });
+    58→  const [editOpen, setEditOpen] = useState(false);
+    59→  const [editAgent, setEditAgent] = useState<AgentUser | null>(null);
+    60→  const [editName, setEditName] = useState('');
+    61→  const [editPhone, setEditPhone] = useState('');
+    62→  const [editRole, setEditRole] = useState('');
+    63→
+    64→  // Add agent form state
+    65→  const [newName, setNewName] = useState('');
+    66→  const [newEmail, setNewEmail] = useState('');
+    67→  const [newRole, setNewRole] = useState('FIELD_AGENT');
+    68→
+    69→  // Fetch agents from proper API
+    70→  const { data, isLoading, refetch } = useQuery<{ users: AgentUser[] }>({
+    71→    queryKey: ['agents', search, roleFilter, tenantId],
+    72→    queryFn: () => {
+    73→      const params = new URLSearchParams();
+    74→      if (search) params.set('search', search);
+    75→      if (roleFilter !== 'ALL') params.set('role', roleFilter);
+    76→      if (tenantId) params.set('tenantId', tenantId);
+    77→      return fetchJson(`/api/agents?${params}`);
+    78→    },
+    79→  });
+    80→
+    81→  // Add agent mutation
+    82→  const addMutation = useMutation({
+    83→    mutationFn: (body: { name: string; email: string; role: string }) =>
+    84→      fetchJson(`/api/agents?tenantId=${tenantId}`, {
+    85→        method: 'POST',
+    86→        headers: { 'Content-Type': 'application/json' },
+    87→        body: JSON.stringify(body),
+    88→      }),
+    89→    onSuccess: (data) => {
+    90→      if (data.error) {
+    91→        toast.error(data.error);
+    92→        return;
+    93→      }
+    94→      toast.success(`Agent "${data.user.name}" added successfully`);
+    95→      queryClient.invalidateQueries({ queryKey: ['agents'] });
+    96→      setAddOpen(false);
+    97→      setNewName(''); setNewEmail(''); setNewRole('FIELD_AGENT');
+    98→    },
+    99→    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to add agent'),
+   100→  });
+   101→
+   102→  // Action mutation (toggle online, remote wipe, change role, delete)
+   103→  const actionMutation = useMutation({
+   104→    mutationFn: (body: { userId: string; action: string; newRole?: string }) =>
+   105→      fetchJson(`/api/agents?tenantId=${tenantId}`, {
+   106→        method: 'PATCH',
+   107→        headers: { 'Content-Type': 'application/json' },
+   108→        body: JSON.stringify(body),
+   109→      }),
+   110→    onSuccess: (data, variables) => {
+   111→      if (data.error) {
+   112→        toast.error(data.error);
+   113→        return;
+   114→      }
+   115→      if (variables.action === 'DELETE') {
+   116→        toast.success(data.message || 'Agent removed');
+   117→      } else if (variables.action === 'REMOTE_WIPE') {
+   118→        toast.success(`Remote wipe sent to ${confirmAction.agent?.name}. Device data cleared.`);
+   119→      } else if (variables.action === 'CHANGE_ROLE') {
+   120→        toast.success(`Role changed to ${variables.newRole?.replace(/_/g, ' ')}`);
+   121→      } else {
+   122→        toast.success('Status updated');
+   123→      }
+   124→      queryClient.invalidateQueries({ queryKey: ['agents'] });
+   125→      setConfirmAction({ type: '', agent: null });
+   126→    },
+   127→    onError: (err) => toast.error(err instanceof Error ? err.message : 'Action failed'),
+   128→  });
+   129→
+   130→  const users = data?.users || [];
+   131→  const fieldAgents = users.filter(u => u.role === 'FIELD_AGENT');
+   132→  const online = fieldAgents.filter(u => u.isOnline).length;
+   133→
+   134→  const roleCounts = users.reduce<Record<string, number>>((acc, u) => {
+   135→    acc[u.role] = (acc[u.role] || 0) + 1;
+   136→    return acc;
+   137→  }, {});
+   138→
+   139→  // Search with debounce via the query key
+   140→  const handleSearch = useCallback(() => {
+   141→    setSearch(searchInput);
+   142→  }, [searchInput]);
+   143→
+   144→  // Edit agent mutation
+   145→  const editMutation = useMutation({
+   146→    mutationFn: (body: { id: string; name?: string; phone?: string; role?: string }) =>
+   147→      fetchJson('/api/tenants/users', {
+   148→        method: 'PATCH',
+   149→        headers: { 'Content-Type': 'application/json' },
+   150→        body: JSON.stringify(body),
+   151→      }),
+   152→    onSuccess: () => {
+   153→      queryClient.invalidateQueries({ queryKey: ['agents'] });
+   154→      toast.success('Agent details updated');
+   155→      setEditOpen(false);
+   156→      setEditAgent(null);
+   157→    },
+   158→    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to update agent'),
+   159→  });
+   160→
+   161→  const openEditDialog = (agent: AgentUser) => {
+   162→    setEditAgent(agent);
+   163→    setEditName(agent.name);
+   164→    setEditPhone('');
+   165→    setEditRole(agent.role);
+   166→    setEditOpen(true);
+   167→  };
+   168→
+   169→  const [formError, setFormError] = useState('');
+   170→
+   171→  const handleEditSave = () => {
+   172→    if (!editAgent) return;
+   173→    if (!editName.trim()) { setFormError('Name is required'); return; }
+   174→    setFormError('');
+   175→    editMutation.mutate({
+   176→      id: editAgent.id,
+   177→      name: editName.trim(),
+   178→      phone: editPhone.trim() || undefined,
+   179→      role: editRole,
+   180→    });
+   181→  };
+   182→
+   183→  // Handle confirm action
+   184→  const handleConfirmAction = () => {
+   185→    if (!confirmAction.agent) return;
+   186→    if (confirmAction.type === 'DELETE') {
+   187→      actionMutation.mutate({ userId: confirmAction.agent.id, action: 'DELETE' });
+   188→    } else if (confirmAction.type === 'REMOTE_WIPE') {
+   189→      actionMutation.mutate({ userId: confirmAction.agent.id, action: 'REMOTE_WIPE' });
+   190→    } else if (confirmAction.type === 'CHANGE_ROLE') {
+   191→      actionMutation.mutate({ userId: confirmAction.agent.id, action: 'CHANGE_ROLE', newRole: 'ANALYST' });
+   192→    }
+   193→  };
+   194→
+   195→  // Handle add agent
+   196→  const [addFormError, setAddFormError] = useState('');
+   197→
+   198→  const handleAddAgent = () => {
+   199→    if (!newName.trim() || !newEmail.trim()) {
+   200→      setAddFormError('Name and email are required');
+   201→      return;
+   202→    }
+   203→    if (!newEmail.includes('@')) {
+   204→      setAddFormError('Please enter a valid email address');
+   205→      return;
+   206→    }
+   207→    setAddFormError('');
+   208→    addMutation.mutate({ name: newName.trim(), email: newEmail.trim(), role: newRole });
+   209→  };
+   210→
+   211→  return (
+   212→    <div className="h-full overflow-y-auto p-4 sm:p-6 space-y-4">
+   213→      {/* Header */}
+   214→      <div className="flex items-center justify-between flex-wrap gap-3">
+   215→        <div>
+   216→          <h2 className="text-lg font-semibold flex items-center gap-2">
+   217→            <Users className="h-5 w-5 text-emerald" />
+   218→            Agent Roster
+   219→          </h2>
+   220→          <p className="text-sm text-muted-foreground mt-0.5">Manage field agents and organization users</p>
+   221→        </div>
+   222→        <Button
+   223→          onClick={() => setAddOpen(true)}
+   224→          className="bg-emerald hover:bg-emerald/90 text-emerald-950 text-sm gap-2"
+   225→        >
+   226→          <UserCheck className="h-4 w-4" />
+   227→          Add Agent
+   228→        </Button>
+   229→      </div>
+   230→
+   231→      {/* Summary cards */}
+   232→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   233→        <Card className="border-border bg-card/40">
+   234→          <CardContent className="p-3.5">
+   235→            <div className="flex items-center gap-2 mb-1">
+   236→              <Users className="h-4 w-4 text-emerald" />
+   237→              <span className="text-[11px] text-muted-foreground">Total Agents</span>
+   238→            </div>
+   239→            <p className="text-xl font-bold tabular-nums">{fieldAgents.length}</p>
+   240→          </CardContent>
+   241→        </Card>
+   242→        <Card className="border-emerald/20 bg-emerald/5">
+   243→          <CardContent className="p-3.5">
+   244→            <div className="flex items-center gap-2 mb-1">
+   245→              <UserCheck className="h-4 w-4 text-emerald" />
+   246→              <span className="text-[11px] text-muted-foreground">Online Now</span>
+   247→            </div>
+   248→            <p className="text-xl font-bold tabular-nums text-emerald">{online}</p>
+   249→          </CardContent>
+   250→        </Card>
+   251→        <Card className="border-amber/20 bg-amber/5">
+   252→          <CardContent className="p-3.5">
+   253→            <div className="flex items-center gap-2 mb-1">
+   254→              <UserX className="h-4 w-4 text-amber" />
+   255→              <span className="text-[11px] text-muted-foreground">Offline</span>
+   256→            </div>
+   257→            <p className="text-xl font-bold tabular-nums text-amber">{fieldAgents.length - online}</p>
+   258→          </CardContent>
+   259→        </Card>
+   260→        <Card className="border-border bg-card/40">
+   261→          <CardContent className="p-3.5">
+   262→            <div className="flex items-center gap-2 mb-1">
+   263→              <Shield className="h-4 w-4 text-cyan" />
+   264→              <span className="text-[11px] text-muted-foreground">All Users</span>
+   265→            </div>
+   266→            <p className="text-xl font-bold tabular-nums">{users.length}</p>
+   267→          </CardContent>
+   268→        </Card>
+   269→      </div>
+   270→
+   271→      {/* Role filter + distribution badges */}
+   272→      <div className="flex items-center justify-between flex-wrap gap-3">
+   273→        <div className="flex items-center gap-2 flex-wrap">
+   274→          {Object.entries(roleCounts).map(([role, count]) => (
+   275→            <button
+   276→              key={role}
+   277→              onClick={() => setRoleFilter(roleFilter === role ? 'ALL' : role)}
+   278→              className="cursor-pointer"
+   279→            >
+   280→              <Badge
+   281→                variant="outline"
+   282→                className={cn(
+   283→                  'text-[11px] h-6 transition-colors',
+   284→                  roleFilter === role ? 'bg-foreground/10' : '',
+   285→                  role === 'SUPER_ADMIN' ? 'border-emerald/30 text-emerald' :
+   286→                  role === 'TENANT_ADMIN' ? 'border-cyan/30 text-cyan' :
+   287→                  role === 'ANALYST' ? 'border-amber/30 text-amber' :
+   288→                  role === 'TRUST_SAFETY' ? 'border-rose/30 text-rose' :
+   289→                  'border-border text-muted-foreground'
+   290→                )}
+   291→              >
+   292→                {role.replace(/_/g, ' ')}: {count}
+   293→              </Badge>
+   294→            </button>
+   295→          ))}
+   296→        </div>
+   297→        {roleFilter !== 'ALL' && (
+   298→          <button onClick={() => setRoleFilter('ALL')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+   299→            <X className="h-3 w-3" /> Clear filter
+   300→          </button>
+   301→        )}
+   302→      </div>
+   303→
+   304→      {/* Agent table */}
+   305→      <Card>
+   306→        <CardHeader className="pb-2 pt-4 px-4">
+   307→          <div className="flex items-center justify-between gap-3">
+   308→            <CardTitle className="text-sm">
+   309→              {roleFilter === 'ALL' ? 'All Users' : roleFilter.replace(/_/g, ' ')}
+   310→              <span className="text-muted-foreground font-normal ml-2">({users.length})</span>
+   311→            </CardTitle>
+   312→            <div className="flex items-center gap-2">
+   313→              <div className="relative">
+   314→                <label htmlFor="agent-search" className="sr-only">Search agents</label>
+   315→                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+   316→                <Input
+   317→                  id="agent-search"
+   318→                  placeholder="Search agents..."
+   319→                  value={searchInput}
+   320→                  onChange={(e) => setSearchInput(e.target.value)}
+   321→                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+   322→                  className="pl-8 h-8 w-48 text-xs"
+   323→                />
+   324→              </div>
+   325→              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleSearch}>
+   326→                Search
+   327→              </Button>
+   328→            </div>
+   329→          </div>
+   330→        </CardHeader>
+   331→        <CardContent className="px-0 pb-0">
+   332→          <div className="max-h-[480px] overflow-y-auto">
+   333→            {isLoading ? (
+   334→              <div className="flex items-center justify-center py-16">
+   335→                <Loader2 className="h-5 w-5 animate-spin text-emerald" />
+   336→              </div>
+   337→            ) : users.length === 0 ? (
+   338→              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+   339→                <Users className="h-8 w-8 mb-2 opacity-40" />
+   340→                <p className="text-sm">No users found</p>
+   341→              </div>
+   342→            ) : (
+   343→              <Table>
+   344→                <TableHeader>
+   345→                  <TableRow className="border-border hover:bg-transparent">
+   346→                    <TableHead className="text-[11px] h-9">User</TableHead>
+   347→                    <TableHead className="text-[11px] h-9">Role</TableHead>
+   348→                    <TableHead className="text-[11px] h-9">Status</TableHead>
+   349→                    <TableHead className="text-[11px] h-9 hidden sm:table-cell">Email</TableHead>
+   350→                    <TableHead className="text-[11px] h-9 hidden md:table-cell">Reports</TableHead>
+   351→                    <TableHead className="text-[11px] h-9 text-right">Actions</TableHead>
+   352→                  </TableRow>
+   353→                </TableHeader>
+   354→                <TableBody>
+   355→                  <AnimatePresence>
+   356→                    {users.map(agent => (
+   357→                      <motion.tr
+   358→                        key={agent.id}
+   359→                        initial={{ opacity: 0, y: 4 }}
+   360→                        animate={{ opacity: 1, y: 0 }}
+   361→                        exit={{ opacity: 0, y: -4 }}
+   362→                        className="border-border hover:bg-card/60 transition-colors"
+   363→                      >
+   364→                        <TableCell className="py-2.5">
+   365→                          <div className="flex items-center gap-2.5">
+   366→                            <div className="relative">
+   367→                              <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
+   368→                                {agent.name.split(' ').map(n => n[0]).join('')}
+   369→                              </div>
+   370→                              <span className={cn(
+   371→                                'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card',
+   372→                                agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30'
+   373→                              )} />
+   374→                            </div>
+   375→                            <div className="min-w-0">
+   376→                              <span className="text-xs font-medium block truncate max-w-[140px]">{agent.name}</span>
+   377→                              {agent.lastSeenAt && (
+   378→                                <span className="text-[10px] text-muted-foreground/60">
+   379→                                  Last: {new Date(agent.lastSeenAt).toLocaleDateString()}
+   380→                                </span>
+   381→                              )}
+   382→                            </div>
+   383→                          </div>
+   384→                        </TableCell>
+   385→                        <TableCell className="py-2.5">
+   386→                          <Badge
+   387→                            variant="outline"
+   388→                            className={cn(
+   389→                              'text-[10px] h-5',
+   390→                              agent.role === 'SUPER_ADMIN' ? 'border-emerald/30 text-emerald' :
+   391→                              agent.role === 'TENANT_ADMIN' ? 'border-cyan/30 text-cyan' :
+   392→                              agent.role === 'ANALYST' ? 'border-amber/30 text-amber' :
+   393→                              agent.role === 'TRUST_SAFETY' ? 'border-rose/30 text-rose' :
+   394→                              'border-border text-muted-foreground'
+   395→                            )}
+   396→                          >
+   397→                            {agent.role.replace(/_/g, ' ')}
+   398→                          </Badge>
+   399→                        </TableCell>
+   400→                        <TableCell className="py-2.5">
+   401→                          <button
+   402→                            onClick={() => actionMutation.mutate({ userId: agent.id, action: 'TOGGLE_ONLINE' })}
+   403→                            className="cursor-pointer"
+   404→                            disabled={actionMutation.isPending}
+   405→                          >
+   406→                            <Badge
+   407→                              variant="outline"
+   408→                              className={cn(
+   409→                                'text-[10px] h-5 transition-colors cursor-pointer',
+   410→                                agent.isOnline
+   411→                                  ? 'border-emerald/30 text-emerald bg-emerald/10 hover:bg-emerald/20'
+   412→                                  : 'border-border text-muted-foreground hover:bg-card'
+   413→                              )}
+   414→                            >
+   415→                              <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/40')} />
+   416→                              {agent.isOnline ? 'Online' : 'Offline'}
+   417→                            </Badge>
+   418→                          </button>
+   419→                        </TableCell>
+   420→                        <TableCell className="py-2.5 text-[11px] text-muted-foreground hidden sm:table-cell truncate max-w-[180px]">{agent.email}</TableCell>
+   421→                        <TableCell className="py-2.5 hidden md:table-cell">
+   422→                          <span className="text-[11px] text-muted-foreground tabular-nums">
+   423→                            {agent._count?.incidents ?? 0}
+   424→                          </span>
+   425→                        </TableCell>
+   426→                        <TableCell className="py-2.5 text-right">
+   427→                          <div className="flex items-center justify-end gap-0.5">
+   428→                            <Button
+   429→                              variant="ghost"
+   430→                              size="sm"
+   431→                              className="h-7 w-7 p-0 text-muted-foreground hover:text-cyan"
+   432→                              title="Edit Details"
+   433→                              aria-label={`Edit details for ${agent.name}`}
+   434→                              onClick={() => openEditDialog(agent)}
+   435→                              disabled={agent.role === 'SUPER_ADMIN'}
+   436→                            >
+   437→                              <Pencil className="h-3.5 w-3.5" />
+   438→                            </Button>
+   439→                            <Button
+   440→                              variant="ghost"
+   441→                              size="sm"
+   442→                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+   443→                              title="View Reports"
+   444→                              aria-label={`View reports for ${agent.name}`}
+   445→                              onClick={() => setReportsPanel({ agent, open: true })}
+   446→                            >
+   447→                              <Eye className="h-3.5 w-3.5" />
+   448→                            </Button>
+   449→                            <Button
+   450→                              variant="ghost"
+   451→                              size="sm"
+   452→                              className="h-7 w-7 p-0 text-muted-foreground hover:text-amber"
+   453→                              title="Remote Wipe Device"
+   454→                              aria-label={`Remote wipe device for ${agent.name}`}
+   455→                              onClick={() => setConfirmAction({ type: 'REMOTE_WIPE', agent })}
+   456→                              disabled={actionMutation.isPending}
+   457→                            >
+   458→                              <Wrench className="h-3.5 w-3.5" />
+   459→                            </Button>
+   460→                            <Button
+   461→                              variant="ghost"
+   462→                              size="sm"
+   463→                              className="h-7 w-7 p-0 text-muted-foreground hover:text-rose"
+   464→                              title="Remove Agent"
+   465→                              aria-label={`Remove agent ${agent.name}`}
+   466→                              onClick={() => setConfirmAction({ type: 'DELETE', agent })}
+   467→                              disabled={actionMutation.isPending || agent.role === 'SUPER_ADMIN'}
+   468→                            >
+   469→                              <Trash2 className="h-3.5 w-3.5" />
+   470→                            </Button>
+   471→                          </div>
+   472→                        </TableCell>
+   473→                      </motion.tr>
+   474→                    ))}
+   475→                  </AnimatePresence>
+   476→                </TableBody>
+   477→              </Table>
+   478→            )}
+   479→          </div>
+   480→        </CardContent>
+   481→      </Card>
+   482→
+   483→      {/* ===== ADD AGENT DIALOG ===== */}
+   484→      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+   485→        <DialogContent className="sm:max-w-md">
+   486→          <DialogHeader>
+   487→            <DialogTitle className="flex items-center gap-2">
+   488→              <UserCheck className="h-5 w-5 text-emerald" />
+   489→              Add New Agent
+   490→            </DialogTitle>
+   491→            <DialogDescription>
+   492→              Create a new user account. They will be able to login from the main screen using their email.
+   493→            </DialogDescription>
+   494→          </DialogHeader>
+   495→          <div className="space-y-4 py-2">
+   496→            <div className="space-y-2">
+   497→              <label htmlFor="add-agent-name" className="text-xs font-medium text-muted-foreground">Full Name</label>
+   498→              <Input
+   499→                id="add-agent-name"
+   500→                placeholder="e.g. Adebayo Johnson"
+   501→                value={newName}
+   502→                onChange={(e) => { setNewName(e.target.value); setAddFormError(''); }}
+   503→                className="h-9 text-sm"
+   504→                aria-invalid={!!addFormError}
+   505→                aria-describedby={addFormError ? 'add-agent-error' : undefined}
+   506→              />
+   507→            </div>
+   508→            <div className="space-y-2">
+   509→              <label htmlFor="add-agent-email" className="text-xs font-medium text-muted-foreground">Email Address</label>
+   510→              <Input
+   511→                id="add-agent-email"
+   512→                placeholder="e.g. agent@nigeriaelectionwatch.org"
+   513→                type="email"
+   514→                value={newEmail}
+   515→                onChange={(e) => { setNewEmail(e.target.value); setAddFormError(''); }}
+   516→                className="h-9 text-sm"
+   517→                aria-invalid={!!addFormError}
+   518→                aria-describedby={addFormError ? 'add-agent-error' : undefined}
+   519→              />
+   520→              {addFormError && <p id="add-agent-error" role="alert" className="text-xs text-rose mt-1">{addFormError}</p>}
+   521→            </div>
+   522→            <div className="space-y-2">
+   523→              <label htmlFor="add-agent-role" className="text-xs font-medium text-muted-foreground">Role</label>
+   524→              <Select value={newRole} onValueChange={setNewRole}>
+   525→                <SelectTrigger id="add-agent-role" className="h-9 text-sm">
+   526→                  <SelectValue />
+   527→                </SelectTrigger>
+   528→                <SelectContent>
+   529→                  <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
+   530→                  <SelectItem value="ANALYST">Analyst</SelectItem>
+   531→                  <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
+   532→                  <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
+   533→                </SelectContent>
+   534→              </Select>
+   535→            </div>
+   536→          </div>
+   537→          <DialogFooter>
+   538→            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={addMutation.isPending}>
+   539→              Cancel
+   540→            </Button>
+   541→            <Button
+   542→              onClick={handleAddAgent}
+   543→              disabled={addMutation.isPending || !newName.trim() || !newEmail.trim()}
+   544→              className="bg-emerald hover:bg-emerald/90 text-emerald-950"
+   545→            >
+   546→              {addMutation.isPending ? (
+   547→                <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Adding...</>
+   548→              ) : (
+   549→                <><UserCheck className="h-4 w-4 mr-1.5" /> Add Agent</>
+   550→              )}
+   551→            </Button>
+   552→          </DialogFooter>
+   553→        </DialogContent>
+   554→      </Dialog>
+   555→
+   556→      {/* ===== CONFIRM ACTION DIALOG ===== */}
+   557→      <AlertDialog open={!!confirmAction.type} onOpenChange={(open) => !open && setConfirmAction({ type: '', agent: null })}>
+   558→        <AlertDialogContent>
+   559→          <AlertDialogHeader>
+   560→            <AlertDialogTitle className={cn(
+   561→              confirmAction.type === 'DELETE' ? 'text-rose' : 'text-amber'
+   562→            )}>
+   563→              {confirmAction.type === 'DELETE' ? 'Remove Agent' :
+   564→               confirmAction.type === 'REMOTE_WIPE' ? 'Remote Wipe Device' :
+   565→               'Confirm Action'}
+   566→            </AlertDialogTitle>
+   567→            <AlertDialogDescription>
+   568→              {confirmAction.type === 'DELETE' && (
+   569→                <>Are you sure you want to permanently remove <strong>{confirmAction.agent?.name}</strong>? This will delete their account and all associated audit logs. This action cannot be undone.</>
+   570→              )}
+   571→              {confirmAction.type === 'REMOTE_WIPE' && (
+   572→                <>Send a remote wipe command to <strong>{confirmAction.agent?.name}</strong>&apos;s device? This will clear all cached data, credentials, and session tokens on the device. The agent will be set to offline.</>
+   573→              )}
+   574→            </AlertDialogDescription>
+   575→          </AlertDialogHeader>
+   576→          <AlertDialogFooter>
+   577→            <AlertDialogCancel disabled={actionMutation.isPending}>Cancel</AlertDialogCancel>
+   578→            <AlertDialogAction
+   579→              onClick={handleConfirmAction}
+   580→              disabled={actionMutation.isPending}
+   581→              className={cn(
+   582→                confirmAction.type === 'DELETE'
+   583→                  ? 'bg-rose hover:bg-rose/90 text-white'
+   584→                  : 'bg-amber hover:bg-amber/90 text-amber-950'
+   585→              )}
+   586→            >
+   587→              {actionMutation.isPending ? (
+   588→                <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Processing...</>
+   589→              ) : confirmAction.type === 'DELETE' ? (
+   590→                <><Trash2 className="h-4 w-4 mr-1.5" /> Remove Permanently</>
+   591→              ) : (
+   592→                <><Wrench className="h-4 w-4 mr-1.5" /> Send Remote Wipe</>
+   593→              )}
+   594→            </AlertDialogAction>
+   595→          </AlertDialogFooter>
+   596→        </AlertDialogContent>
+   597→      </AlertDialog>
+   598→
+   599→      {/* ===== EDIT AGENT DIALOG ===== */}
+   600→      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) setEditAgent(null); }}>
+   601→        <DialogContent className="sm:max-w-md">
+   602→          <DialogHeader>
+   603→            <DialogTitle className="flex items-center gap-2">
+   604→              <Pencil className="h-5 w-5 text-cyan" />
+   605→              Edit Agent Details
+   606→            </DialogTitle>
+   607→            <DialogDescription>
+   608→              Update name, phone, or role for {editAgent?.name}.
+   609→            </DialogDescription>
+   610→          </DialogHeader>
+   611→          <div className="space-y-4 py-2">
+   612→            <div className="space-y-2">
+   613→              <label htmlFor="edit-agent-name" className="text-xs font-medium text-muted-foreground">Full Name</label>
+   614→              <Input
+   615→                id="edit-agent-name"
+   616→                value={editName}
+   617→                onChange={(e) => { setEditName(e.target.value); setFormError(''); }}
+   618→                className="h-9 text-sm"
+   619→                placeholder="e.g. Adebayo Johnson"
+   620→                aria-invalid={!!formError}
+   621→                aria-describedby={formError ? 'edit-agent-error' : undefined}
+   622→              />
+   623→              {formError && <p id="edit-agent-error" role="alert" className="text-xs text-rose mt-1">{formError}</p>}
+   624→            </div>
+   625→            <div className="space-y-2">
+   626→              <label htmlFor="edit-agent-phone" className="text-xs font-medium text-muted-foreground">Phone (optional)</label>
+   627→              <Input
+   628→                id="edit-agent-phone"
+   629→                value={editPhone}
+   630→                onChange={(e) => setEditPhone(e.target.value)}
+   631→                className="h-9 text-sm"
+   632→                placeholder="e.g. +234 801 234 5678"
+   633→              />
+   634→            </div>
+   635→            <div className="space-y-2">
+   636→              <label htmlFor="edit-agent-role" className="text-xs font-medium text-muted-foreground">Role</label>
+   637→              <Select value={editRole} onValueChange={setEditRole}>
+   638→                <SelectTrigger id="edit-agent-role" className="h-9 text-sm">
+   639→                  <SelectValue />
+   640→                </SelectTrigger>
+   641→                <SelectContent>
+   642→                  <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
+   643→                  <SelectItem value="ANALYST">Analyst</SelectItem>
+   644→                  <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
+   645→                  <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
+   646→                </SelectContent>
+   647→              </Select>
+   648→            </div>
+   649→            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
+   650→              <p className="text-[10px] font-medium text-muted-foreground">Email (read-only)</p>
+   651→              <p className="text-sm text-foreground">{editAgent?.email}</p>
+   652→            </div>
+   653→          </div>
+   654→          <DialogFooter>
+   655→            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editMutation.isPending}>
+   656→              Cancel
+   657→            </Button>
+   658→            <Button
+   659→              onClick={handleEditSave}
+   660→              disabled={editMutation.isPending || !editName.trim()}
+   661→              className="bg-cyan hover:bg-cyan/90 text-cyan-950"
+   662→            >
+   663→              {editMutation.isPending ? (
+   664→                <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Saving...</>
+   665→              ) : (
+   666→                <><Pencil className="h-4 w-4 mr-1.5" /> Save Changes</>
+   667→              )}
+   668→            </Button>
+   669→          </DialogFooter>
+   670→        </DialogContent>
+   671→      </Dialog>
+   672→
+   673→      {/* ===== REPORTS SLIDE PANEL ===== */}
+   674→      <Dialog open={reportsPanel.open} onOpenChange={(open) => setReportsPanel({ ...reportsPanel, open })}>
+   675→        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+   676→          <DialogHeader>
+   677→            <DialogTitle className="flex items-center gap-2">
+   678→              <FileText className="h-5 w-5 text-amber" />
+   679→              Reports by {reportsPanel.agent?.name}
+   680→            </DialogTitle>
+   681→            <DialogDescription>
+   682→              Viewing all incident reports submitted by this agent
+   683→            </DialogDescription>
+   684→          </DialogHeader>
+   685→          <AgentReportsPanel agentId={reportsPanel.agent?.id || ''} />
+   686→        </DialogContent>
+   687→      </Dialog>
+   688→    </div>
+   689→  );
+   690→}
+   691→
+   692→// Sub-component: fetches and displays reports for a specific agent
+   693→function AgentReportsPanel({ agentId }: { agentId: string }) {
+   694→  const { data, isLoading } = useQuery<{ incidents: Array<{
+   695→    id: string; type: string; severity: string; status: string;
+   696→    description: string; submittedAt: string;
+   697→    pollingUnit: { name: string; state: string; lga: string } | null;
+   698→  }>; total: number }>({
+   699→    queryKey: ['agent-reports', agentId],
+   700→    queryFn: () => fetchJson(`/api/incidents?reporterId=${agentId}&limit=50`),
+   701→    enabled: !!agentId,
+   702→  });
+   703→
+   704→  if (isLoading) {
+   705→    return (
+   706→      <div className="flex items-center justify-center py-12">
+   707→        <Loader2 className="h-5 w-5 animate-spin text-emerald" />
+   708→      </div>
+   709→    );
+   710→  }
+   711→
+   712→  const incidents = data?.incidents || [];
+   713→
+   714→  if (incidents.length === 0) {
+   715→    return (
+   716→      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   717→        <FileText className="h-8 w-8 mb-2 opacity-40" />
+   718→        <p className="text-sm">No reports submitted yet</p>
+   719→      </div>
+   720→    );
+   721→  }
+   722→
+   723→  const severityColors: Record<string, string> = {
+   724→    LOW: 'border-emerald/30 text-emerald bg-emerald/10',
+   725→    MEDIUM: 'border-amber/30 text-amber bg-amber/10',
+   726→    HIGH: 'border-orange/30 text-orange bg-orange/10',
+   727→    CRITICAL: 'border-rose/30 text-rose bg-rose/10',
+   728→  };
+   729→
+   730→  const statusColors: Record<string, string> = {
+   731→    PENDING: 'text-muted-foreground',
+   732→    REVIEWED: 'text-cyan',
+   733→    ESCALATED: 'text-amber',
+   734→    DISMISSED: 'text-muted-foreground/50',
+   735→    QUARANTINED: 'text-rose',
+   736→  };
+   737→
+   738→  return (
+   739→    <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+   740→      <p className="text-xs text-muted-foreground mb-2">{data?.total || 0} total reports</p>
+   741→      {incidents.map(inc => (
+   742→        <div key={inc.id} className="rounded-lg border border-border bg-card/40 p-3 space-y-1.5">
+   743→          <div className="flex items-center justify-between gap-2">
+   744→            <div className="flex items-center gap-2">
+   745→              <Badge variant="outline" className={cn('text-[10px] h-5', severityColors[inc.severity] || '')}>
+   746→                {inc.severity}
+   747→              </Badge>
+   748→              <Badge variant="outline" className="text-[10px] h-5 border-border text-muted-foreground">
+   749→                {inc.type.replace(/_/g, ' ')}
+   750→              </Badge>
+   751→            </div>
+   752→            <div className="flex items-center gap-2">
+   753→              <span className={cn('text-[10px] font-medium', statusColors[inc.status] || '')}>
+   754→                {inc.status}
+   755→              </span>
+   756→            </div>
+   757→          </div>
+   758→          <p className="text-xs text-foreground/80 leading-relaxed">{inc.description}</p>
+   759→          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+   760→            {inc.pollingUnit && (
+   761→              <span className="flex items-center gap-1">
+   762→                <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+   763→                {inc.pollingUnit.name}, {inc.pollingUnit.state}
+   764→              </span>
+   765→            )}
+   766→            <span>{new Date(inc.submittedAt).toLocaleString()}</span>
+   767→          </div>
+   768→        </div>
+   769→      ))}
+   770→    </div>
+   771→  );
+   772→}

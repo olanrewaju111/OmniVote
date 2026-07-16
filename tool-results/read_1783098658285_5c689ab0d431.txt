@@ -1,0 +1,1011 @@
+     1→'use client';
+     2→
+     3→import { Card, CardContent } from '@/components/ui/card';
+     4→import { Badge } from '@/components/ui/badge';
+     5→import { Button } from '@/components/ui/button';
+     6→import {
+     7→  Dialog, DialogContent, DialogDescription, DialogFooter,
+     8→  DialogHeader, DialogTitle,
+     9→} from '@/components/ui/dialog';
+    10→import {
+    11→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    12→} from '@/components/ui/select';
+    13→import { Input } from '@/components/ui/input';
+    14→import {
+    15→  Building2, Users, Settings, Shield, Vote, Loader2, MapPin, Save,
+    16→  RotateCcw, Plus, Trash2, UserPlus, Mail, ChevronRight, Globe,
+    17→  Eye, UserCheck, Radio, AlertTriangle, Pencil, AlertCircle,
+    18→} from 'lucide-react';
+    19→import { useState, useEffect, useCallback } from 'react';
+    20→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+    21→import { cn } from '@/lib/utils';
+    22→import { toast } from 'sonner';
+    23→import { fetchJson } from '@/lib/api';
+    24→import { useDashboardStore, type UserRole } from '@/store/dashboard';
+    25→
+    26→// ---- Shared types & constants ----
+    27→const REGION_PRESETS = [
+    28→  { label: 'Nigeria (full)', minLat: 4.0, maxLat: 14.0, minLng: 2.5, maxLng: 15.0 },
+    29→  { label: 'Lagos', minLat: 6.3, maxLat: 6.7, minLng: 3.2, maxLng: 3.5 },
+    30→  { label: 'Abuja FCT', minLat: 8.8, maxLat: 9.2, minLng: 7.2, maxLng: 7.7 },
+    31→  { label: 'Kano', minLat: 11.8, maxLat: 12.4, minLng: 8.3, maxLng: 8.9 },
+    32→  { label: 'Rivers', minLat: 4.5, maxLat: 5.2, minLng: 6.5, maxLng: 7.1 },
+    33→  { label: 'Southeast', minLat: 4.8, maxLat: 7.0, minLng: 6.8, maxLng: 8.2 },
+    34→  { label: 'Southwest', minLat: 6.0, maxLat: 9.0, minLng: 2.5, maxLng: 5.0 },
+    35→  { label: 'Northwest', minLat: 10.0, maxLat: 14.0, minLng: 3.0, maxLng: 9.0 },
+    36→  { label: 'North-Central', minLat: 7.0, maxLat: 10.5, minLng: 3.0, maxLng: 9.5 },
+    37→  { label: 'South-South', minLat: 4.3, maxLat: 6.5, minLng: 5.0, maxLng: 8.5 },
+    38→  { label: 'Northeast', minLat: 8.0, maxLat: 14.0, minLng: 10.0, maxLng: 15.0 },
+    39→];
+    40→
+    41→interface MapBoundsData {
+    42→  minLat: number; maxLat: number; minLng: number; maxLng: number; label: string;
+    43→}
+    44→
+    45→const VALID_ROLES: UserRole[] = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'];
+    46→
+    47→const ROLE_BADGE: Record<string, string> = {
+    48→  SUPER_ADMIN: 'border-emerald/30 text-emerald bg-emerald/10',
+    49→  TENANT_ADMIN: 'border-cyan/30 text-cyan bg-cyan/10',
+    50→  ANALYST: 'border-amber/30 text-amber bg-amber/10',
+    51→  TRUST_SAFETY: 'border-rose/30 text-rose bg-rose/10',
+    52→  FIELD_AGENT: 'border-border text-muted-foreground bg-card',
+    53→};
+    54→
+    55→const ROLE_ICONS: Record<string, React.ReactNode> = {
+    56→  SUPER_ADMIN: <Shield className="h-3.5 w-3.5" />,
+    57→  TENANT_ADMIN: <Users className="h-3.5 w-3.5" />,
+    58→  ANALYST: <Eye className="h-3.5 w-3.5" />,
+    59→  TRUST_SAFETY: <UserCheck className="h-3.5 w-3.5" />,
+    60→  FIELD_AGENT: <Radio className="h-3.5 w-3.5" />,
+    61→};
+    62→
+    63→// ---- Main Component ----
+    64→export function TenantManagement() {
+    65→  const { user, tenantId } = useDashboardStore();
+    66→  const queryClient = useQueryClient();
+    67→  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    68→  const isTenantAdmin = user?.role === 'TENANT_ADMIN';
+    69→  const isAdmin = isSuperAdmin || isTenantAdmin;
+    70→
+    71→  // ===================== SUPER_ADMIN: Platform Tenants =====================
+    72→  const { data: allTenants, isLoading: tenantsLoading, isError: tenantsIsError } = useQuery({
+    73→    queryKey: ['all-tenants'],
+    74→    queryFn: async () => {
+    75→      const d = await fetchJson<{ tenants?: unknown[] }>('/api/tenants');
+    76→      return d.tenants || [];
+    77→    },
+    78→    enabled: isSuperAdmin,
+    79→  });
+    80→
+    81→  // ===================== TENANT_ADMIN: Own tenant settings =====================
+    82→  const { data: settings, isLoading: settingsLoading, isError: settingsIsError } = useQuery({
+    83→    queryKey: ['tenant-settings', tenantId],
+    84→    queryFn: async () => {
+    85→      return fetchJson(`/api/tenant-settings?tenantId=${tenantId}`);
+    86→    },
+    87→    enabled: !!tenantId && isAdmin,
+    88→  });
+    89→
+    90→  // ===================== Common: Tenant Users =====================
+    91→  const { data: tenantUsersData, isLoading: usersLoading, isError: usersIsError } = useQuery({
+    92→    queryKey: ['tenant-users', tenantId],
+    93→    queryFn: async () => {
+    94→      const d = await fetchJson<{ users?: unknown[] }>(`/api/tenants/users?tenantId=${tenantId}`);
+    95→      return d.users || [];
+    96→    },
+    97→    enabled: !!tenantId && isAdmin,
+    98→  });
+    99→
+   100→  const currentBounds: MapBoundsData | null = settings?.mapBounds || null;
+   101→  const tenantUsers = tenantUsersData || [];
+   102→
+   103→  // ===================== State =====================
+   104→  // Map config dialog
+   105→  const [mapConfigOpen, setMapConfigOpen] = useState(false);
+   106→  const [mapLabel, setMapLabel] = useState('');
+   107→  const [minLat, setMinLat] = useState('');
+   108→  const [maxLat, setMaxLat] = useState('');
+   109→  const [minLng, setMinLng] = useState('');
+   110→  const [maxLng, setMaxLng] = useState('');
+   111→
+   112→  // Create tenant dialog
+   113→  const [createTenantOpen, setCreateTenantOpen] = useState(false);
+   114→  const [newTenantName, setNewTenantName] = useState('');
+   115→  const [newTenantSlug, setNewTenantSlug] = useState('');
+   116→  const [newTenantColor, setNewTenantColor] = useState('#10b981');
+   117→  const [newAdminName, setNewAdminName] = useState('');
+   118→  const [newAdminEmail, setNewAdminEmail] = useState('');
+   119→
+   120→  // Add user dialog
+   121→  const [addUserOpen, setAddUserOpen] = useState(false);
+   122→  const [newUserName, setNewUserName] = useState('');
+   123→  const [newUserEmail, setNewUserEmail] = useState('');
+   124→  const [newUserRole, setNewUserRole] = useState<string>('FIELD_AGENT');
+   125→
+   126→  // User role change dialog
+   127→  const [roleChangeOpen, setRoleChangeOpen] = useState(false);
+   128→  const [roleChangeUser, setRoleChangeUser] = useState<{ id: string; name: string; role: string } | null>(null);
+   129→  const [newRole, setNewRole] = useState('');
+   130→
+   131→  // Delete confirmation
+   132→  const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'tenant' | 'user'; item: { id: string; name: string } } | null>(null);
+   133→
+   134→  // Active sub-tab for SUPER_ADMIN
+   135→  const [subTab, setSubTab] = useState<'tenants' | 'my-tenant' | 'map'>('tenants');
+   136→
+   137→  // ===================== Effects =====================
+   138→  useEffect(() => {
+   139→    if (mapConfigOpen && currentBounds) {
+   140→      setMapLabel(currentBounds.label || '');
+   141→      setMinLat(String(currentBounds.minLat));
+   142→      setMaxLat(String(currentBounds.maxLat));
+   143→      setMinLng(String(currentBounds.minLng));
+   144→      setMaxLng(String(currentBounds.maxLng));
+   145→    } else if (mapConfigOpen) {
+   146→      setMapLabel('');
+   147→      setMinLat(''); setMaxLat(''); setMinLng(''); setMaxLng('');
+   148→    }
+   149→  }, [mapConfigOpen, currentBounds]);
+   150→
+   151→  // Auto-derive slug from tenant name
+   152→  useEffect(() => {
+   153→    if (createTenantOpen && newTenantName && !newTenantSlug) {
+   154→      setNewTenantSlug(newTenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, ''));
+   155→    }
+   156→  }, [createTenantOpen, newTenantName, newTenantSlug]);
+   157→
+   158→  // ===================== Mutations =====================
+   159→  // Save map bounds
+   160→  const saveMapMutation = useMutation({
+   161→    mutationFn: async (bounds: MapBoundsData) => {
+   162→      return fetchJson(`/api/tenant-settings?tenantId=${tenantId}`, {
+   163→        method: 'PUT',
+   164→        headers: { 'Content-Type': 'application/json' },
+   165→        body: JSON.stringify({ mapBounds: bounds }),
+   166→      });
+   167→    },
+   168→    onSuccess: () => {
+   169→      queryClient.invalidateQueries({ queryKey: ['tenant-settings', tenantId] });
+   170→      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+   171→      setMapConfigOpen(false);
+   172→      toast.success('Map area saved. The map will update automatically.');
+   173→    },
+   174→    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to save map configuration'),
+   175→  });
+   176→
+   177→  // Create tenant
+   178→  const createTenantMutation = useMutation({
+   179→    mutationFn: (data: { name: string; slug: string; primaryColor: string; adminName: string; adminEmail: string }) =>
+   180→      fetchJson('/api/tenants', {
+   181→        method: 'POST',
+   182→        headers: { 'Content-Type': 'application/json' },
+   183→        body: JSON.stringify(data),
+   184→      }),
+   185→    onSuccess: (data) => {
+   186→      queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
+   187→      setCreateTenantOpen(false);
+   188→      setNewTenantName(''); setNewTenantSlug(''); setNewTenantColor('#10b981');
+   189→      setNewAdminName(''); setNewAdminEmail('');
+   190→      toast.success(`Tenant "${data.tenant.name}" created. Admin: ${data.admin.email}`);
+   191→    },
+   192→    onError: (err) => toast.error(err?.message || 'Failed to create tenant'),
+   193→  });
+   194→
+   195→  // Delete tenant
+   196→  const deleteTenantMutation = useMutation({
+   197→    mutationFn: (id: string) =>
+   198→      fetchJson(`/api/tenants?id=${id}`, { method: 'DELETE' }),
+   199→    onSuccess: () => {
+   200→      queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
+   201→      setDeleteConfirm(null);
+   202→      toast.success('Tenant deleted successfully');
+   203→    },
+   204→    onError: (err) => toast.error(err?.message || 'Failed to delete tenant'),
+   205→  });
+   206→
+   207→  // Toggle tenant active
+   208→  const toggleTenantMutation = useMutation({
+   209→    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+   210→      fetchJson('/api/tenants', {
+   211→        method: 'PUT',
+   212→        headers: { 'Content-Type': 'application/json' },
+   213→        body: JSON.stringify({ id, isActive }),
+   214→      }),
+   215→    onSuccess: () => {
+   216→      queryClient.invalidateQueries({ queryKey: ['all-tenants'] });
+   217→      toast.success('Tenant status updated');
+   218→    },
+   219→    onError: (err) => toast.error(err?.message || 'Failed to update tenant'),
+   220→  });
+   221→
+   222→  // Add user
+   223→  const addUserMutation = useMutation({
+   224→    mutationFn: (data: { tenantId: string; name: string; email: string; role: string }) =>
+   225→      fetchJson('/api/tenants/users', {
+   226→        method: 'POST',
+   227→        headers: { 'Content-Type': 'application/json' },
+   228→        body: JSON.stringify(data),
+   229→      }),
+   230→    onSuccess: () => {
+   231→      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+   232→      setAddUserOpen(false);
+   233→      setNewUserName(''); setNewUserEmail(''); setNewUserRole('FIELD_AGENT');
+   234→      toast.success('User added successfully');
+   235→    },
+   236→    onError: (err) => toast.error(err?.message || 'Failed to add user'),
+   237→  });
+   238→
+   239→  // Change user role
+   240→  const changeRoleMutation = useMutation({
+   241→    mutationFn: ({ id, role }: { id: string; role: string }) =>
+   242→      fetchJson('/api/tenants/users', {
+   243→        method: 'PATCH',
+   244→        headers: { 'Content-Type': 'application/json' },
+   245→        body: JSON.stringify({ id, role }),
+   246→      }),
+   247→    onSuccess: () => {
+   248→      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+   249→      setRoleChangeOpen(false);
+   250→      setRoleChangeUser(null);
+   251→      toast.success('User role updated');
+   252→    },
+   253→    onError: (err) => toast.error(err?.message || 'Failed to update role'),
+   254→  });
+   255→
+   256→  // Remove user
+   257→  const deleteUserMutation = useMutation({
+   258→    mutationFn: (id: string) =>
+   259→      fetchJson(`/api/tenants/users?id=${id}`, { method: 'DELETE' }),
+   260→    onSuccess: () => {
+   261→      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+   262→      setDeleteConfirm(null);
+   263→      toast.success('User removed');
+   264→    },
+   265→    onError: (err) => toast.error(err?.message || 'Failed to remove user'),
+   266→  });
+   267→
+   268→  // ===================== Handlers =====================
+   269→  const handleSaveMap = () => {
+   270→    const minLatN = parseFloat(minLat);
+   271→    const maxLatN = parseFloat(maxLat);
+   272→    const minLngN = parseFloat(minLng);
+   273→    const maxLngN = parseFloat(maxLng);
+   274→    if ([minLatN, maxLatN, minLngN, maxLngN].some(isNaN)) { toast.error('All coordinates must be valid numbers'); return; }
+   275→    if (minLatN >= maxLatN || minLngN >= maxLngN) { toast.error('minLat must be < maxLat, and minLng must be < maxLng'); return; }
+   276→    saveMapMutation.mutate({ minLat: minLatN, maxLat: maxLatN, minLng: minLngN, maxLng: maxLngN, label: mapLabel || 'Custom Area' });
+   277→  };
+   278→
+   279→  const handlePreset = (preset: typeof REGION_PRESETS[number]) => {
+   280→    setMapLabel(preset.label);
+   281→    setMinLat(String(preset.minLat));
+   282→    setMaxLat(String(preset.maxLat));
+   283→    setMinLng(String(preset.minLng));
+   284→    setMaxLng(String(preset.maxLng));
+   285→  };
+   286→
+   287→  const handleResetMap = () => {
+   288→    saveMapMutation.mutate({ minLat: 4.0, maxLat: 14.0, minLng: 2.5, maxLng: 15.0, label: 'Nigeria' });
+   289→  };
+   290→
+   291→  const handleCreateTenant = () => {
+   292→    if (!newTenantName || !newTenantSlug || !newAdminName || !newAdminEmail) {
+   293→      toast.error('All fields are required'); return;
+   294→    }
+   295→    createTenantMutation.mutate({
+   296→      name: newTenantName, slug: newTenantSlug, primaryColor: newTenantColor,
+   297→      adminName: newAdminName, adminEmail: newAdminEmail,
+   298→    });
+   299→  };
+   300→
+   301→  const handleAddUser = () => {
+   302→    if (!newUserName || !newUserEmail || !newUserRole) { toast.error('All fields are required'); return; }
+   303→    addUserMutation.mutate({ tenantId: tenantId!, name: newUserName, email: newUserEmail, role: newUserRole });
+   304→  };
+   305→
+   306→  const handleRoleChange = () => {
+   307→    if (!roleChangeUser || !newRole) return;
+   308→    changeRoleMutation.mutate({ id: roleChangeUser.id, role: newRole });
+   309→  };
+   310→
+   311→  // ===================== Restricted access =====================
+   312→  if (!isAdmin) {
+   313→    return (
+   314→      <div className="h-full flex items-center justify-center p-6">
+   315→        <div className="text-center space-y-2">
+   316→          <Shield className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+   317→          <p className="text-sm text-muted-foreground">Access restricted to Super Admin and Tenant Admin</p>
+   318→        </div>
+   319→      </div>
+   320→    );
+   321→  }
+   322→
+   323→  const isLoading = isSuperAdmin ? tenantsLoading : settingsLoading;
+   324→  const hasError = isSuperAdmin ? tenantsIsError : settingsIsError;
+   325→
+   326→  // ===================== Render =====================
+   327→  return (
+   328→    <div className="h-full flex flex-col overflow-hidden">
+   329→      {/* Header */}
+   330→      <div className="px-4 sm:px-6 pt-4 pb-3 shrink-0">
+   331→        <div className="flex items-center justify-between flex-wrap gap-3">
+   332→          <div>
+   333→            <h2 className="text-lg font-semibold flex items-center gap-2">
+   334→              <Building2 className="h-5 w-5 text-emerald" />
+   335→              {isSuperAdmin ? 'Platform Management' : 'Organization Settings'}
+   336→            </h2>
+   337→            <p className="text-sm text-muted-foreground mt-0.5">
+   338→              {isSuperAdmin
+   339→                ? 'Create and manage tenant organizations, their users, and configurations'
+   340→                : 'Manage your organization settings, users, and map configuration'}
+   341→            </p>
+   342→          </div>
+   343→          {isSuperAdmin && (
+   344→            <Button
+   345→              size="sm"
+   346→              className="gap-1.5 text-xs bg-emerald hover:bg-emerald/90 text-emerald-950 h-8"
+   347→              onClick={() => setCreateTenantOpen(true)}
+   348→            >
+   349→              <Plus className="h-3.5 w-3.5" /> New Tenant
+   350→            </Button>
+   351→          )}
+   352→        </div>
+   353→
+   354→        {/* Sub-tabs for SUPER_ADMIN */}
+   355→        {isSuperAdmin && (
+   356→          <div className="flex items-center gap-1 mt-3 bg-muted/30 rounded-lg p-0.5 w-fit">
+   357→            {([
+   358→              { id: 'tenants' as const, label: 'All Tenants', icon: <Globe className="h-3.5 w-3.5" /> },
+   359→              { id: 'my-tenant' as const, label: 'My Organization', icon: <Building2 className="h-3.5 w-3.5" /> },
+   360→              { id: 'map' as const, label: 'Map Config', icon: <MapPin className="h-3.5 w-3.5" /> },
+   361→            ]).map(tab => (
+   362→              <button
+   363→                key={tab.id}
+   364→                onClick={() => setSubTab(tab.id)}
+   365→                className={cn(
+   366→                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+   367→                  subTab === tab.id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+   368→                )}
+   369→              >
+   370→                {tab.icon} {tab.label}
+   371→              </button>
+   372→            ))}
+   373→          </div>
+   374→        )}
+   375→      </div>
+   376→
+   377→      {/* Scrollable content */}
+   378→      <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-4 min-h-0">
+   379→
+   380→        {isLoading ? (
+   381→          <div className="flex-1 flex items-center justify-center py-20">
+   382→            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+   383→          </div>
+   384→        ) : hasError ? (
+   385→          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center p-6">
+   386→            <AlertCircle className="h-10 w-10 text-destructive mb-3" />
+   387→            <p className="text-sm text-muted-foreground">Failed to load data. Please try again.</p>
+   388→            <Button variant="outline" size="sm" className="mt-3" onClick={() => window.location.reload()}>
+   389→              Retry
+   390→            </Button>
+   391→          </div>
+   392→        ) : isSuperAdmin ? (
+   393→          /* ========== SUPER_ADMIN VIEWS ========== */
+   394→          <>
+   395→            {subTab === 'tenants' && (
+   396→              <SuperAdminTenantsView
+   397→                tenants={allTenants || []}
+   398→                onToggle={(id, isActive) => toggleTenantMutation.mutate({ id, isActive })}
+   399→                onDelete={(item) => setDeleteConfirm({ type: 'tenant', item })}
+   400→                onManageUsers={() => setSubTab('my-tenant')}
+   401→              />
+   402→            )}
+   403→            {subTab === 'my-tenant' && (
+   404→              <TenantUsersView
+   405→                settings={settings}
+   406→                tenantUsers={tenantUsers}
+   407→                userRole={user?.role || ''}
+   408→                onOpenUserDialog={() => setAddUserOpen(true)}
+   409→                onRoleChange={(u) => { setRoleChangeUser(u); setNewRole(u.role); setRoleChangeOpen(true); }}
+   410→                onDeleteUser={(u) => setDeleteConfirm({ type: 'user', item: { id: u.id, name: u.name } })}
+   411→                onOpenMapConfig={() => { setSubTab('map'); setTimeout(() => setMapConfigOpen(true), 100); }}
+   412→              />
+   413→            )}
+   414→            {subTab === 'map' && (
+   415→              <MapConfigSection
+   416→                currentBounds={currentBounds}
+   417→                onConfigure={() => setMapConfigOpen(true)}
+   418→              />
+   419→            )}
+   420→          </>
+   421→        ) : (
+   422→          /* ========== TENANT_ADMIN VIEW ========== */
+   423→          <>
+   424→            <TenantUsersView
+   425→              settings={settings}
+   426→              tenantUsers={tenantUsers}
+   427→              userRole={user?.role || ''}
+   428→              onOpenUserDialog={() => setAddUserOpen(true)}
+   429→              onRoleChange={(u) => { setRoleChangeUser(u); setNewRole(u.role); setRoleChangeOpen(true); }}
+   430→              onDeleteUser={(u) => setDeleteConfirm({ type: 'user', item: { id: u.id, name: u.name } })}
+   431→              onOpenMapConfig={() => setMapConfigOpen(true)}
+   432→            />
+   433→            <MapConfigSection
+   434→              currentBounds={currentBounds}
+   435→              onConfigure={() => setMapConfigOpen(true)}
+   436→            />
+   437→            <InfoNotices />
+   438→          </>
+   439→        )}
+   440→      </div>
+   441→
+   442→      {/* ===== MAP CONFIG DIALOG ===== */}
+   443→      <Dialog open={mapConfigOpen} onOpenChange={setMapConfigOpen}>
+   444→        <DialogContent className="sm:max-w-lg">
+   445→          <DialogHeader>
+   446→            <DialogTitle className="flex items-center gap-2">
+   447→              <MapPin className="h-5 w-5 text-cyan" />
+   448→              Configure Map Area
+   449→            </DialogTitle>
+   450→            <DialogDescription>
+   451→              Set the geographic bounding box for the Polling Unit Map. Use a preset or enter custom WGS84 coordinates.
+   452→            </DialogDescription>
+   453→          </DialogHeader>
+   454→          <div className="space-y-4 py-2">
+   455→            <div className="space-y-1.5">
+   456→              <label htmlFor="map-label" className="text-xs font-medium text-muted-foreground">Area Label</label>
+   457→              <Input id="map-label" placeholder="e.g. Lagos, Southeast, Kano Central" value={mapLabel} onChange={(e) => setMapLabel(e.target.value)} className="h-9 text-sm" />
+   458→            </div>
+   459→            <div className="space-y-1.5">
+   460→              <label htmlFor="map-preset" className="text-xs font-medium text-muted-foreground">Quick Preset</label>
+   461→              <Select onValueChange={(v) => { const preset = REGION_PRESETS.find(p => p.label === v); if (preset) handlePreset(preset); }}>
+   462→                <SelectTrigger id="map-preset" className="h-9 text-sm"><SelectValue placeholder="Select a region preset..." /></SelectTrigger>
+   463→                <SelectContent>
+   464→                  {REGION_PRESETS.map(p => (
+   465→                    <SelectItem key={p.label} value={p.label} className="text-xs">
+   466→                      {p.label}
+   467→                      <span className="text-muted-foreground ml-2">({p.minLat}, {p.maxLat}, {p.minLng}, {p.maxLng})</span>
+   468→                    </SelectItem>
+   469→                  ))}
+   470→                </SelectContent>
+   471→              </Select>
+   472→            </div>
+   473→            <div className="grid grid-cols-2 gap-3">
+   474→              <div className="space-y-1.5">
+   475→                <label htmlFor="map-min-lat" className="text-xs font-medium text-muted-foreground">South (minLat)</label>
+   476→                <Input id="map-min-lat" type="number" step="0.1" placeholder="4.0" value={minLat} onChange={(e) => setMinLat(e.target.value)} className="h-9 text-sm" />
+   477→              </div>
+   478→              <div className="space-y-1.5">
+   479→                <label htmlFor="map-max-lat" className="text-xs font-medium text-muted-foreground">North (maxLat)</label>
+   480→                <Input id="map-max-lat" type="number" step="0.1" placeholder="14.0" value={maxLat} onChange={(e) => setMaxLat(e.target.value)} className="h-9 text-sm" />
+   481→              </div>
+   482→              <div className="space-y-1.5">
+   483→                <label htmlFor="map-min-lng" className="text-xs font-medium text-muted-foreground">West (minLng)</label>
+   484→                <Input id="map-min-lng" type="number" step="0.1" placeholder="2.5" value={minLng} onChange={(e) => setMinLng(e.target.value)} className="h-9 text-sm" />
+   485→              </div>
+   486→              <div className="space-y-1.5">
+   487→                <label htmlFor="map-max-lng" className="text-xs font-medium text-muted-foreground">East (maxLng)</label>
+   488→                <Input id="map-max-lng" type="number" step="0.1" placeholder="15.0" value={maxLng} onChange={(e) => setMaxLng(e.target.value)} className="h-9 text-sm" />
+   489→              </div>
+   490→            </div>
+   491→            <div className="rounded-lg border border-amber/20 bg-amber/5 p-2.5 text-[11px] text-amber/80">
+   492→              Coordinates are in WGS84 decimal degrees. To find coordinates for your area, right-click on Google Maps and copy the latitude/longitude values. minLat must be less than maxLat; minLng must be less than maxLng.
+   493→            </div>
+   494→          </div>
+   495→          <DialogFooter className="gap-2">
+   496→            <Button variant="outline" size="sm" onClick={handleResetMap} className="gap-1.5 text-xs">
+   497→              <RotateCcw className="h-3 w-3" /> Reset to Nigeria
+   498→            </Button>
+   499→            <div className="flex-1" />
+   500→            <Button variant="outline" onClick={() => setMapConfigOpen(false)}>Cancel</Button>
+   501→            <Button
+   502→              onClick={handleSaveMap}
+   503→              disabled={saveMapMutation.isPending || !minLat || !maxLat || !minLng || !maxLng}
+   504→              className="bg-cyan hover:bg-cyan/90 text-cyan-950 gap-1.5 text-xs"
+   505→            >
+   506→              {saveMapMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+   507→              Save Map Area
+   508→            </Button>
+   509→          </DialogFooter>
+   510→        </DialogContent>
+   511→      </Dialog>
+   512→
+   513→      {/* ===== CREATE TENANT DIALOG ===== */}
+   514→      <Dialog open={createTenantOpen} onOpenChange={setCreateTenantOpen}>
+   515→        <DialogContent className="sm:max-w-lg">
+   516→          <DialogHeader>
+   517→            <DialogTitle className="flex items-center gap-2">
+   518→              <Building2 className="h-5 w-5 text-emerald" />
+   519→              Create New Tenant
+   520→            </DialogTitle>
+   521→            <DialogDescription>
+   522→              Create a new tenant organization. A Super Admin account will be created automatically. The new admin can log in from the main login screen.
+   523→            </DialogDescription>
+   524→          </DialogHeader>
+   525→          <div className="space-y-4 py-2">
+   526→            <div className="space-y-1.5">
+   527→              <label htmlFor="create-tenant-name" className="text-xs font-medium text-muted-foreground">Organization Name</label>
+   528→              <Input id="create-tenant-name" placeholder="e.g. Ekiti State Election Monitor" value={newTenantName} onChange={(e) => { setNewTenantName(e.target.value); setNewTenantSlug(''); }} className="h-9 text-sm" />
+   529→            </div>
+   530→            <div className="space-y-1.5">
+   531→              <label htmlFor="create-tenant-slug" className="text-xs font-medium text-muted-foreground">URL Slug</label>
+   532→              <Input id="create-tenant-slug" placeholder="e.g. ekiti-state" value={newTenantSlug} onChange={(e) => setNewTenantSlug(e.target.value)} className="h-9 text-sm" />
+   533→              <p className="text-[10px] text-muted-foreground">Auto-generated from name. Must be unique.</p>
+   534→            </div>
+   535→            <div className="space-y-1.5">
+   536→              <label className="text-xs font-medium text-muted-foreground">Brand Color</label>
+   537→              <div className="flex items-center gap-2">
+   538→                <Input type="color" value={newTenantColor} onChange={(e) => setNewTenantColor(e.target.value)} className="h-9 w-12 p-1 cursor-pointer" />
+   539→                <Input value={newTenantColor} onChange={(e) => setNewTenantColor(e.target.value)} className="h-9 text-sm flex-1" />
+   540→              </div>
+   541→            </div>
+   542→            <div className="h-px bg-border" />
+   543→            <p className="text-xs font-medium text-muted-foreground">Tenant Super Admin</p>
+   544→            <div className="space-y-1.5">
+   545→              <label htmlFor="create-admin-name" className="text-xs font-medium text-muted-foreground">Admin Full Name</label>
+   546→              <Input id="create-admin-name" placeholder="e.g. Adebayo Johnson" value={newAdminName} onChange={(e) => setNewAdminName(e.target.value)} className="h-9 text-sm" />
+   547→            </div>
+   548→            <div className="space-y-1.5">
+   549→              <label htmlFor="create-admin-email" className="text-xs font-medium text-muted-foreground">Admin Email</label>
+   550→              <Input id="create-admin-email" type="email" placeholder="e.g. admin@ekiti.omnivote.ng" value={newAdminEmail} onChange={(e) => setNewAdminEmail(e.target.value)} className="h-9 text-sm" />
+   551→              <p className="text-[10px] text-muted-foreground">This email must be unique across all tenants. The admin will use this to log in.</p>
+   552→            </div>
+   553→          </div>
+   554→          <DialogFooter className="gap-2">
+   555→            <Button variant="outline" onClick={() => setCreateTenantOpen(false)}>Cancel</Button>
+   556→            <Button
+   557→              onClick={handleCreateTenant}
+   558→              disabled={createTenantMutation.isPending || !newTenantName || !newTenantSlug || !newAdminName || !newAdminEmail}
+   559→              className="bg-emerald hover:bg-emerald/90 text-emerald-950 gap-1.5 text-xs"
+   560→            >
+   561→              {createTenantMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+   562→              Create Tenant
+   563→            </Button>
+   564→          </DialogFooter>
+   565→        </DialogContent>
+   566→      </Dialog>
+   567→
+   568→      {/* ===== ADD USER DIALOG ===== */}
+   569→      <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+   570→        <DialogContent className="sm:max-w-md">
+   571→          <DialogHeader>
+   572→            <DialogTitle className="flex items-center gap-2">
+   573→              <UserPlus className="h-5 w-5 text-emerald" />
+   574→              Add User
+   575→            </DialogTitle>
+   576→            <DialogDescription>
+   577→              Create a new user account in your organization. They can log in from the main screen using their email.
+   578→            </DialogDescription>
+   579→          </DialogHeader>
+   580→          <div className="space-y-4 py-2">
+   581→            <div className="space-y-1.5">
+   582→              <label htmlFor="add-user-name" className="text-xs font-medium text-muted-foreground">Full Name</label>
+   583→              <Input id="add-user-name" placeholder="e.g. Adebayo Johnson" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} className="h-9 text-sm" />
+   584→            </div>
+   585→            <div className="space-y-1.5">
+   586→              <label htmlFor="add-user-email" className="text-xs font-medium text-muted-foreground">Email Address</label>
+   587→              <Input id="add-user-email" type="email" placeholder="e.g. agent@omnivote.ng" value={newUserEmail} onChange={(e) => setNewUserEmail(e.target.value)} className="h-9 text-sm" />
+   588→            </div>
+   589→            <div className="space-y-1.5">
+   590→              <label htmlFor="add-user-role" className="text-xs font-medium text-muted-foreground">Role</label>
+   591→              <Select value={newUserRole} onValueChange={setNewUserRole}>
+   592→                <SelectTrigger id="add-user-role" className="h-9 text-sm"><SelectValue /></SelectTrigger>
+   593→                <SelectContent>
+   594→                  {VALID_ROLES.map(r => (
+   595→                    <SelectItem key={r} value={r} className="text-xs">{r.replace(/_/g, ' ')}</SelectItem>
+   596→                  ))}
+   597→                </SelectContent>
+   598→              </Select>
+   599→            </div>
+   600→          </div>
+   601→          <DialogFooter className="gap-2">
+   602→            <Button variant="outline" onClick={() => setAddUserOpen(false)}>Cancel</Button>
+   603→            <Button
+   604→              onClick={handleAddUser}
+   605→              disabled={addUserMutation.isPending || !newUserName || !newUserEmail}
+   606→              className="bg-emerald hover:bg-emerald/90 text-emerald-950 gap-1.5 text-xs"
+   607→            >
+   608→              {addUserMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+   609→              Add User
+   610→            </Button>
+   611→          </DialogFooter>
+   612→        </DialogContent>
+   613→      </Dialog>
+   614→
+   615→      {/* ===== ROLE CHANGE DIALOG ===== */}
+   616→      <Dialog open={roleChangeOpen} onOpenChange={setRoleChangeOpen}>
+   617→        <DialogContent className="sm:max-w-sm">
+   618→          <DialogHeader>
+   619→            <DialogTitle className="flex items-center gap-2">
+   620→              <Pencil className="h-5 w-5 text-amber" />
+   621→              Change User Role
+   622→            </DialogTitle>
+   623→            <DialogDescription>
+   624→              Change role for <span className="font-medium text-foreground">{roleChangeUser?.name}</span>
+   625→            </DialogDescription>
+   626→          </DialogHeader>
+   627→          <div className="space-y-3 py-2">
+   628→            <div className="space-y-1.5">
+   629→              <label className="text-xs font-medium text-muted-foreground">Current Role</label>
+   630→              <div className="flex items-center gap-2">
+   631→                <Badge variant="outline" className={cn('text-[10px]', ROLE_BADGE[roleChangeUser?.role || ''])}>
+   632→                  {roleChangeUser?.role?.replace(/_/g, ' ')}
+   633→                </Badge>
+   634→              </div>
+   635→            </div>
+   636→            <div className="space-y-1.5">
+   637→              <label htmlFor="change-role-select" className="text-xs font-medium text-muted-foreground">New Role</label>
+   638→              <Select value={newRole} onValueChange={setNewRole}>
+   639→                <SelectTrigger id="change-role-select" className="h-9 text-sm"><SelectValue /></SelectTrigger>
+   640→                <SelectContent>
+   641→                  {VALID_ROLES.map(r => (
+   642→                    <SelectItem key={r} value={r} className="text-xs">{r.replace(/_/g, ' ')}</SelectItem>
+   643→                  ))}
+   644→                </SelectContent>
+   645→              </Select>
+   646→            </div>
+   647→          </div>
+   648→          <DialogFooter className="gap-2">
+   649→            <Button variant="outline" onClick={() => setRoleChangeOpen(false)}>Cancel</Button>
+   650→            <Button
+   651→              onClick={handleRoleChange}
+   652→              disabled={changeRoleMutation.isPending || newRole === roleChangeUser?.role}
+   653→              className="bg-amber hover:bg-amber/90 text-amber-950 gap-1.5 text-xs"
+   654→            >
+   655→              {changeRoleMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+   656→              Save Role
+   657→            </Button>
+   658→          </DialogFooter>
+   659→        </DialogContent>
+   660→      </Dialog>
+   661→
+   662→      {/* ===== DELETE CONFIRMATION DIALOG ===== */}
+   663→      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+   664→        <DialogContent className="sm:max-w-sm">
+   665→          <DialogHeader>
+   666→            <DialogTitle className="flex items-center gap-2 text-rose">
+   667→              <AlertTriangle className="h-5 w-5" />
+   668→              Confirm Deletion
+   669→            </DialogTitle>
+   670→            <DialogDescription>
+   671→              {deleteConfirm?.type === 'tenant'
+   672→                ? <>Are you sure you want to delete tenant <span className="font-medium text-foreground">&quot;{deleteConfirm.item.name}&quot;</span>? This will permanently remove all data including elections, incidents, and users.</>
+   673→                : <>Are you sure you want to remove user <span className="font-medium text-foreground">&quot;{deleteConfirm.item.name}&quot;</span>?</>
+   674→              }
+   675→            </DialogDescription>
+   676→          </DialogHeader>
+   677→          <DialogFooter className="gap-2">
+   678→            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+   679→            <Button
+   680→              variant="destructive"
+   681→              size="sm"
+   682→              onClick={() => {
+   683→                if (!deleteConfirm) return;
+   684→                if (deleteConfirm.type === 'tenant') deleteTenantMutation.mutate(deleteConfirm.item.id);
+   685→                else deleteUserMutation.mutate(deleteConfirm.item.id);
+   686→              }}
+   687→              disabled={deleteConfirm?.type === 'tenant' ? deleteTenantMutation.isPending : deleteUserMutation.isPending}
+   688→              className="gap-1.5 text-xs"
+   689→            >
+   690→              {deleteConfirm?.type === 'tenant'
+   691→                ? (deleteTenantMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Trash2 className="h-3 w-3" /> Delete Tenant</>)
+   692→                : (deleteUserMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Trash2 className="h-3 w-3" /> Remove User</>)
+   693→              }
+   694→            </Button>
+   695→          </DialogFooter>
+   696→        </DialogContent>
+   697→      </Dialog>
+   698→    </div>
+   699→  );
+   700→}
+   701→
+   702→// ============================================================
+   703→// Sub-components
+   704→// ============================================================
+   705→
+   706→interface TenantItem {
+   707→  id: string; name: string; slug: string; primaryColor: string;
+   708→  isActive: boolean; createdAt: string; mapBounds: MapBoundsData | null;
+   709→  _count: { users: number; elections: number; incidents: number };
+   710→}
+   711→
+   712→function SuperAdminTenantsView({
+   713→  tenants,
+   714→  onToggle,
+   715→  onDelete,
+   716→  onManageUsers,
+   717→}: {
+   718→  tenants: TenantItem[];
+   719→  onToggle: (id: string, isActive: boolean) => void;
+   720→  onDelete: (t: { id: string; name: string }) => void;
+   721→  onManageUsers: () => void;
+   722→}) {
+   723→  return (
+   724→    <>
+   725→      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   726→        {tenants.map(t => (
+   727→          <Card key={t.id} className={cn('border-border bg-card/40 transition-opacity', !t.isActive && 'opacity-50')}>
+   728→            <CardContent className="p-4 space-y-3">
+   729→              <div className="flex items-start justify-between">
+   730→                <div className="flex items-center gap-2.5">
+   731→                  <div
+   732→                    className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+   733→                    style={{ backgroundColor: t.primaryColor }}
+   734→                  >
+   735→                    {t.name.split(' ').map(w => w[0]).join('').substring(0, 2)}
+   736→                  </div>
+   737→                  <div className="min-w-0">
+   738→                    <p className="text-sm font-semibold truncate">{t.name}</p>
+   739→                    <p className="text-[10px] text-muted-foreground">{t.slug}</p>
+   740→                  </div>
+   741→                </div>
+   742→                <Badge
+   743→                  variant="outline"
+   744→                  className={cn(
+   745→                    'text-[9px] h-5 shrink-0 cursor-pointer transition-colors',
+   746→                    t.isActive ? 'border-emerald/30 text-emerald bg-emerald/10' : 'border-rose/30 text-rose bg-rose/10',
+   747→                  )}
+   748→                  onClick={() => onToggle(t.id, !t.isActive)}
+   749→                  title={t.isActive ? 'Click to deactivate' : 'Click to activate'}
+   750→                >
+   751→                  {t.isActive ? 'ACTIVE' : 'DISABLED'}
+   752→                </Badge>
+   753→              </div>
+   754→
+   755→              {/* Stats */}
+   756→              <div className="grid grid-cols-3 gap-2 text-center">
+   757→                <div className="rounded-md bg-background/50 border border-border px-1.5 py-1.5">
+   758→                  <p className="text-sm font-bold">{t._count.users}</p>
+   759→                  <p className="text-[9px] text-muted-foreground">Users</p>
+   760→                </div>
+   761→                <div className="rounded-md bg-background/50 border border-border px-1.5 py-1.5">
+   762→                  <p className="text-sm font-bold">{t._count.elections}</p>
+   763→                  <p className="text-[9px] text-muted-foreground">Elections</p>
+   764→                </div>
+   765→                <div className="rounded-md bg-background/50 border border-border px-1.5 py-1.5">
+   766→                  <p className="text-sm font-bold">{t._count.incidents}</p>
+   767→                  <p className="text-[9px] text-muted-foreground">Incidents</p>
+   768→                </div>
+   769→              </div>
+   770→
+   771→              {/* Map area badge */}
+   772→              {t.mapBounds && (
+   773→                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+   774→                  <MapPin className="h-3 w-3 text-cyan" />
+   775→                  <span>Map: {t.mapBounds.label}</span>
+   776→                </div>
+   777→              )}
+   778→
+   779→              {/* Actions */}
+   780→              <div className="flex items-center gap-1.5 pt-1">
+   781→                <Button variant="outline" size="sm" className="flex-1 h-7 text-[10px] gap-1" onClick={onManageUsers}>
+   782→                  <Users className="h-3 w-3" /> Users
+   783→                </Button>
+   784→                <Button
+   785→                  variant="outline"
+   786→                  size="sm"
+   787→                  className="h-7 w-7 p-0 text-muted-foreground hover:text-rose"
+   788→                  title="Delete tenant"
+   789→                  aria-label={`Delete tenant ${t.name}`}
+   790→                  onClick={() => onDelete({ id: t.id, name: t.name })}
+   791→                >
+   792→                  <Trash2 className="h-3 w-3" />
+   793→                </Button>
+   794→              </div>
+   795→            </CardContent>
+   796→          </Card>
+   797→        ))}
+   798→
+   799→        {tenants.length === 0 && (
+   800→          <div className="col-span-full py-12 text-center">
+   801→            <Building2 className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
+   802→            <p className="text-sm text-muted-foreground">No tenants yet. Create your first tenant organization.</p>
+   803→          </div>
+   804→        )}
+   805→      </div>
+   806→
+   807→      {/* Info notices */}
+   808→      <InfoNotices />
+   809→    </>
+   810→  );
+   811→}
+   812→
+   813→function TenantUsersView({
+   814→  settings,
+   815→  tenantUsers,
+   816→  userRole,
+   817→  onOpenUserDialog,
+   818→  onRoleChange,
+   819→  onDeleteUser,
+   820→  onOpenMapConfig,
+   821→}: {
+   822→  settings: { id?: string; name?: string; slug?: string; primaryColor?: string } | undefined;
+   823→  tenantUsers: { id: string; email: string; name: string; role: string; phone?: string; isOnline: boolean; lastSeenAt?: string; createdAt: string }[];
+   824→  userRole: string;
+   825→  onOpenUserDialog: () => void;
+   826→  onRoleChange: (u: { id: string; name: string; role: string }) => void;
+   827→  onDeleteUser: (u: { id: string; name: string }) => void;
+   828→  onOpenMapConfig: () => void;
+   829→}) {
+   830→  const canManageUsers = userRole === 'SUPER_ADMIN' || userRole === 'TENANT_ADMIN';
+   831→  return (
+   832→    <>
+   833→      {/* Current tenant info */}
+   834→      <Card className="border-border bg-card/40">
+   835→        <CardContent className="p-4">
+   836→          <div className="flex items-center gap-3">
+   837→            <div
+   838→              className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
+   839→              style={{ backgroundColor: settings?.primaryColor || '#10b981' }}
+   840→            >
+   841→              {(settings?.name || 'O').split(' ').map(w => w[0]).join('').substring(0, 2)}
+   842→            </div>
+   843→            <div className="flex-1 min-w-0">
+   844→              <p className="text-sm font-semibold">{settings?.name || 'Loading...'}</p>
+   845→              <p className="text-[11px] text-muted-foreground">{settings?.slug || ''}</p>
+   846→            </div>
+   847→            <Badge variant="outline" className={cn('border-emerald/30 text-emerald text-[10px] h-5', ROLE_BADGE[userRole])}>
+   848→              {userRole.replace(/_/g, ' ')}
+   849→            </Badge>
+   850→          </div>
+   851→        </CardContent>
+   852→      </Card>
+   853→
+   854→      {/* Users */}
+   855→      <Card className="border-border bg-card/40">
+   856→        <CardContent className="p-4 space-y-3">
+   857→          <div className="flex items-center justify-between">
+   858→            <div className="flex items-center gap-2">
+   859→              <Users className="h-4 w-4 text-cyan" />
+   860→              <h3 className="text-sm font-semibold">Users ({tenantUsers.length})</h3>
+   861→            </div>
+   862→            {canManageUsers && (
+   863→              <div className="flex items-center gap-1.5">
+   864→                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={onOpenMapConfig}>
+   865→                  <MapPin className="h-3 w-3" /> Map Area
+   866→                </Button>
+   867→                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={onOpenUserDialog}>
+   868→                  <UserPlus className="h-3 w-3" /> Add User
+   869→                </Button>
+   870→              </div>
+   871→            )}
+   872→          </div>
+   873→
+   874→          <div className="space-y-1">
+   875→            {tenantUsers.map(u => (
+   876→              <div
+   877→                key={u.id}
+   878→                className="flex items-center gap-3 px-3 py-2 rounded-lg border border-border/50 bg-background/30 hover:bg-background/60 transition-colors"
+   879→              >
+   880→                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium shrink-0">
+   881→                  {u.name.split(' ').map(w => w[0]).join('').substring(0, 2)}
+   882→                </div>
+   883→                <div className="flex-1 min-w-0">
+   884→                  <div className="flex items-center gap-2">
+   885→                    <p className="text-xs font-medium truncate">{u.name}</p>
+   886→                    <div className={cn('w-1.5 h-1.5 rounded-full shrink-0', u.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30')} />
+   887→                  </div>
+   888→                  <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+   889→                    <Mail className="h-2.5 w-2.5 shrink-0" /> {u.email}
+   890→                  </p>
+   891→                </div>
+   892→                <Badge variant="outline" className={cn('text-[9px] h-5 shrink-0 gap-1', ROLE_BADGE[u.role])}>
+   893→                  {ROLE_ICONS[u.role]} {u.role.replace(/_/g, ' ')}
+   894→                </Badge>
+   895→                {canManageUsers && u.role !== 'SUPER_ADMIN' && (
+   896→                  <div className="flex items-center gap-0.5 shrink-0">
+   897→                    <button
+   898→                      className="p-1.5 rounded-md text-muted-foreground hover:text-amber hover:bg-amber/10 transition-colors"
+   899→                      onClick={() => onRoleChange({ id: u.id, name: u.name, role: u.role })}
+   900→                      title="Change role"
+   901→                      aria-label={`Change role for ${u.name}`}
+   902→                    >
+   903→                      <Pencil className="h-3 w-3" />
+   904→                    </button>
+   905→                    <button
+   906→                      className="p-1.5 rounded-md text-muted-foreground hover:text-rose hover:bg-rose/10 transition-colors"
+   907→                      onClick={() => onDeleteUser({ id: u.id, name: u.name })}
+   908→                      title="Remove user"
+   909→                      aria-label={`Remove user ${u.name}`}
+   910→                    >
+   911→                      <Trash2 className="h-3 w-3" />
+   912→                    </button>
+   913→                  </div>
+   914→                )}
+   915→              </div>
+   916→            ))}
+   917→
+   918→            {tenantUsers.length === 0 && (
+   919→              <p className="text-xs text-muted-foreground text-center py-6">
+   920→                No users in this organization yet.
+   921→              </p>
+   922→            )}
+   923→          </div>
+   924→        </CardContent>
+   925→      </Card>
+   926→    </>
+   927→  );
+   928→}
+   929→
+   930→function MapConfigSection({
+   931→  currentBounds,
+   932→  onConfigure,
+   933→}: {
+   934→  currentBounds: MapBoundsData | null;
+   935→  onConfigure: () => void;
+   936→}) {
+   937→  return (
+   938→    <Card className="border-border bg-card/40">
+   939→      <CardContent className="p-4 space-y-3">
+   940→        <div className="flex items-center justify-between">
+   941→          <div className="flex items-center gap-2">
+   942→            <MapPin className="h-4 w-4 text-cyan" />
+   943→            <h3 className="text-sm font-semibold">Map Area Configuration</h3>
+   944→          </div>
+   945→          <div className="flex items-center gap-2">
+   946→            {currentBounds && (
+   947→              <Badge variant="outline" className="text-[10px] h-5 border-cyan/30 text-cyan">
+   948→                {currentBounds.label}
+   949→              </Badge>
+   950→            )}
+   951→            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={onConfigure}>
+   952→              <Settings className="h-3 w-3" /> Configure
+   953→            </Button>
+   954→          </div>
+   955→        </div>
+   956→
+   957→        {currentBounds ? (
+   958→          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+   959→            <div className="rounded-lg border border-border bg-background/50 px-2 py-2">
+   960→              <p className="text-[10px] text-muted-foreground">South (minLat)</p>
+   961→              <p className="text-sm font-bold tabular-nums">{currentBounds.minLat}</p>
+   962→            </div>
+   963→            <div className="rounded-lg border border-border bg-background/50 px-2 py-2">
+   964→              <p className="text-[10px] text-muted-foreground">North (maxLat)</p>
+   965→              <p className="text-sm font-bold tabular-nums">{currentBounds.maxLat}</p>
+   966→            </div>
+   967→            <div className="rounded-lg border border-border bg-background/50 px-2 py-2">
+   968→              <p className="text-[10px] text-muted-foreground">West (minLng)</p>
+   969→              <p className="text-sm font-bold tabular-nums">{currentBounds.minLng}</p>
+   970→            </div>
+   971→            <div className="rounded-lg border border-border bg-background/50 px-2 py-2">
+   972→              <p className="text-[10px] text-muted-foreground">East (maxLng)</p>
+   973→              <p className="text-sm font-bold tabular-nums">{currentBounds.maxLng}</p>
+   974→            </div>
+   975→          </div>
+   976→        ) : (
+   977→          <p className="text-xs text-muted-foreground">
+   978→            No custom map area configured. Using default Nigeria bounds. Click Configure to set a custom area.
+   979→          </p>
+   980→        )}
+   981→
+   982→        <div className="rounded-lg border border-cyan/20 bg-cyan/5 p-2.5 text-[11px] text-cyan/80">
+   983→          The map area defines the geographic bounding box shown on the Geo Map. Configure this to focus on your
+   984→          organization&apos;s monitoring region. Polling units outside this area will not be visible on the map.
+   985→          Changes apply immediately to all users in the organization.
+   986→        </div>
+   987→      </CardContent>
+   988→    </Card>
+   989→  );
+   990→}
+   991→
+   992→function InfoNotices() {
+   993→  return (
+   994→    <>
+   995→      <div className="rounded-lg border border-violet/20 bg-violet/5 p-3 flex items-start gap-2.5">
+   996→        <Vote className="h-4 w-4 text-violet shrink-0 mt-0.5" />
+   997→        <div className="text-[11px] text-violet/80">
+   998→          <p className="font-medium text-violet mb-0.5">Single Election Type Per Tenant</p>
+   999→          Each tenant organization is scoped to exactly one election type. This ensures data isolation, role permissions, and monitoring configurations are election-specific.
+  1000→        </div>
+  1001→      </div>
+  1002→      <div className="rounded-lg border border-emerald/20 bg-emerald/5 p-3 flex items-start gap-2.5">
+  1003→        <Shield className="h-4 w-4 text-emerald shrink-0 mt-0.5" />
+  1004→        <div className="text-[11px] text-emerald/80">
+  1005→          <p className="font-medium text-emerald mb-0.5">Zero-Trust Tenant Architecture</p>
+  1006→          Complete logical data isolation with row-level security. Cross-tenant data leakage is prevented.
+  1007→        </div>
+  1008→      </div>
+  1009→    </>
+  1010→  );
+  1011→}

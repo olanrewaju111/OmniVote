@@ -1,0 +1,734 @@
+     1→generator client {
+     2→  provider = "prisma-client-js"
+     3→}
+     4→
+     5→datasource db {
+     6→  provider = "sqlite"
+     7→  url      = env("DATABASE_URL")
+     8→}
+     9→
+    10→model Tenant {
+    11→  id              String   @id @default(cuid())
+    12→  name            String
+    13→  slug            String   @unique
+    14→  logoUrl         String?
+    15→  primaryColor    String   @default("#10b981")
+    16→  domain          String?
+    17→  isActive        Boolean  @default(true)
+    18→  createdAt       DateTime @default(now())
+    19→  updatedAt       DateTime @updatedAt
+    20→
+    21→  // Tenant scope — defines the level of government this tenant operates at
+    22→  // LOCAL_GOVERNMENT: manages elections within a single LGA
+    23→  // STATE_GOVERNMENT: manages elections within a state
+    24→  // PRESIDENTIAL: manages national/federal elections
+    25→  scope           String   @default("PRESIDENTIAL") // LOCAL_GOVERNMENT, STATE_GOVERNMENT, PRESIDENTIAL
+    26→
+    27→  // Map area configuration (JSON: {minLat, maxLat, minLng, maxLng, label})
+    28→  mapBounds       String   @default("null")
+    29→
+    30→  // WhatsApp integration
+    31→  whatsappPhone   String?  // linked phone number e.g. "+2348012345678"
+    32→  whatsappJid     String?  // JID after linking e.g. "2348012345678@s.whatsapp.net"
+    33→  whatsappStatus  String   @default("DISCONNECTED") // DISCONNECTED, CONNECTING, CONNECTED, QR_READY, FAILED
+    34→  whatsappConnectedAt DateTime?
+    35→
+    36→  // Security hardening
+    37→  encryptionEnabled    Boolean  @default(true)
+    38→  twoFactorEnabled    Boolean  @default(false)
+    39→  sessionTimeoutMin    Int      @default(60)
+    40→  ipWhitelist          String   @default("[]") // JSON array of allowed IPs
+    41→  dataRetentionDays    Int      @default(365)
+    42→  auditLogRetentionDays Int     @default(730)
+    43→
+    44→  users        User[]
+    45→  elections    Election[]
+    46→  incidents    Incident[]
+    47→  alerts       Alert[]
+    48→  results      ElectionResult[]
+    49→  agentMessages AgentMessage[]
+    50→  osintPosts               OsintPost[]
+    51→  campaigns                Campaign[]
+    52→  contactLists             ContactList[]
+    53→  campaignEvents           CampaignEvent[]
+    54→  voterSuppressionReports  VoterSuppressionReport[]
+    55→  campaignMessages         CampaignMessage[]
+    56→  securityEvents           SecurityEvent[]
+    57→  geofenceZones            GeofenceZone[]
+    58→  agentCheckIns            AgentCheckIn[]
+    59→  deadMansSwitches         DeadMansSwitch[]
+    60→  pvtSubmissions           PvtSubmission[]
+    61→  resultComparisons        ResultComparison[]
+    62→  evidenceDossiers         EvidenceDossier[]
+    63→  stegoScanResults         StegoScanResult[]
+    64→  honeypotUnits            HoneypotUnit[]
+    65→  flashpointForecasts      FlashpointForecast[]
+    66→  wargameScenarios         WargameScenario[]
+    67→  accessibilityReports     AccessibilityReport[]
+    68→}
+    69→
+    70→model User {
+    71→  id            String    @id @default(cuid())
+    72→  email         String
+    73→  name          String
+    74→  role          String    @default("FIELD_AGENT") // FIELD_AGENT, ANALYST, TENANT_ADMIN, SUPER_ADMIN, TRUST_SAFETY
+    75→  tenantId      String
+    76→  passwordHash  String    @default("changeme") // bcrypt hash; default allows seed login
+    77→  phone         String?   // WhatsApp number e.g. "+2348012345678"
+    78→  whatsappJid   String?   // resolved JID after first message
+    79→  isOnline      Boolean   @default(false)
+    80→  lastSeenAt    DateTime?
+    81→  deviceFingerprint String?
+    82→  // Security hardening
+    83→  deviceTrustScore    Float    @default(100) // 0-100
+    84→  lastSecurityAuditAt DateTime?
+    85→  twoFactorSecret     String?  // encrypted TOTP secret
+    86→  isLocked            Boolean  @default(false)
+    87→  lockedAt            DateTime?
+    88→  lockedReason        String?
+    89→  // Biometric profile (JSON: {typingCadence, touchPressure, gyroPattern, lastProfiled})
+    90→  biometricProfile    String?
+    91→  biometricRiskScore Float    @default(0) // 0-1, higher = more suspicious
+    92→  createdAt     DateTime  @default(now())
+    93→  updatedAt     DateTime  @updatedAt
+    94→
+    95→  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+    96→  incidents     Incident[]
+    97→  results       ElectionResult[]
+    98→  auditLogs     AuditLog[]
+    99→  agentMessages AgentMessage[]  @relation("agentMessages")
+   100→  sentMessages  AgentMessage[]  @relation("sentMessages")
+   101→  securityEvents SecurityEvent[]
+   102→  agentCheckIns  AgentCheckIn[]
+   103→  deadMansSwitches DeadMansSwitch[]
+   104→}
+   105→
+   106→model Election {
+   107→  id          String   @id @default(cuid())
+   108→  tenantId    String
+   109→  title       String
+   110→  tier        String   @default("LOCAL") // LOCAL, STATE, PRESIDENTIAL
+   111→  status      String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED
+   112→  date        DateTime
+   113→  createdAt   DateTime @default(now())
+   114→  updatedAt   DateTime @updatedAt
+   115→
+   116→  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+   117→  pollingUnits PollingUnit[]
+   118→}
+   119→
+   120→model PollingUnit {
+   121→  id            String    @id @default(cuid())
+   122→  electionId    String
+   123→  name          String
+   124→  code          String
+   125→  state         String
+   126→  lga           String
+   127→  ward          String
+   128→  latitude      Float
+   129→  longitude     Float
+   130→  registeredVoters Int    @default(0)
+   131→  totalVotes    Int       @default(0)
+   132→  turnout       Float     @default(0)
+   133→  status        String    @default("PENDING") // PENDING, OPEN, CLOSED, FLAGGED
+   134→  createdAt     DateTime  @default(now())
+   135→  updatedAt     DateTime  @updatedAt
+   136→
+   137→  election      Election  @relation(fields: [electionId], references: [id])
+   138→  incidents     Incident[]
+   139→  results       ElectionResult[]
+   140→  pvtSubmissions PvtSubmission[]
+   141→  resultComparisons ResultComparison[]
+   142→  honeypotUnits HoneypotUnit[]
+   143→  accessibilityReports AccessibilityReport[]
+   144→}
+   145→
+   146→model ElectionResult {
+   147→  id              String    @id @default(cuid())
+   148→  tenantId        String
+   149→  pollingUnitId   String
+   150→  reportedById    String
+   151→  accreditedVoters Int      @default(0)
+   152→  totalValidVotes  Int      @default(0)
+   153→  rejectedBallots  Int      @default(0)
+   154→  totalVotesCast   Int      @default(0)
+   155→  // Party results stored as JSON: [{party:"APC",votes:120},{party:"PDP",votes:98},...]
+   156→  partyResults    String    @default("[]")
+   157→  // Statistics
+   158→  bvasUsed        Boolean   @default(true)
+   159→  materialsArrivedOnTime Boolean @default(true)
+   160→  securityPresent Boolean   @default(true)
+   161→  violenceOccurred Boolean  @default(false)
+   162→  notes           String    @default("")
+   163→  verified        Boolean   @default(false)
+   164→  verifiedById    String?
+   165→  submittedAt     DateTime  @default(now())
+   166→  updatedAt       DateTime  @updatedAt
+   167→
+   168→  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+   169→  pollingUnit     PollingUnit @relation(fields: [pollingUnitId], references: [id])
+   170→  reporter        User        @relation(fields: [reportedById], references: [id])
+   171→}
+   172→
+   173→model Incident {
+   174→  id              String    @id @default(cuid())
+   175→  tenantId        String
+   176→  pollingUnitId   String?
+   177→  reportedById    String
+   178→  type            String    @default("OBSERVATION") // OBSERVATION, VIOLENCE, INTIMIDATION, BALLOT_STUFFING, LOGISTICS, DEEPFAKE_SUSPECT, CIB_DETECTED, GEO_ANOMALY
+   179→  severity        String    @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+   180→  status          String    @default("PENDING") // PENDING, REVIEWED, ESCALATED, DISMISSED, QUARANTINED
+   181→  description     String
+   182→  mediaUrls       String    @default("[]") // JSON array
+   183→  gpsLatitude     Float?
+   184→  gpsLongitude    Float?
+   185→  gpsAnomaly      Boolean   @default(false)
+   186→  aiSummary       String?
+   187→  aiFlags         String    @default("[]") // JSON array of AI flags
+   188→  isQuarantined   Boolean   @default(false)
+   189→  c2paVerified    Boolean   @default(false)
+   190→  submittedAt     DateTime  @default(now())
+   191→  reviewedAt      DateTime?
+   192→  reviewedById    String?
+   193→
+   194→  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+   195→  pollingUnit     PollingUnit? @relation(fields: [pollingUnitId], references: [id])
+   196→  reporter        User      @relation(fields: [reportedById], references: [id])
+   197→  alerts          Alert[]
+   198→}
+   199→
+   200→model Alert {
+   201→  id            String    @id @default(cuid())
+   202→  tenantId      String
+   203→  incidentId    String?
+   204→  type          String    @default("OPERATIONAL") // OPERATIONAL, SECURITY
+   205→  category      String    @default("INFO") // INFO, WARNING, CRITICAL, SOS
+   206→  title         String
+   207→  description   String
+   208→  isRead        Boolean   @default(false)
+   209→  createdAt     DateTime  @default(now())
+   210→
+   211→  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+   212→  incident      Incident? @relation(fields: [incidentId], references: [id])
+   213→}
+   214→
+   215→model AuditLog {
+   216→  id          String   @id @default(cuid())
+   217→  userId      String
+   218→  action      String
+   219→  entityType  String?
+   220→  entityId    String?
+   221→  metadata    String   @default("{}") // JSON
+   222→  ipAddress   String?
+   223→  createdAt   DateTime @default(now())
+   224→
+   225→  user        User     @relation(fields: [userId], references: [id])
+   226→}
+   227→
+   228→model AgentMessage {
+   229→  id            String   @id @default(cuid())
+   230→  tenantId      String
+   231→  agentId       String   // recipient field agent
+   232→  sentById      String?  // who sent it (admin/analyst) or null if system-auto
+   233→  channel       String   @default("IN_APP") // IN_APP, WHATSAPP, SMS, PUSH
+   234→  triggerType   String   @default("MANUAL") // MANUAL, IDLE_DETECTION, NO_DATA, INCIDENT_FOLLOWUP, INFRACTION_REMINDER, SCHEDULED_CHECKIN
+   235→  subject       String
+   236→  body          String
+   237→  priority      String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+   238→  status        String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED
+   239→  deliveredAt   DateTime?
+   240→  readAt        DateTime?
+   241→  responseText  String?  // agent's reply if any
+   242→  respondedAt   DateTime?
+   243→  whatsappMessageId String? // WhatsApp server message ID for delivery tracking
+   244→  metadata      String   @default("{}") // JSON — e.g. {"idleMinutes": 45, "lastReportDate": "..."}
+   245→  createdAt     DateTime @default(now())
+   246→  updatedAt     DateTime @updatedAt
+   247→
+   248→  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+   249→  agent         User     @relation(fields: [agentId], references: [id], name: "agentMessages")
+   250→  sentBy        User?    @relation(fields: [sentById], references: [id], name: "sentMessages")
+   251→}
+   252→
+   253→// ============================================================
+   254→// MODULE 1: OSINT / Digital Media Monitoring (§4.6)
+   255→// ============================================================
+   256→
+   257→model OsintPost {
+   258→  id              String   @id @default(cuid())
+   259→  tenantId        String
+   260→  platform        String   // X, FACEBOOK, YOUTUBE, TIKTOK, INSTAGRAM, NEWS, WHATSAPP_CHANNEL, RSS
+   261→  postId          String   // platform-native ID
+   262→  author          String   // screen name or outlet name
+   263→  authorFollowers Int      @default(0)
+   264→  content         String   // post text
+   265→  mediaUrls       String   @default("[]") // JSON array of image/video URLs
+   266→  url             String?  // original URL
+   267→  sentiment       String   @default("NEUTRAL") // POSITIVE, NEGATIVE, NEUTRAL, MIXED
+   268→  category        String   @default("GENERAL") // ELECTION_NEWS, DISINFORMATION, HATE_SPEECH, VIOLENCE, RALLY, OPINION_POLL, FACT_CHECK, CIB_SUSPECT, BOT_ACTIVITY
+   269→  isVerified      Boolean  @default(false) // fact-check verified
+   270→  isFakeNews      Boolean  @default(false)
+   271→  isBotSuspect    Boolean  @default(false)
+   272→  cibScore        Float    @default(0) // coordinated inauthentic behavior 0-1
+   273→  aiSummary       String?  // AI-generated summary
+   274→  aiFlags         String   @default("[]") // JSON: ["sentiment_shift", "viral_spike", "copy_paste_cluster", ...]
+   275→  viralityScore   Float    @default(0) // 0-100
+   276→  engagement      String   @default("{}") // JSON: {likes, shares, comments, views}
+   277→  keywords        String   @default("[]") // JSON: extracted keywords
+   278→  location        String?  // geolocated state/region
+   279→  language        String   @default("en")
+   280→  publishedAt     DateTime
+   281→  ingestedAt      DateTime @default(now())
+   282→  reviewedAt      DateTime?
+   283→  reviewedById    String?
+   284→
+   285→  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+   286→  @@index([tenantId, platform])
+   287→  @@index([tenantId, category])
+   288→  @@index([tenantId, publishedAt])
+   289→}
+   290→
+   291→// ============================================================
+   292→// MODULE 2: Mobilization Engine (§4.7)
+   293→// ============================================================
+   294→
+   295→model ContactList {
+   296→  id              String   @id @default(cuid())
+   297→  tenantId        String
+   298→  name            String   // e.g. "Ward 5 Volunteers"
+   299→  segment         String?  // e.g. "PARTY_MEMBERS", "POLLING_AGENTS", "VOLUNTEERS"
+   300→  description     String   @default("")
+   301→  contactCount    Int      @default(0)
+   302→  totalUploaded   Int      @default(0)
+   303→  optedOutCount   Int      @default(0)
+   304→  hashAlgorithm   String   @default("SHA256") // PII hashing
+   305→  consentVerified Boolean  @default(false)
+   306→  uploadedById    String
+   307→  createdAt       DateTime @default(now())
+   308→  updatedAt       DateTime @updatedAt
+   309→
+   310→  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+   311→  campaigns       Campaign[]
+   312→}
+   313→
+   314→model Campaign {
+   315→  id              String   @id @default(cuid())
+   316→  tenantId        String
+   317→  name            String
+   318→  templateName    String
+   319→  templateBody    String   // message content
+   320→  templateStatus  String   @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED
+   321→  contactListId   String?
+   322→  segment         String?  // target segment
+   323→  status          String   @default("DRAFT") // DRAFT, SCHEDULED, SENDING, COMPLETED, PAUSED, FAILED
+   324→  channel         String   @default("WHATSAPP") // WHATSAPP, SMS, PUSH
+   325→  scheduledAt     DateTime?
+   326→  startedAt       DateTime?
+   327→  completedAt     DateTime?
+   328→  createdBy       String
+   329→  // Rate limiting
+   330→  rateLimitPerMin Int      @default(1000)
+   331→  totalRecipients Int      @default(0)
+   332→  sentCount       Int      @default(0)
+   333→  deliveredCount  Int      @default(0)
+   334→  readCount       Int      @default(0)
+   335→  failedCount     Int      @default(0)
+   336→  optOutCount     Int      @default(0)
+   337→  // Compliance
+   338→  consentEnforced Boolean  @default(true)
+   339→  wabaCompliant   Boolean  @default(true)
+   340→  metadata        String   @default("{}") // JSON for extra config
+   341→  createdAt       DateTime @default(now())
+   342→  updatedAt       DateTime @updatedAt
+   343→
+   344→  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+   345→  contactList     ContactList? @relation(fields: [contactListId], references: [id])
+   346→  messages        CampaignMessage[]
+   347→}
+   348→
+   349→model CampaignMessage {
+   350→  id              String   @id @default(cuid())
+   351→  tenantId        String
+   352→  campaignId      String
+   353→  phoneNumber     String   // hashed at rest in production
+   354→  status          String   @default("PENDING") // PENDING, QUEUED, SENT, DELIVERED, READ, FAILED, OPTED_OUT
+   355→  sentAt          DateTime?
+   356→  deliveredAt     DateTime?
+   357→  readAt          DateTime?
+   358→  failedReason    String?
+   359→  optOut          Boolean  @default(false)
+   360→  createdAt       DateTime @default(now())
+   361→
+   362→  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+   363→  campaign        Campaign @relation(fields: [campaignId], references: [id])
+   364→  @@index([tenantId, campaignId])
+   365→  @@index([tenantId, status])
+   366→}
+   367→
+   368→// ============================================================
+   369→// MODULE 3: Pre-Election / Campaign Monitoring (§4.5)
+   370→// ============================================================
+   371→
+   372→model CampaignEvent {
+   373→  id              String   @id @default(cuid())
+   374→  tenantId        String
+   375→  eventType       String   // RALLY, TOWN_HALL, DEBATE, PRESS_CONF, DOOR_TO_DOOR
+   376→  title           String
+   377→  description     String   @default("")
+   378→  party           String?  // APC, PDP, LP, NNPP, etc.
+   379→  state           String
+   380→  lga             String?
+   381→  venue           String?
+   382→  latitude        Float?
+   383→  longitude       Float?
+   384→  estimatedCrowd  Int?
+   385→  reportedById    String?
+   386→  tone            String   @default("NEUTRAL") // PEACEFUL, TENSE, HOSTILE, ENTHUSIASTIC
+   387→  mediaUrls       String   @default("[]")
+   388→  aiFlags         String   @default("[]") // JSON: ["hate_speech_detected", "state_resources", ...]
+   389→  incidentCount   Int      @default(0)
+   390→  eventDate       DateTime
+   391→  createdAt       DateTime @default(now())
+   392→  updatedAt       DateTime @updatedAt
+   393→
+   394→  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+   395→  @@index([tenantId, eventType])
+   396→  @@index([tenantId, state])
+   397→}
+   398→
+   399→model VoterSuppressionReport {
+   400→  id              String   @id @default(cuid())
+   401→  tenantId        String
+   402→  reportType      String   // FALSE_POLLING_INFO, INTIMIDATION_THREAT, VOTER_ID_BLOCKED, MATERIALS_WITHHELD, FAKE_SCHEDULE
+   403→  title           String
+   404→  description     String
+   405→  state           String
+   406→  lga             String?
+   407→  source          String   @default("FIELD") // FIELD, OSINT, TIP_LINE
+   408→  platform        String?  // if from OSINT
+   409→  severity        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+   410→  status          String   @default("PENDING") // PENDING, VERIFIED, DISMISSED, ESCALATED
+   411→  isDisinformation Boolean @default(false)
+   412→  affectedArea    String?  // description of affected region
+   413→  affectedVoters  Int?     // estimated number
+   414→  evidenceUrls    String   @default("[]")
+   415→  counterMeasure  String?  // what action was taken
+   416→  aiAnalysis      String?
+   417→  reportedById    String?
+   418→  createdAt       DateTime @default(now())
+   419→  updatedAt       DateTime @updatedAt
+   420→
+   421→  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+   422→  @@index([tenantId, reportType])
+   423→  @@index([tenantId, state])
+   424→  @@index([tenantId, status])
+   425→}
+   426→
+   427→// ============================================================
+   428→// MODULE 4: Security Hardening
+   429→// ============================================================
+   430→
+   431→model SecurityEvent {
+   432→  id              String    @id @default(cuid())
+   433→  tenantId        String
+   434→  userId          String?
+   435→  eventType       String    // LOGIN_SUCCESS, LOGIN_FAILED, PERMISSION_CHANGE, DATA_EXPORT, ENCRYPTION_EVENT, SESSION_EXPIRED, SUSPICIOUS_ACTIVITY, BRUTE_FORCE, CERT_PINNING, API_ABUSE
+   436→  severity        String    @default("INFO") // INFO, WARNING, CRITICAL
+   437→  ipAddress       String?
+   438→  userAgent       String?
+   439→  description     String
+   440→  metadata        String    @default("{}") // JSON
+   441→  resolved        Boolean   @default(false)
+   442→  resolvedById    String?
+   443→  resolvedAt      DateTime?
+   444→  createdAt       DateTime  @default(now())
+   445→
+   446→  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+   447→  user            User?     @relation(fields: [userId], references: [id])
+   448→  @@index([tenantId, eventType])
+   449→  @@index([tenantId, severity])
+   450→  @@index([tenantId, createdAt])
+   451→}
+   452→
+   453→// ============================================================
+   454→// MODULE 5: Geofencing & Dead-Man's Switch
+   455→// ============================================================
+   456→
+   457→model GeofenceZone {
+   458→  id                   String   @id @default(cuid())
+   459→  tenantId             String
+   460→  name                 String
+   461→  state                String
+   462→  lga                  String?
+   463→  centerLat            Float
+   464→  centerLng            Float
+   465→  radiusMeters         Float
+   466→  pollingUnitIds       String   @default("[]") // JSON array
+   467→  assignedAgentIds     String   @default("[]") // JSON array
+   468→  isActive             Boolean  @default(true)
+   469→  checkInIntervalMin   Int      @default(60)
+   470→  maxMissedCheckIns    Int      @default(3)
+   471→  createdAt            DateTime @default(now())
+   472→  updatedAt            DateTime @updatedAt
+   473→
+   474→  tenant               Tenant   @relation(fields: [tenantId], references: [id])
+   475→  @@index([tenantId, isActive])
+   476→}
+   477→
+   478→model AgentCheckIn {
+   479→  id              String    @id @default(cuid())
+   480→  tenantId        String
+   481→  agentId         String
+   482→  geofenceZoneId  String
+   483→  status          String    @default("CHECKED_IN") // CHECKED_IN, CHECKED_OUT, SOS_TRIGGERED, EXPIRED
+   484→  latitude        Float
+   485→  longitude       Float
+   486→  isInsideZone    Boolean
+   487→  batteryLevel    Int?
+   488→  networkType     String?
+   489→  accuracyMeters  Float?
+   490→  notes           String?
+   491→  checkedInAt     DateTime  @default(now())
+   492→  checkedOutAt    DateTime?
+   493→
+   494→  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+   495→  user            User?     @relation(fields: [agentId], references: [id])
+   496→  @@index([tenantId, agentId])
+   497→  @@index([tenantId, status])
+   498→  @@index([tenantId, checkedInAt])
+   499→}
+   500→
+   501→model DeadMansSwitch {
+   502→  id                String    @id @default(cuid())
+   503→  tenantId          String
+   504→  agentId           String
+   505→  geofenceZoneId    String?
+   506→  isActive          Boolean   @default(true)
+   507→  checkInDeadline   DateTime
+   508→  lastCheckInAt     DateTime?
+   509→  missedCheckIns    Int       @default(0)
+   510→  escalationLevel   Int       @default(0) // 0=none, 1=alert, 2=supervisor_notified, 3=emergency_SOS
+   511→  autoSOSTriggered  Boolean   @default(false)
+   512→  resolvedAt        DateTime?
+   513→  resolvedById      String?
+   514→  resolvedNotes     String?
+   515→  createdAt         DateTime  @default(now())
+   516→  updatedAt         DateTime  @updatedAt
+   517→
+   518→  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+   519→  user              User?     @relation(fields: [agentId], references: [id])
+   520→  @@index([tenantId, isActive])
+   521→  @@index([tenantId, escalationLevel])
+   522→}
+   523→
+   524→// ============================================================
+   525→// MODULE 6: PVT / Quick Count Engine (Election Day §4.8)
+   526→// ============================================================
+   527→
+   528→model PvtSubmission {
+   529→  id                String    @id @default(cuid())
+   530→  tenantId          String
+   531→  electionId        String
+   532→  pollingUnitId     String
+   533→  submittedById     String
+   534→  // Party results stored as JSON: [{party:"APC",votes:120},...]
+   535→  partyResults      String    @default("[]")
+   536→  accreditedVoters  Int       @default(0)
+   537→  totalValidVotes   Int       @default(0)
+   538→  rejectedBallots   Int       @default(0)
+   539→  totalVotesCast    Int       @default(0)
+   540→  bvasSerialNumber  String?
+   541→  photoUrl          String?   // Form EC8A photo
+   542→  submittedAt       DateTime  @default(now())
+   543→  source            String    @default("MOBILE") // MOBILE, WHATSAPP, PAPER
+   544→  verificationHash  String?   // SHA256 of submission for integrity
+   545→  isVerified        Boolean   @default(false)
+   546→  verifiedById      String?
+   547→  verifiedAt        DateTime?
+   548→
+   549→  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+   550→  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+   551→  @@index([tenantId, electionId])
+   552→  @@index([tenantId, pollingUnitId])
+   553→  @@index([tenantId, submittedAt])
+   554→}
+   555→
+   556→model ResultComparison {
+   557→  id                  String  @id @default(cuid())
+   558→  tenantId            String
+   559→  electionId          String
+   560→  pollingUnitId       String
+   561→  pvtSubmissionId     String?
+   562→  officialResultId    String?
+   563→  // Delta per party stored as JSON: [{party:"APC",pvtVotes:120,officialVotes:135,delta:15,deltaPct:12.5},...]
+   564→  partyDeltas         String  @default("[]")
+   565→  totalPvtVotes       Int     @default(0)
+   566→  totalOfficialVotes  Int     @default(0)
+   567→  totalDelta          Int     @default(0)
+   568→  deltaPct            Float   @default(0)
+   569→  isAnomaly           Boolean @default(false)
+   570→  anomalyReason       String? // "exceeds_5pct", "missing_unit", etc.
+   571→  reviewedById        String?
+   572→  reviewedAt          DateTime?
+   573→  createdAt           DateTime @default(now())
+   574→
+   575→  tenant              Tenant      @relation(fields: [tenantId], references: [id])
+   576→  pollingUnit         PollingUnit @relation(fields: [pollingUnitId], references: [id])
+   577→  @@index([tenantId, electionId])
+   578→  @@index([tenantId, isAnomaly])
+   579→}
+   580→
+   581→// ============================================================
+   582→// MODULE 7: AI Evidence Dossier (§4.8)
+   583→// ============================================================
+   584→
+   585→model EvidenceDossier {
+   586→  id                String   @id @default(cuid())
+   587→  tenantId          String
+   588→  incidentId        String?
+   589→  title             String
+   590→  description       String   @default("")
+   591→  // Evidence items stored as JSON: [{type:"photo",url:"...",c2paVerified:true,aiAnalysis:"..."},...]
+   592→  evidenceItems     String   @default("[]")
+   593→  c2paSigned        Boolean  @default(false)
+   594→  c2paSignature     String?  // base64 C2PA manifest
+   595→  aiSummary         String?
+   596→  aiConfidence      Float    @default(0) // 0-1
+   597→  status            String   @default("DRAFT") // DRAFT, REVIEWED, CERTIFIED, DISMISSED
+   598→  reviewedById      String?
+   599→  reviewedAt        DateTime?
+   600→  createdAt         DateTime @default(now())
+   601→  updatedAt         DateTime @updatedAt
+   602→
+   603→  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+   604→  @@index([tenantId, status])
+   605→  @@index([tenantId, createdAt])
+   606→}
+   607→
+   608→model StegoScanResult {
+   609→  id                String   @id @default(cuid())
+   610→  tenantId          String
+   611→  evidenceDossierId String?
+   612→  fileName          String
+   613→  fileType          String   // JPEG, PNG, MP4, WAV
+   614→  fileSize          Int      @default(0)
+   615→  fileUrl           String?
+   616→  isManipulated     Boolean  @default(false)
+   617→  manipulationType  String?  // "lsb_embedding", "exif_tamper", "audio_stego", "deepfake_face", "clone_stamp"
+   618→  confidence        Float    @default(0) // 0-1
+   619→  elaScore          Float?   // Error Level Analysis score
+   620→  noiseAnalysis     String?  // JSON: {mean, stdDev, uniformity}
+   621→  metadataDiff      String?  // JSON: differences between visual and EXIF metadata
+   622→  scanDurationMs    Int      @default(0)
+   623→  scannedAt         DateTime @default(now())
+   624→
+   625→  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+   626→  @@index([tenantId, isManipulated])
+   627→}
+   628→
+   629→// ============================================================
+   630→// MODULE 8: Honeypot Polling Station (§4.8)
+   631→// ============================================================
+   632→
+   633→model HoneypotUnit {
+   634→  id                String   @id @default(cuid())
+   635→  tenantId          String
+   636→  pollingUnitId     String
+   637→  name              String
+   638→  state             String
+   639→  lga               String?
+   640→  isDecoy           Boolean  @default(true) // fake unit to detect result manipulation
+   641→  trapType          String   @default("GHOST_UNIT") // GHOST_UNIT, TAMPER_TRAP, REPLAY_DETECTOR
+   642→  // Expected results (simulated) stored as JSON: [{party:"APC",votes:100},...]
+   643→  expectedResults   String   @default("[]")
+   644→  // Official results that came back stored as JSON
+   645→  officialResults   String   @default("[]")
+   646→  deviationDetected Boolean  @default(false)
+   647→  deviationPct      Float    @default(0)
+   648→  alertTriggered    Boolean  @default(false)
+   649→  alertId           String?
+   650→  notes             String   @default("")
+   651→  isActive          Boolean  @default(true)
+   652→  createdAt         DateTime @default(now())
+   653→  updatedAt         DateTime @updatedAt
+   654→
+   655→  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+   656→  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+   657→  @@index([tenantId, isActive])
+   658→  @@index([tenantId, deviationDetected])
+   659→}
+   660→
+   661→// ============================================================
+   662→// MODULE 9: Flashpoint Forecast & Wargame (§4.8)
+   663→// ============================================================
+   664→
+   665→model FlashpointForecast {
+   666→  id                String   @id @default(cuid())
+   667→  tenantId          String
+   668→  state             String
+   669→  lga               String?
+   670→  // Risk scores stored as JSON: {violence:0.8,intimidation:0.6,logistics:0.3,overall:0.65}
+   671→  riskScores        String   @default("{}")
+   672→  riskLevel         String   @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+   673→  // 7-day forecast stored as JSON: [{date:"2025-03-01",overall:0.4,violence:0.2},...]
+   674→  forecast          String   @default("[]")
+   675→  contributingFactors String  @default("[]") // JSON: ["historical_violence","high_unemployment",...]
+   676→  aiModel           String   @default("ensemble_v2") // which model produced this
+   677→  confidence        Float    @default(0)
+   678→  generatedAt       DateTime @default(now())
+   679→  expiresAt         DateTime
+   680→
+   681→  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+   682→  @@index([tenantId, state])
+   683→  @@index([tenantId, riskLevel])
+   684→}
+   685→
+   686→model WargameScenario {
+   687→  id                String   @id @default(cuid())
+   688→  tenantId          String
+   689→  title             String
+   690→  description       String
+   691→  // Scenario parameters stored as JSON
+   692→  parameters        String   @default("{}") // {triggerType,affectedStates,severity,playerRole,...}
+   693→  // Steps stored as JSON: [{step:1,description:"...",action:"...",outcome:"..."},...]
+   694→  steps             String   @default("[]")
+   695→  status            String   @default("DRAFT") // DRAFT, RUNNING, COMPLETED, ARCHIVED
+   696→  currentPlayerRole String?  // RED_TEAM, BLUE_TEAM, OBSERVER
+   697→  // Results stored as JSON: {responseTime,correctActions,missedActions,score}
+   698→  results           String?  // JSON or null if not completed
+   699→  score             Int?
+   700→  startedAt         DateTime?
+   701→  completedAt       DateTime?
+   702→  createdBy         String?
+   703→  createdAt         DateTime @default(now())
+   704→  updatedAt         DateTime @updatedAt
+   705→
+   706→  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+   707→  @@index([tenantId, status])
+   708→}
+   709→
+   710→// ============================================================
+   711→// MODULE 10: Accessibility / PWD Tracking (§4.8)
+   712→// ============================================================
+   713→
+   714→model AccessibilityReport {
+   715→  id                String   @id @default(cuid())
+   716→  tenantId          String
+   717→  pollingUnitId     String
+   718→  reportedById      String
+   719→  // Accessibility features stored as JSON: {rampAccess:true,brailleBallots:false,signLanguage:false,assistiveTech:true,accessibleToilet:true}
+   720→  features          String   @default("{}")
+   721→  barrierTypes      String   @default("[]") // JSON: ["no_ramp","stairs_only","no_assistive_tech",...]
+   722→  pwdVotersServed   Int      @default(0)
+   723→  pwdVotersTurnedAway Int    @default(0)
+   724→  overallScore      Float    @default(0) // 0-100 accessibility score
+   725→  photoUrl          String?
+   726→  notes             String   @default("")
+   727→  verified          Boolean  @default(false)
+   728→  createdAt         DateTime @default(now())
+   729→
+   730→  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+   731→  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+   732→  @@index([tenantId, pollingUnitId])
+   733→  @@index([tenantId, overallScore])
+   734→}

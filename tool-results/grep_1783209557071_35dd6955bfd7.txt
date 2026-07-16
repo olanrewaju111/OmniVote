@@ -1,0 +1,177 @@
+/home/z/my-project/src/app/api/voter-suppression/route.ts:8:// GET /api/voter-suppression?tenantId=X&reportType=X&state=X&severity=X&status=X
+/home/z/my-project/src/app/api/voter-suppression/route.ts:35:    const reports = await db.voterSuppressionReport.findMany({
+/home/z/my-project/src/app/api/voter-suppression/route.ts:42:      db.voterSuppressionReport.count({ where: { tenantId } }),
+/home/z/my-project/src/app/api/voter-suppression/route.ts:43:      db.voterSuppressionReport.groupBy({
+/home/z/my-project/src/app/api/voter-suppression/route.ts:48:      db.voterSuppressionReport.groupBy({
+/home/z/my-project/src/app/api/voter-suppression/route.ts:53:      db.voterSuppressionReport.groupBy({
+/home/z/my-project/src/app/api/voter-suppression/route.ts:58:      db.voterSuppressionReport.count({ where: { tenantId, isDisinformation: true } }),
+/home/z/my-project/src/app/api/voter-suppression/route.ts:78:    console.error('Voter suppression error:', err);
+/home/z/my-project/src/app/api/voter-suppression/route.ts:79:    return NextResponse.json({ error: 'Failed to fetch voter suppression reports' }, { status: 500 });
+/home/z/my-project/src/app/api/voter-suppression/route.ts:83:// POST /api/voter-suppression — submit a new voter suppression report
+/home/z/my-project/src/app/api/voter-suppression/route.ts:118:    const report = await db.voterSuppressionReport.create({
+/home/z/my-project/src/app/api/voter-suppression/route.ts:132:        affectedVoters: null,
+/home/z/my-project/src/app/api/voter-suppression/route.ts:142:    console.error('Voter suppression create error:', err);
+/home/z/my-project/src/app/api/voter-suppression/route.ts:143:    return NextResponse.json({ error: 'Failed to create voter suppression report' }, { status: 500 });
+/home/z/my-project/src/app/api/honeypot/route.ts:56:        _sum: { pwdVotersServed: true, pwdVotersTurnedAway: true },
+/home/z/my-project/src/app/api/honeypot/route.ts:101:      pwdVotersServed: r.pwdVotersServed,
+/home/z/my-project/src/app/api/honeypot/route.ts:102:      pwdVotersTurnedAway: r.pwdVotersTurnedAway,
+/home/z/my-project/src/app/api/honeypot/route.ts:174:        pwdServed: pwdStats._sum.pwdVotersServed || 0,
+/home/z/my-project/src/app/api/honeypot/route.ts:175:        pwdTurnedAway: pwdStats._sum.pwdVotersTurnedAway || 0,
+/home/z/my-project/src/app/api/honeypot/route.ts:391:        const { pollingUnitId, features, overallScore, barrierTypes, pwdVotersServed, pwdVotersTurnedAway, photoUrl, notes } = body;
+/home/z/my-project/src/app/api/honeypot/route.ts:417:            pwdVotersServed: pwdVotersServed || 0,
+/home/z/my-project/src/app/api/honeypot/route.ts:418:            pwdVotersTurnedAway: pwdVotersTurnedAway || 0,
+/home/z/my-project/src/app/api/situation-room/route.ts:31:  id: string; name: string; registeredVoters: number; totalVotes: number;
+/home/z/my-project/src/app/api/situation-room/route.ts:106:      const registeredVoters = units.reduce((s, u) => s + u.registeredVoters, 0);
+/home/z/my-project/src/app/api/situation-room/route.ts:108:      const turnout = registeredVoters > 0 ? Math.round((totalVotes / registeredVoters) * 10000) / 100 : 0;
+/home/z/my-project/src/app/api/situation-room/route.ts:118:        id: '', name: '', registeredVoters, totalVotes, turnout,
+/home/z/my-project/src/app/api/situation-room/route.ts:224:      registeredVoters: allItems.reduce((s, i) => s + i.registeredVoters, 0),
+/home/z/my-project/src/app/api/situation-room/route.ts:235:    summary.turnout = summary.registeredVoters > 0
+/home/z/my-project/src/app/api/situation-room/route.ts:236:      ? Math.round((summary.totalVotes / summary.registeredVoters) * 10000) / 100 : 0;
+/home/z/my-project/src/app/api/reports/route.ts:47:            pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
+/home/z/my-project/src/app/api/reports/route.ts:110:            pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
+/home/z/my-project/src/app/api/reports/route.ts:159:  accreditedVoters: number;
+/home/z/my-project/src/app/api/reports/route.ts:172:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number };
+/home/z/my-project/src/app/api/reports/route.ts:178:    accreditedVoters: r.accreditedVoters,
+/home/z/my-project/src/app/api/dashboard/route.ts:97:          latitude: true, longitude: true, registeredVoters: true,
+/home/z/my-project/src/app/api/dashboard/route.ts:107:            _sum: { registeredVoters: true, totalVotes: true },
+/home/z/my-project/src/app/api/dashboard/route.ts:116:      const registered = row._sum.registeredVoters || 0;
+/home/z/my-project/src/app/api/dashboard/route.ts:130:    const totalRegistered = pollingUnits.reduce((s, p) => s + (p.registeredVoters || 0), 0);
+/home/z/my-project/src/app/api/dashboard/route.ts:145:      registered: p.registeredVoters,
+/home/z/my-project/src/app/api/tenants/route.ts:188:      await tx.voterSuppressionReport.deleteMany({ where: { tenantId: id } });
+/home/z/my-project/src/app/api/results/route.ts:32:        pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
+/home/z/my-project/src/app/api/results/route.ts:42:        accreditedVoters: r.accreditedVoters,
+/home/z/my-project/src/app/api/results/route.ts:75:      accreditedVoters, totalValidVotes, rejectedBallots, totalVotesCast,
+/home/z/my-project/src/app/api/results/route.ts:106:      select: { id: true, electionId: true, registeredVoters: true },
+/home/z/my-project/src/app/api/results/route.ts:137:        accreditedVoters: accreditedVoters || 0,
+/home/z/my-project/src/app/api/results/route.ts:151:    const newTotalVotes = (pu.registeredVoters > 0 && totalVotesCast > 0)
+/home/z/my-project/src/app/api/results/route.ts:152:      ? totalVotesCast : pu.registeredVoters;
+/home/z/my-project/src/app/api/results/route.ts:153:    const newTurnout = pu.registeredVoters > 0
+/home/z/my-project/src/app/api/results/route.ts:154:      ? Math.round((newTotalVotes / pu.registeredVoters) * 10000) / 100 : 0;
+/home/z/my-project/src/app/api/results/route.ts:169:          metadata: JSON.stringify({ pollingUnitId, totalVotesCast, accreditedVoters, partyCount: (partyResults || []).length }),
+/home/z/my-project/src/app/api/pvt/route.ts:247:        partyResults, accreditedVoters, totalValidVotes,
+/home/z/my-project/src/app/api/pvt/route.ts:288:          accreditedVoters: accreditedVoters || 0,
+/home/z/my-project/src/app/api/engagement/route.ts:342:        msgBody = customMessage || 'You have not submitted any reports since deployment. Please submit your initial situation report immediately including: materials arrival time, BVAS status, voter queue status, and security presence.';
+/home/z/my-project/src/data/templates.ts:26:// Categories: GOTV, VOTER_EDUCATION, INCIDENT_REPORTING, SAFETY,
+/home/z/my-project/src/data/templates.ts:47:    body: 'Hello {name},\n\nDon\'t forget your Permanent Voter Card (PVC) when heading to your polling unit tomorrow. Without it, you cannot vote.\n\nAlso carry a fully charged phone for taking photos of results. Stay safe and stay vigilant!',
+/home/z/my-project/src/data/templates.ts:92:    mediaDescription: 'Recorded voice message from local community leader urging voter turnout',
+/home/z/my-project/src/data/templates.ts:97:    body: 'Hey {name}! Young people make up 60% of registered voters. If we all turn out, WE decide this election.\n\nDon\'t sit at home. Go to: {polling_unit}\n\nTake a selfie after voting and share with #MyVoteMyFuture\n\nYour voice matters!',
+/home/z/my-project/src/data/templates.ts:127:    body: 'HEAR YE! HEAR YE!\n\nElection day is {date}. Every eligible voter in {polling_unit} should come out with their PVC.\n\nNo fighting. No intimidation. Just peaceful voting.\n\nYour vote is your power — use it wisely!',
+/home/z/my-project/src/data/templates.ts:137:    body: '3 DAYS TO GO! Election day is almost here.\n\n{name}, have you located your polling unit? Verify at: {polling_unit}\n\nShare this message with 5 friends who might not have voted before. Every new voter strengthens our democracy.',
+/home/z/my-project/src/data/templates.ts:162:    mediaDescription: 'Clip montage of Nigerian celebrities holding up their voter cards',
+/home/z/my-project/src/data/templates.ts:186:  // VOTER_EDUCATION (12 templates)
+/home/z/my-project/src/data/templates.ts:190:    name: 'Voter Ed – How to Vote (Step by Step)',
+/home/z/my-project/src/data/templates.ts:191:    body: 'VOTING STEPS:\n\n1. Arrive at your polling unit by 8:30 AM\n2. Join the accreditation queue\n3. Present your PVC to INEC official\n4. Get verified on the Bimodal Voter Accreditation System (BVAS)\n5. Collect your ballot paper\n6. Go behind the voting screen\n7. Thumbprint beside your chosen party\'s logo\n8. Drop your ballot in the box\n\nThat\'s it! Simple and secure.',
+/home/z/my-project/src/data/templates.ts:192:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:200:    name: 'Voter Ed – What is BVAS?',
+/home/z/my-project/src/data/templates.ts:201:    body: 'BVAS stands for Bimodal Voter Accreditation System. It is the device INEC uses to verify voters.\n\nHow it works:\n- INEC official scans your PVC or fingerprints you\n- BVAS confirms your identity\n- Your photo and details appear on screen\n- Once accredited, you receive your ballot paper\n\nBVAS prevents double voting and ensures only eligible voters cast ballots.',
+/home/z/my-project/src/data/templates.ts:202:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:210:    name: 'Voter Ed – Secret Ballot Explained',
+/home/z/my-project/src/data/templates.ts:212:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:220:    name: 'Voter Ed – Invalid vs Valid Ballot',
+/home/z/my-project/src/data/templates.ts:222:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:230:    name: 'Voter Ed – Roles of Election Officials',
+/home/z/my-project/src/data/templates.ts:231:    body: 'Know your election officials:\n\n• Presiding Officer (PO): Manages the polling unit\n• Assistant Presiding Officer (APO): Assists with accreditation and voting\n• Poll Clerk: Maintains the voter register\n• Security Personnel: Police and NSCDC maintain order\n• Party Agents: Observe the process on behalf of political parties\n• Domestic Observers: Monitor for fairness\n\nAll officials must wear their INEC identification.',
+/home/z/my-project/src/data/templates.ts:232:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:240:    name: 'Voter Ed – Understanding the Ballot Paper',
+/home/z/my-project/src/data/templates.ts:242:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:250:    name: 'Voter Ed – Queue Management',
+/home/z/my-project/src/data/templates.ts:252:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:260:    name: 'Voter Ed – Persons with Disabilities',
+/home/z/my-project/src/data/templates.ts:261:    body: 'Voters with disabilities have equal rights!\n\n• INEC provides assistive materials (magnifying glasses, tactile ballots)\n• You may choose a companion to assist you behind the voting screen\n• Priority accreditation is available\n• Ramps and accessible polling units are designated\n\nIf you face any barriers, call our accessibility hotline.',
+/home/z/my-project/src/data/templates.ts:262:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:266:    mediaDescription: 'Infographic showing accessibility features at polling units for voters with disabilities',
+/home/z/my-project/src/data/templates.ts:270:    name: 'Voter Ed – What Happens After Voting',
+/home/z/my-project/src/data/templates.ts:272:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:280:    name: 'Voter Ed – IReV Portal Explained',
+/home/z/my-project/src/data/templates.ts:282:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:290:    name: 'Voter Ed – Overvoting Explained',
+/home/z/my-project/src/data/templates.ts:291:    body: 'OVERVOTING means more ballots were cast than accredited voters at a polling unit.\n\nBVAS prevents this by counting accredited voters. If the number of ballots exceeds accredited voters, the election at that PU may be cancelled.\n\nThis is why your presence as an observer matters. Count the voters!',
+/home/z/my-project/src/data/templates.ts:292:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:300:    name: 'Voter Ed – Party Agents\' Role',
+/home/z/my-project/src/data/templates.ts:301:    body: 'Party agents are critical to election integrity. If you are a party agent:\n\n• Arrive early at your assigned polling unit\n• You have the right to observe EVERY stage\n• You can challenge any voter whose identity is doubtful\n• You MUST sign Form EC8A after counting\n• You can take photos of the result sheet\n• Stay until results are announced and uploaded\n\nDo NOT leave your post!',
+/home/z/my-project/src/data/templates.ts:302:    category: 'VOTER_EDUCATION',
+/home/z/my-project/src/data/templates.ts:315:    body: 'See something wrong at your polling unit? Report it NOW.\n\nSteps:\n1. Stay safe — do not confront anyone\n2. Note the time, location, and what happened\n3. Take a photo or video if possible\n4. Send details to our monitoring team via this platform\n\nYour report helps us respond faster and protect other voters.\n\nEvery report counts.',
+/home/z/my-project/src/data/templates.ts:365:    body: 'REPORT: Multiple voting detected at {polling_unit}\n\nIf you see someone trying to vote more than once:\n1. Alert the Presiding Officer immediately\n2. The PO will verify using BVAS fingerprint/facial recognition\n3. If confirmed, the voter will be arrested\n4. Report through this platform for our records\n\nBVAS is designed to prevent this. Stay vigilant!',
+/home/z/my-project/src/data/templates.ts:375:    body: 'Underage voting is ILLEGAL. If you see anyone under 18 being allowed to vote:\n\n1. Challenge the Presiding Officer\n2. Demand that the voter\'s age be verified\n3. Document with photos if possible\n4. Report immediately through this platform\n\nProtecting the integrity of elections starts with enforcing the rules.',
+/home/z/my-project/src/data/templates.ts:394:    name: 'Incident – Voter Intimidation',
+/home/z/my-project/src/data/templates.ts:395:    body: 'Voter intimidation is a serious electoral offence. Report it if:\n\n• Someone threatens you for voting a certain way\n• Armed men are present at your polling unit\n• Your employer threatens consequences for voting\n• Community leaders pressure you to vote for a candidate\n\nCall our hotline or report via this platform. Your identity is protected.',
+/home/z/my-project/src/data/templates.ts:400:    mediaDescription: 'Audio PSA encouraging voters to report intimidation with assurance of confidentiality',
+/home/z/my-project/src/data/templates.ts:439:    body: 'Save these numbers BEFORE election day:\n\nPolice Emergency: 112\nNigerian Security and Civil Defense: 08054837055\nINEC Voter Helpline: 0700-CALL-INEC\nNational Human Rights Commission: 0808-343-5262\nOur Monitoring Hotline: [Your Hotline Number]\n\nShare with family and friends. Quick access saves lives.',
+/home/z/my-project/src/data/templates.ts:533:    body: 'Form EC8A is the official result sheet. Key fields to check:\n\n• Total registered voters\n• Total accredited voters\n• Total valid votes\n• Total rejected ballots\n• Votes per political party\n• Signature of PO and party agents\n\nPhotograph this form after counting. It is your evidence.',
+/home/z/my-project/src/data/templates.ts:573:    body: 'A ballot is REJECTED if:\n\n• It has thumbprints for more than one party\n• The voter\'s identity is visible on the ballot\n• The ballot is torn, defaced, or unmarked\n• It was not issued by INEC\n\nWatch the counting carefully. Count rejected ballots alongside valid ones. The total should match.',
+/home/z/my-project/src/data/templates.ts:583:    body: 'Follow live election results on our monitoring dashboard!\n\nReal-time updates from polling units across the federation.\n\nTrack:\n• Voter turnout by state\n• Leading candidates per LGA\n• Reported incidents\n• IReV upload status\n\nStay informed. Knowledge is power.',
+/home/z/my-project/src/data/templates.ts:627:    body: 'Know the incident categories for accurate reporting:\n\n🔴 CRITICAL: Violence, ballot snatching, armed intimidation\n🟡 WARNING: BVAS failure, late materials, voter intimidation\n🔵 INFO: Queue management, minor delays, accessibility issues\n🟢 RESOLVED: Issue has been addressed\n\nUse the correct category so our response team can prioritise effectively.',
+/home/z/my-project/src/data/templates.ts:637:    body: 'Taking effective incident photos:\n\n✅ Wide shots showing context (scene + surroundings)\n✅ Close-ups of key details (BVAS screen, result sheet)\n✅ Include timestamps if possible\n✅ Photograph from a safe distance\n\n❌ Do NOT take photos inside the voting booth\n❌ Do NOT photograph other voters\' ballots\n❌ Do NOT interfere with the process to take photos\n\nEvidence quality matters!',
+/home/z/my-project/src/data/templates.ts:647:    body: 'As an election observer, you must:\n\n✓ Remain non-partisan at all times\n✓ Wear your observer ID visibly\n✓ Be polite and professional\n✓ Follow the presiding officer\'s lawful instructions\n✓ Respect the privacy of voters\n\nYou must NOT:\n\n✗ Campaign for any candidate or party\n✗ Assist voters in marking their ballots\n✗ Argue with security personnel\n✗ Share your political opinions while on duty\n✗ Consume alcohol while on assignment',
+/home/z/my-project/src/data/templates.ts:677:    body: 'TRAINING SCENARIO:\n\nYou arrive at PU 34/12/05/003 at 8:15 AM. Materials are present, but BVAS will not turn on. The PO says they are waiting for technical support. Voters are getting restless.\n\nWhat do you do?\n\nA) Leave and go to another PU\nB) Report the BVAS failure via the platform and wait\nC) Argue with the PO\nD) Tell voters to go home\n\nCorrect: B — Report and wait. BVAS failures are tracked and escalated.',
+/home/z/my-project/src/data/templates.ts:751:    body: 'Social media guidelines during elections:\n\n• Verify before sharing — fake news is a criminal offence\n• Do NOT create or spread false election results\n• Do NOT incite violence online\n• Do NOT share other voters\' ballot choices\n• Report fake accounts impersonating INEC or observers\n\nPenalties include fines up to N5 million and/or imprisonment.',
+/home/z/my-project/src/data/templates.ts:774:    name: 'Engagement – Voter Pledge',
+/home/z/my-project/src/data/templates.ts:804:    name: 'Engagement – Voter Registration Check',
+/home/z/my-project/src/data/templates.ts:805:    body: 'Not sure if you are registered? Check now!\n\nSMS your State and Full Name to our shortcode to verify your voter registration status.\n\nOr visit: voters.inecnigeria.org\n\nIf not registered, the next Continuous Voter Registration (CVR) exercise begins soon. Don\'t miss out!',
+/home/z/my-project/src/data/templates.ts:810:    mediaDescription: 'Promotional graphic encouraging voters to check their registration status',
+/home/z/my-project/src/data/templates.ts:834:    name: 'Engagement – First-Time Voter Welcome',
+/home/z/my-project/src/data/templates.ts:835:    body: 'Welcome, first-time voter! This is a special moment.\n\nYour first election is exciting and important. Here is what to expect:\n\n1. You will join the accreditation queue\n2. Your PVC will be verified on BVAS\n3. You will receive your first-ever ballot paper\n4. Behind the screen, make your choice\n5. Drop your ballot and feel the pride!\n\nCongratulations on exercising your civic right!',
+/home/z/my-project/src/data/templates.ts:839:    mediaUrl: '/uploads/templates/first-time-voter.webm',
+/home/z/my-project/src/data/templates.ts:840:    mediaDescription: 'Inspirational video welcoming first-time voters with testimonials from previous first-timers',
+/home/z/my-project/src/data/templates.ts:855:    body: 'DID YOU KNOW?\n\nNigeria has held 7 general elections since the return to democracy in 1999. Voter turnout has ranged from 35% to 69%.\n\nThe highest turnout was in 2003 (69%). The lowest was in 2019 (35%).\n\nLet\'s aim for a record turnout this year! Your vote adds to the count.',
+/home/z/my-project/src/data/templates.ts:860:    mediaDescription: 'Bar chart showing Nigerian voter turnout percentages across all elections since 1999',
+/home/z/my-project/src/data/templates.ts:909:    body: 'YOUTH VOTING POWER:\n\nAges 18-35: ~52 million registered voters\nThat is over 60% of all registered voters!\n\nIf young people turn out in full force, THEY decide the outcome. Politicians know this — that is why they target youth with promises.\n\nMake them earn your vote. And then actually go and vote.',
+/home/z/my-project/src/data/templates.ts:914:    mediaDescription: 'Data visualisation showing youth voter demographics and their potential electoral impact',
+/home/z/my-project/src/data/templates.ts:1013:    body: 'Don\'t know your polling unit? Find it now:\n\n1. Visit: voters.inecnigeria.org\n2. Click "Find Polling Unit"\n3. Enter your State and LGA\n4. Search by name or Voter ID\n5. Note down your PU code and address\n\nOr SMS your Voter ID to our shortcode for instant results.\n\nKnow before you go!',
+/home/z/my-project/src/data/templates.ts:1043:    body: 'REMINDER: Campaign silence begins 24 hours before election day.\n\nDuring this period:\n• No political rallies or campaigns\n• No political broadcasts on TV/radio\n• No campaign messages on social media\n• No canvassing at polling units\n\nThis gives voters a quiet period to reflect before voting. Respect the silence.',
+/home/z/my-project/src/data/templates.ts:1117:    body: 'To all students:\n\nYou have the power to shape Nigeria\'s future! Most of you are first-time voters. Make it count.\n\nOn {date}, go to {polling_unit} with your PVC.\n\nOrganise a "Go Vote" group with your classmates. Go together. Vote together. Celebrate democracy together.\n\n#StudentVote #FutureOfNigeria',
+/home/z/my-project/src/data/templates.ts:1127:    body: 'From the palace of the {title}:\n\n"My people, I urge every eligible voter in our domain to come out and vote on {date}.\n\nOur community\'s development depends on who we elect. Choose leaders who will bring roads, schools, hospitals, and jobs.\n\nGo peacefully. Vote wisely.\n\n— {title}"',
+/home/z/my-project/src/data/templates.ts:1137:    body: 'VOLUNTEERS NEEDED: Election Day Transport\n\nWe need drivers to help transport voters to polling units on {date}.\n\nWhat you provide:\n• Your vehicle (car, bus, tricycle, or motorcycle)\n• A few hours of your morning\n\nWhat we provide:\n• Fuel stipend\n• Volunteer certificate\n• A grateful community\n\nReply TRANSPORT to sign up!',
+/home/z/my-project/src/data/templates.ts:1157:    body: 'COMMUNITY VOTER WALK!\n\nDate: {date}\nTime: 6:30 AM\nStarting point: {polling_unit}\n\nJoin us for a peaceful walk to the polls. Wear white. Carry no political banners — this is about CITIZEN PARTICIPATION, not partisanship.\n\nBring your PVC. Bring your family. Bring your neighbours.\n\nSee you at dawn!',
+/home/z/my-project/src/data/templates.ts:1161:    mediaUrl: '/uploads/templates/voter-walk.jpg',
+/home/z/my-project/src/data/templates.ts:1162:    mediaDescription: 'Flyer for community voter walk event with route map and assembly details',
+/home/z/my-project/src/data/templates.ts:1167:    body: 'RADIO JINGLE SCRIPT (30 seconds):\n\n[SFX: Drumbeat]\n\nVO: "Your PVC. Your Voice. Your Vote."\n\nVO: "Election day is {date}. Don\'t sit at home. Go to your polling unit with your PVC."\n\nVO: "Find your PU at voters.inecnigeria.org"\n\nVO: "Vote not fight. Nigeria needs you."\n\nSFX: Upbeat music out.\n\n[END]',
+/home/z/my-project/src/data/templates.ts:1172:    mediaDescription: '30-second radio jingle with music bed and voiceover for voter mobilisation',
+/home/z/my-project/src/data/templates.ts:1211:    body: 'VOLUNTEER APPRECIATION:\n\n{name}, thank you for your incredible dedication during this election cycle.\n\nYour contributions:\n• Mobilised voters in your community\n• Reported incidents in real-time\n• Maintained peace and order\n• Represented the best of civic duty\n\nYou are a true Democracy Champion. We look forward to working with you again.',
+/home/z/my-project/src/data/templates.ts:1221:    body: 'The election has concluded. Thank you to every Nigerian who participated.\n\nTo the voters who queued patiently — thank you.\nTo the observers who monitored tirelessly — thank you.\nTo the INEC officials who worked diligently — thank you.\nTo the security agencies who maintained order — thank you.\n\nRegardless of the outcome, your participation is democracy\'s greatest victory.',
+/home/z/my-project/src/data/templates.ts:1251:    body: 'The election may be over, but democracy doesn\'t end at the ballot box.\n\nStay engaged:\n• Follow your elected representatives\n• Attend town hall meetings\n• Participate in public hearings\n• Hold leaders accountable\n• Join civic organisations\n• Register for the next voter registration exercise\n\nDemocracy is a daily practice, not a one-day event.',
+/home/z/my-project/src/data/templates.ts:1319:    body: 'Welcome to OmniVote Monitor v2.1\n\nWe are a non-partisan, technology-driven election monitoring platform dedicated to:\n\n• Real-time incident tracking\n• Voter education and mobilisation\n• Result verification support\n• Observer coordination\n• Data-driven election integrity analysis\n\nOur mission: Free, fair, and credible elections for all Nigerians.\n\nLearn more at [website]',
+/home/z/my-project/src/data/templates.ts:1334:    mediaDescription: 'Clean FAQ poster with common voter questions and answers',
+/home/z/my-project/src/data/templates.ts:1348:    name: 'Info – Voter Registration Process',
+/home/z/my-project/src/data/templates.ts:1349:    body: 'How to register to vote:\n\n1. Visit any INEC registration centre (nationwide)\n2. Fill the registration form\n3. Provide your NIN or valid ID\n4. Your biometrics (photo, fingerprints) will be captured\n5. You will receive a temporary voter card\n6. Collect your permanent PVC when ready (usually 2-4 weeks)\n\nRegistration is FREE. No one should charge you.\n\nNext CVR exercise: Check INEC website for dates.',
+/home/z/my-project/src/data/templates.ts:1354:    mediaDescription: 'Step-by-step visual guide to the voter registration process',
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:73:  pwdVotersServed: number;
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:74:  pwdVotersTurnedAway: number;
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:351:        pwdVotersServed: Number(arPwdServed) || 0,
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:352:        pwdVotersTurnedAway: Number(arPwdTurnedAway) || 0,
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:860:                            {report.pwdVotersServed}
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:863:                            {report.pwdVotersTurnedAway}
+/home/z/my-project/src/components/dashboard/kpi-grid.tsx:127:        sub={`${(election.totalVotes / 1000).toFixed(1)}K of ${(election.totalRegistered / 1000).toFixed(1)}K voters`}
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:44:    accreditedVoters: number;
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:77:  affectedVoters: number;
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:132:  VOTER_ID_BLOCKED: 'Voter ID Blocked',
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:195:  // ── Fetch Voter Suppression ──
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:202:    queryKey: ['voter-suppression', tenantId],
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:203:    queryFn: () => fetchJson(`/api/voter-suppression?tenantId=${tenantId}`),
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:242:      return fetchJson(`/api/voter-suppression?tenantId=${tenantId}`, {
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:249:      queryClient.invalidateQueries({ queryKey: ['voter-suppression', tenantId] });
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:345:          Track campaign events, voter suppression, billboards &amp; hate speech
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:357:              <AlertTriangle className="h-3 w-3" /> Voter Suppression
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:385:        {/* ── Voter Suppression Tab ── */}
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:401:            refetch={() => queryClient.invalidateQueries({ queryKey: ['voter-suppression', tenantId] })}
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:554:            <DialogTitle>Report Voter Suppression</DialogTitle>
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:555:            <DialogDescription>Submit a verified report of voter suppression or intimidation.</DialogDescription>
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:1019:                            {report.affectedVoters ? report.affectedVoters.toLocaleString() : '—'}
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:750:                { label: 'Status Check', s: 'Status Check Required', b: 'Please provide your current situation report: voter queue length, BVAS status, any incidents, and security presence at your polling unit.' },
+/home/z/my-project/src/components/dashboard/mobilization.tsx:367:            <p className="text-xs text-muted-foreground">WhatsApp campaigns &amp; voter outreach</p>
+/home/z/my-project/src/components/dashboard/field-reports.tsx:30:  accreditedVoters: number;
+/home/z/my-project/src/components/dashboard/field-reports.tsx:42:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number } | null;
+/home/z/my-project/src/components/dashboard/field-reports.tsx:110:  INTIMIDATION: 'Voter Intimidation',
+/home/z/my-project/src/components/dashboard/field-reports.tsx:312:              const turnout = r.accreditedVoters > 0 ? Math.round((r.totalVotesCast / r.accreditedVoters) * 10000) / 100 : 0;
+/home/z/my-project/src/components/dashboard/field-reports.tsx:358:                      <MiniStat label="Accredited" value={r.accreditedVoters} />
+/home/z/my-project/src/components/dashboard/field-submit.tsx:50:  { value: 'INTIMIDATION', label: 'Voter Intimidation', severity: 'HIGH', color: 'rose' },
+/home/z/my-project/src/components/dashboard/field-submit.tsx:206:      accreditedVoters: accreditedNum,
+/home/z/my-project/src/components/dashboard/field-submit.tsx:292:              <span>{selectedPUData.registered} registered voters</span>
+/home/z/my-project/src/components/dashboard/field-submit.tsx:347:                      <label className="text-[11px] font-medium text-muted-foreground">Accredited Voters</label>
+/home/z/my-project/src/components/dashboard/situation-room.tsx:19:  id: string; name: string; registeredVoters: number; totalVotes: number;
+/home/z/my-project/src/components/dashboard/situation-room.tsx:30:    registeredVoters: number; totalVotes: number; turnout: number;
+/home/z/my-project/src/components/dashboard/situation-room.tsx:169:              <MiniStat icon={<Users className="h-3.5 w-3.5" />} label="Registered" value={summary.registeredVoters.toLocaleString()} color="cyan" />
+/home/z/my-project/src/components/dashboard/situation-room.tsx:219:                    const barWidth = item.registeredVoters > 0
+/home/z/my-project/src/components/dashboard/situation-room.tsx:220:                      ? Math.min((item.totalVotes / item.registeredVoters) * 100, 100) : 0;
+/home/z/my-project/src/components/dashboard/situation-room.tsx:284:                                  <span className="hidden sm:inline">{item.registeredVoters.toLocaleString()} registered</span>
+/home/z/my-project/src/components/dashboard/situation-room.tsx:294:                                  <span className="text-[10px] text-muted-foreground">of {item.registeredVoters.toLocaleString()}</span>

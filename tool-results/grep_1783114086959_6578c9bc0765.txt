@@ -1,0 +1,252 @@
+/home/z/my-project/src/app/api/honeypot/route.ts:26:          pollingUnit: { select: { name: true, code: true } },
+/home/z/my-project/src/app/api/honeypot/route.ts:33:          pollingUnit: { select: { name: true, code: true, state: true } },
+/home/z/my-project/src/app/api/honeypot/route.ts:76:      pollingUnitId: h.pollingUnitId,
+/home/z/my-project/src/app/api/honeypot/route.ts:92:      pollingUnit: h.pollingUnit,
+/home/z/my-project/src/app/api/honeypot/route.ts:99:      pollingUnitId: r.pollingUnitId,
+/home/z/my-project/src/app/api/honeypot/route.ts:110:      pollingUnit: r.pollingUnit,
+/home/z/my-project/src/app/api/honeypot/route.ts:216:        const pollingUnitId = sanitize.str(body.pollingUnitId, { maxLength: 100 });
+/home/z/my-project/src/app/api/honeypot/route.ts:217:        let err = validate(pollingUnitId, 'pollingUnitId', { required: true, label: 'Polling unit ID' });
+/home/z/my-project/src/app/api/honeypot/route.ts:226:        if (!pollingUnitId || !name || !state || !trapType) {
+/home/z/my-project/src/app/api/honeypot/route.ts:228:            { error: 'pollingUnitId, name, state, and trapType are required' },
+/home/z/my-project/src/app/api/honeypot/route.ts:243:            pollingUnitId,
+/home/z/my-project/src/app/api/honeypot/route.ts:387:        const pollingUnitId = sanitize.str(body.pollingUnitId, { maxLength: 100 });
+/home/z/my-project/src/app/api/honeypot/route.ts:388:        let err = validate(pollingUnitId, 'pollingUnitId', { required: true, label: 'Polling unit ID' });
+/home/z/my-project/src/app/api/honeypot/route.ts:403:            pollingUnitId,
+/home/z/my-project/src/app/api/honeypot/route.ts:419:            pollingUnitId: report.pollingUnitId,
+/home/z/my-project/src/app/api/situation-room/route.ts:73:    // Fetch all polling units + incident counts for this election
+/home/z/my-project/src/app/api/situation-room/route.ts:74:    const pollingUnits = await db.pollingUnit.findMany({
+/home/z/my-project/src/app/api/situation-room/route.ts:78:    // Fetch incident counts grouped by pollingUnitId
+/home/z/my-project/src/app/api/situation-room/route.ts:81:      select: { pollingUnitId: true, severity: true },
+/home/z/my-project/src/app/api/situation-room/route.ts:87:      if (!inc.pollingUnitId) continue;
+/home/z/my-project/src/app/api/situation-room/route.ts:88:      const existing = incidentMap.get(inc.pollingUnitId) || { total: 0, critical: 0 };
+/home/z/my-project/src/app/api/situation-room/route.ts:91:      incidentMap.set(inc.pollingUnitId, existing);
+/home/z/my-project/src/app/api/situation-room/route.ts:95:    function aggregate(units: typeof pollingUnits): AggItem {
+/home/z/my-project/src/app/api/situation-room/route.ts:119:        const zoneUnits = pollingUnits.filter(u => states.includes(u.state));
+/home/z/my-project/src/app/api/situation-room/route.ts:124:      const nationalAgg = aggregate(pollingUnits);
+/home/z/my-project/src/app/api/situation-room/route.ts:137:      for (const pu of pollingUnits) {
+/home/z/my-project/src/app/api/situation-room/route.ts:140:          const stateUnits = pollingUnits.filter(u => u.state === pu.state);
+/home/z/my-project/src/app/api/situation-room/route.ts:155:      for (const pu of pollingUnits) {
+/home/z/my-project/src/app/api/situation-room/route.ts:158:          const lgaUnits = pollingUnits.filter(u => u.lga === pu.lga && u.state === stateName);
+/home/z/my-project/src/app/api/situation-room/route.ts:176:      for (const pu of pollingUnits) {
+/home/z/my-project/src/app/api/situation-room/route.ts:179:          const wardUnits = pollingUnits.filter(u => u.ward === pu.ward && u.lga === lgaName);
+/home/z/my-project/src/app/api/situation-room/route.ts:189:      // Ward level — show individual polling units
+/home/z/my-project/src/app/api/situation-room/route.ts:193:      let wardUnits = pollingUnits;
+/home/z/my-project/src/app/api/situation-room/route.ts:195:        wardUnits = pollingUnits.filter(u => u.lga === lgaName && u.ward === wardName);
+/home/z/my-project/src/app/api/situation-room/route.ts:197:        wardUnits = pollingUnits.filter(u => u.ward === wardName);
+/home/z/my-project/src/app/api/pvt/route.ts:30:    // 1. Fetch all PVT submissions (latest 200) with polling unit info
+/home/z/my-project/src/app/api/pvt/route.ts:38:        pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true } },
+/home/z/my-project/src/app/api/pvt/route.ts:58:        pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true } },
+/home/z/my-project/src/app/api/pvt/route.ts:78:      by: ['pollingUnitId'],
+/home/z/my-project/src/app/api/pvt/route.ts:97:      select: { pollingUnit: { select: { state: true } } },
+/home/z/my-project/src/app/api/pvt/route.ts:101:      const state = p.pollingUnit?.state || 'Unknown';
+/home/z/my-project/src/app/api/pvt/route.ts:120:      const state = s.pollingUnit?.state || 'Unknown';
+/home/z/my-project/src/app/api/pvt/route.ts:129:    const stateSet = new Set(pvtWithState.map(p => p.pollingUnit?.state || 'Unknown'));
+/home/z/my-project/src/app/api/pvt/route.ts:167:    const totalPollingUnits = await db.pollingUnit.count({
+/home/z/my-project/src/app/api/pvt/route.ts:171:      by: ['pollingUnitId'],
+/home/z/my-project/src/app/api/pvt/route.ts:238:      const pollingUnitId = sanitize.str(body.pollingUnitId, { maxLength: 100 });
+/home/z/my-project/src/app/api/pvt/route.ts:249:      err = validate(pollingUnitId, 'pollingUnitId', { required: true, isUuid: true, label: 'Polling unit ID' });
+/home/z/my-project/src/app/api/pvt/route.ts:274:          pollingUnitId,
+/home/z/my-project/src/app/api/pvt/route.ts:341:      const { pollingUnitId, electionId } = body;
+/home/z/my-project/src/app/api/pvt/route.ts:343:      if (!pollingUnitId || !electionId) {
+/home/z/my-project/src/app/api/pvt/route.ts:344:        return NextResponse.json({ error: 'pollingUnitId and electionId are required' }, { status: 400 });
+/home/z/my-project/src/app/api/pvt/route.ts:346:      const compPuErr = validate(pollingUnitId, 'pollingUnitId', { isUuid: true, label: 'Polling unit ID' });
+/home/z/my-project/src/app/api/pvt/route.ts:352:        where: { tenantId, pollingUnitId, electionId },
+/home/z/my-project/src/app/api/pvt/route.ts:356:        return NextResponse.json({ error: 'No PVT submission found for this polling unit' }, { status: 404 });
+/home/z/my-project/src/app/api/pvt/route.ts:360:        where: { tenantId, pollingUnitId },
+/home/z/my-project/src/app/api/pvt/route.ts:363:        return NextResponse.json({ error: 'No official result found for this polling unit' }, { status: 404 });
+/home/z/my-project/src/app/api/pvt/route.ts:367:        where: { tenantId, pollingUnitId, electionId },
+/home/z/my-project/src/app/api/pvt/route.ts:403:          pollingUnitId,
+/home/z/my-project/src/app/api/geofence/route.ts:45:      pollingUnitIds: safeParse(z.pollingUnitIds),
+/home/z/my-project/src/app/api/geofence/route.ts:165:          pollingUnitIds: JSON.stringify(body.pollingUnitIds || []),
+/home/z/my-project/src/app/api/tenants/route.ts:214:      await tx.pollingUnit.deleteMany({ where: { election: { tenantId: id } } });
+/home/z/my-project/src/app/page.tsx:70:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
+/home/z/my-project/src/app/page.tsx:95:  pollingUnits: {
+/home/z/my-project/src/app/page.tsx:204:    refetchInterval: 120000, // 2-min safety-net fallback; SSE handles real-time refresh
+/home/z/my-project/src/app/page.tsx:218:    refetchInterval: 120000, // 2-min safety-net fallback; SSE handles real-time refresh
+/home/z/my-project/src/app/page.tsx:225:    refetchInterval: 120000, // 2-min safety-net fallback; SSE handles real-time refresh
+/home/z/my-project/src/app/page.tsx:317:                      <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} />
+/home/z/my-project/src/app/page.tsx:484:          <GeoMapView points={dashData.pollingUnits} bounds={dashData.mapBounds || undefined} />
+/home/z/my-project/src/app/api/dashboard/route.ts:36:      operationalAlerts, unreadAlerts, pollingUnits, sosCount,
+/home/z/my-project/src/app/api/dashboard/route.ts:47:      db.pollingUnit.findMany({
+/home/z/my-project/src/app/api/dashboard/route.ts:53:    const totalRegistered = pollingUnits.reduce((s, p) => s + p.registeredVoters, 0);
+/home/z/my-project/src/app/api/dashboard/route.ts:54:    const totalVotes = pollingUnits.reduce((s, p) => s + p.totalVotes, 0);
+/home/z/my-project/src/app/api/dashboard/route.ts:55:    const avgTurnout = pollingUnits.length ? Math.round((totalVotes / totalRegistered) * 10000) / 100 : 0;
+/home/z/my-project/src/app/api/dashboard/route.ts:56:    const flaggedUnits = pollingUnits.filter(p => p.status === 'FLAGGED').length;
+/home/z/my-project/src/app/api/dashboard/route.ts:57:    const openUnits = pollingUnits.filter(p => p.status === 'OPEN').length;
+/home/z/my-project/src/app/api/dashboard/route.ts:58:    const closedUnits = pollingUnits.filter(p => p.status === 'CLOSED').length;
+/home/z/my-project/src/app/api/dashboard/route.ts:63:    for (const pu of pollingUnits) {
+/home/z/my-project/src/app/api/dashboard/route.ts:86:    const prevVotes = await db.pollingUnit.aggregate({
+/home/z/my-project/src/app/api/dashboard/route.ts:139:        totalPollingUnits: pollingUnits.length,
+/home/z/my-project/src/app/api/dashboard/route.ts:144:      pollingUnits: pollingUnits.map(p => ({
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:169:  { relTime: '2m ago', msg: 'Indexed 156 polling unit result images' },
+/home/z/my-project/src/components/dashboard/evidence-dossier.tsx:230:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/mobilization.tsx:823:                placeholder="Type your message here. Use {name}, {polling_unit} for personalization."
+/home/z/my-project/src/components/dashboard/mobilization.tsx:1167:                placeholder="Type your template message. Use {name}, {polling_unit}, {date} for placeholders."
+/home/z/my-project/src/components/dashboard/ai-insights.tsx:73:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/field-safety-map.tsx:15:  pollingUnitIds: string[];
+/home/z/my-project/src/components/dashboard/flashpoint-wargame.tsx:233:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/live-feed.tsx:190:                          {inc.pollingUnit && (
+/home/z/my-project/src/components/dashboard/live-feed.tsx:191:                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.state}/{inc.pollingUnit.lga}</span>
+/home/z/my-project/src/components/dashboard/system-health.tsx:63:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/system-health.tsx:69:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/security-center.tsx:1196:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/header.tsx:107:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/header.tsx:150:          <label htmlFor="global-search" className="sr-only">Search polling units, incidents, agents</label>
+/home/z/my-project/src/components/dashboard/header.tsx:161:            placeholder="Search polling units, incidents, agents..."
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:42:    pollingUnit: { name: string; code: string; state: string; lga: string };
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:54:    pollingUnit: { name: string; code: string; state: string };
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:491:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:629:                        <TableCell className="max-w-[120px] truncate text-xs" title={a.pollingUnit.name}>
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:630:                          {a.pollingUnit.name}
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:632:                        <TableCell className="text-xs">{a.pollingUnit.state}</TableCell>
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:699:                      <TableCell className="max-w-[160px] truncate text-xs" title={sub.pollingUnit.name}>
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:702:                          {sub.pollingUnit.name}
+/home/z/my-project/src/components/dashboard/pvt-quick-count.tsx:705:                      <TableCell className="text-xs">{sub.pollingUnit.state}</TableCell>
+/home/z/my-project/src/components/dashboard/media-gallery.tsx:154:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/field-reports.tsx:42:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number } | null;
+/home/z/my-project/src/components/dashboard/field-reports.tsx:58:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
+/home/z/my-project/src/components/dashboard/field-reports.tsx:139:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/field-reports.tsx:347:                    {r.pollingUnit && (
+/home/z/my-project/src/components/dashboard/field-reports.tsx:350:                        <span className="font-medium text-foreground/80">{r.pollingUnit.name}</span>
+/home/z/my-project/src/components/dashboard/field-reports.tsx:351:                        <span className="text-muted-foreground/50">({r.pollingUnit.code})</span>
+/home/z/my-project/src/components/dashboard/field-reports.tsx:352:                        <span className="text-muted-foreground/50">{r.pollingUnit.state}/{r.pollingUnit.lga}</span>
+/home/z/my-project/src/components/dashboard/field-reports.tsx:492:                    onOpen={(i) => openMedia(inc.mediaUrls, i, `${inc.type} — ${inc.pollingUnit?.name || 'Incident'}`)}
+/home/z/my-project/src/components/dashboard/field-reports.tsx:499:                  {inc.pollingUnit && (
+/home/z/my-project/src/components/dashboard/field-reports.tsx:500:                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.name} ({inc.pollingUnit.code})</span>
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:192:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/campaign-monitor.tsx:205:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:136:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:754:                { label: 'Status Check', s: 'Status Check Required', b: 'Please provide your current situation report: voter queue length, BVAS status, any incidents, and security presence at your polling unit.' },
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:756:                { label: 'Result Reminder', s: 'Election Results Submission', b: 'Voting has concluded at your polling unit. Please submit the official election results immediately, including the result sheet photograph and all party vote counts.' },
+/home/z/my-project/src/components/dashboard/agent-engagement.tsx:797:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:697:    pollingUnit: { name: string; state: string; lga: string } | null;
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:760:            {inc.pollingUnit && (
+/home/z/my-project/src/components/dashboard/agent-roster.tsx:763:                {inc.pollingUnit.name}, {inc.pollingUnit.state}
+/home/z/my-project/src/components/dashboard/field-safety.tsx:44:  pollingUnitIds: string[];
+/home/z/my-project/src/components/dashboard/field-safety.tsx:209:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/field-safety.tsx:482:                          <span className="font-medium text-foreground">{zone.pollingUnitIds.length}</span>
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:59:  pollingUnit: { name: string; code: string };
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:64:  pollingUnit: { name: string; code: string; state: string };
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:234:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:346:      setAccessibilityFormError('Please enter a polling unit ID');
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:352:        pollingUnitId: arPollingUnitId.trim(),
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:848:                              <p className="text-xs font-medium">{report.pollingUnit.name}</p>
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:849:                              <p className="text-[10px] text-muted-foreground">{report.pollingUnit.code}</p>
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:853:                            {report.pollingUnit.state}
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:927:              Deploy a decoy polling unit to detect result manipulation. Set expected results for comparison.
+/home/z/my-project/src/components/dashboard/honeypot-biometrics.tsx:1095:              File a PWD accessibility compliance report for a polling unit. Assess features and barriers.
+/home/z/my-project/src/components/dashboard/field-submit.tsx:99:  // Fetch polling units for the agent (show first 10 as options)
+/home/z/my-project/src/components/dashboard/field-submit.tsx:101:    queryKey: ['my-polling-units'],
+/home/z/my-project/src/components/dashboard/field-submit.tsx:102:    queryFn: () => fetchJson(`/api/dashboard?tenantId=${tenantId}`).then(d => d.pollingUnits?.slice(0, 15) || []),
+/home/z/my-project/src/components/dashboard/field-submit.tsx:110:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/components/dashboard/field-submit.tsx:113:  const pollingUnits = puData || [];
+/home/z/my-project/src/components/dashboard/field-submit.tsx:187:      toast.error('Please select a polling unit');
+/home/z/my-project/src/components/dashboard/field-submit.tsx:205:      pollingUnitId: selectedPU,
+/home/z/my-project/src/components/dashboard/field-submit.tsx:225:      pollingUnitId: selectedPU || undefined,
+/home/z/my-project/src/components/dashboard/field-submit.tsx:232:  const selectedPUData = pollingUnits.find(p => p.id === selectedPU);
+/home/z/my-project/src/components/dashboard/field-submit.tsx:244:            Submit election results, polling unit statistics, or report incidents and infractions.
+/home/z/my-project/src/components/dashboard/field-submit.tsx:272:              <SelectValue placeholder="Choose your assigned polling unit..." />
+/home/z/my-project/src/components/dashboard/field-submit.tsx:275:              {pollingUnits.map(pu => (
+/home/z/my-project/src/components/dashboard/field-submit.tsx:340:                      Enter the official vote counts from Form EC8A at your polling unit.
+/home/z/my-project/src/components/dashboard/field-submit.tsx:492:                      Record the operational status and conditions at your polling unit.
+/home/z/my-project/src/components/dashboard/field-submit.tsx:526:                      placeholder="Any other observations about the polling unit environment, queue management, accessibility, etc."
+/home/z/my-project/src/components/dashboard/osint-monitor.tsx:188:    refetchInterval: 120_000, // SSE handles real-time; 2-min safety-net fallback
+/home/z/my-project/src/app/api/reports/route.ts:47:            pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
+/home/z/my-project/src/app/api/reports/route.ts:55:            pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true } },
+/home/z/my-project/src/app/api/reports/route.ts:99:            pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
+/home/z/my-project/src/app/api/reports/route.ts:109:            pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true } },
+/home/z/my-project/src/app/api/reports/route.ts:161:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number };
+/home/z/my-project/src/app/api/reports/route.ts:180:    pollingUnit: r.pollingUnit,
+/home/z/my-project/src/app/api/reports/route.ts:199:  pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
+/home/z/my-project/src/app/api/reports/route.ts:218:    pollingUnit: inc.pollingUnit,
+/home/z/my-project/src/app/api/engagement/route.ts:344:        msgBody = customMessage || 'Our system shows no reports from you in the last 30+ minutes. Please confirm your status and submit any observations from your polling unit immediately. Your coverage is critical to election integrity.';
+/home/z/my-project/src/components/pwa-registration.tsx:22:          }, 300000);
+/home/z/my-project/src/app/api/results/route.ts:10:// GET /api/results — fetch results for a polling unit or all
+/home/z/my-project/src/app/api/results/route.ts:24:    const pollingUnitId = searchParams.get('pollingUnitId');
+/home/z/my-project/src/app/api/results/route.ts:28:    if (pollingUnitId) where.pollingUnitId = pollingUnitId;
+/home/z/my-project/src/app/api/results/route.ts:34:        pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true, ward: true, registeredVoters: true } },
+/home/z/my-project/src/app/api/results/route.ts:56:        pollingUnit: r.pollingUnit,
+/home/z/my-project/src/app/api/results/route.ts:66:// POST /api/results — submit election results for a polling unit
+/home/z/my-project/src/app/api/results/route.ts:72:    const pollingUnitId = sanitize.str(body.pollingUnitId, { maxLength: 100 });
+/home/z/my-project/src/app/api/results/route.ts:83:    err = validate(pollingUnitId, 'pollingUnitId', { required: true, isUuid: true, label: 'Polling unit ID' });
+/home/z/my-project/src/app/api/results/route.ts:111:    const pu = await db.pollingUnit.findUnique({
+/home/z/my-project/src/app/api/results/route.ts:112:      where: { id: pollingUnitId },
+/home/z/my-project/src/app/api/results/route.ts:119:      where: { tenantId: reporter.tenantId, pollingUnitId },
+/home/z/my-project/src/app/api/results/route.ts:123:        error: 'Results already submitted for this polling unit',
+/home/z/my-project/src/app/api/results/route.ts:132:        pollingUnitId,
+/home/z/my-project/src/app/api/results/route.ts:147:    // Update the polling unit's total votes and turnout
+/home/z/my-project/src/app/api/results/route.ts:153:    await db.pollingUnit.update({
+/home/z/my-project/src/app/api/results/route.ts:154:      where: { id: pollingUnitId },
+/home/z/my-project/src/app/api/results/route.ts:166:          metadata: JSON.stringify({ pollingUnitId, totalVotesCast, accreditedVoters, partyCount: (partyResults || []).length }),
+/home/z/my-project/src/app/api/results/route.ts:179:            pollingUnitId,
+/home/z/my-project/src/app/api/results/route.ts:183:            description: 'Violence reported during result submission at polling unit. Agent noted violence during the voting process.',
+/home/z/my-project/src/app/api/results/route.ts:192:            description: 'Agent reported violence at their polling unit while submitting results.',
+/home/z/my-project/src/data/templates.ts:37:    body: 'Dear {name},\n\nTomorrow is election day! Your vote matters. Polling units open at 8:30 AM and close at 2:30 PM. Remember to arrive early and stay in line if you are already there before 2:30 PM.\n\nYour assigned polling unit: {polling_unit}\n\nGo out and vote! Nigeria depends on you.',
+/home/z/my-project/src/data/templates.ts:47:    body: 'Hello {name},\n\nDon\'t forget your Permanent Voter Card (PVC) when heading to your polling unit tomorrow. Without it, you cannot vote.\n\nAlso carry a fully charged phone for taking photos of results. Stay safe and stay vigilant!',
+/home/z/my-project/src/data/templates.ts:67:    body: 'Good morning {name}! Today is the day. Polls are open NOW.\n\nHead to your polling unit: {polling_unit}\n\nEvery single vote counts. Encourage your neighbours, your church members, your colleagues — let us turn out in record numbers.\n\nGo vote now!',
+/home/z/my-project/src/data/templates.ts:87:    body: 'Dear {name},\n\nAs your community leader, I am calling on all of us to come out and vote. Our community has suffered for too long. This election is our chance to choose leaders who will deliver.\n\nPolling unit: {polling_unit}\n\nPlease come out early. Bring your PVC. Vote wisely.',
+/home/z/my-project/src/data/templates.ts:97:    body: 'Hey {name}! Young people make up 60% of registered voters. If we all turn out, WE decide this election.\n\nDon\'t sit at home. Go to: {polling_unit}\n\nTake a selfie after voting and share with #MyVoteMyFuture\n\nYour voice matters!',
+/home/z/my-project/src/data/templates.ts:102:    mediaDescription: 'Short motivational video of young Nigerians at polling units celebrating democracy',
+/home/z/my-project/src/data/templates.ts:107:    body: 'Free transport available on election day!\n\nPickup points:\n- Junction Market (7:00 AM)\n- Central Mosque (7:15 AM)\n- St. Mary\'s Church (7:30 AM)\n\nDestination: {polling_unit}\n\nNo excuses — come out and vote!',
+/home/z/my-project/src/data/templates.ts:112:    mediaDescription: 'Map showing pickup points and route to major polling units in the area',
+/home/z/my-project/src/data/templates.ts:117:    body: 'Dear sisters,\n\nOur mothers and grandmothers fought for our right to vote. Let us honour them by turning out in massive numbers.\n\nPolling unit: {polling_unit}\nTime: 8:30 AM\n\nWear white to show unity. See you at the polls!',
+/home/z/my-project/src/data/templates.ts:127:    body: 'HEAR YE! HEAR YE!\n\nElection day is {date}. Every eligible voter in {polling_unit} should come out with their PVC.\n\nNo fighting. No intimidation. Just peaceful voting.\n\nYour vote is your power — use it wisely!',
+/home/z/my-project/src/data/templates.ts:137:    body: '3 DAYS TO GO! Election day is almost here.\n\n{name}, have you located your polling unit? Verify at: {polling_unit}\n\nShare this message with 5 friends who might not have voted before. Every new voter strengthens our democracy.',
+/home/z/my-project/src/data/templates.ts:147:    body: 'Did you know? Under the Electoral Act, every employee is entitled to leave on election day to go and vote.\n\n{name}, inform your employer now. No one can stop you from exercising your civic duty.\n\nPolling unit: {polling_unit}',
+/home/z/my-project/src/data/templates.ts:157:    body: 'I\'ve cast my vote, have you? Your favourite celebrities have all committed to voting. Join us!\n\nGo to {polling_unit} with your PVC. It only takes 15 minutes but impacts 4 years.\n\n#CelebritiesVote #OmniVote',
+/home/z/my-project/src/data/templates.ts:167:    body: 'Good morning, market women of Nigeria!\n\nAfter buying and selling, make sure you go and vote on {date}. Your market, your roads, your children\'s schools — all depend on who you elect.\n\nPolling unit near the market: {polling_unit}',
+/home/z/my-project/src/data/templates.ts:177:    body: 'Tomorrow is D-Day. The future of {polling_unit} is in your hands.\n\n{ name}, remember:\n1. Bring your PVC\n2. Arrive early (8:30 AM)\n3. Stay peaceful\n4. Vote your conscience\n\nGood night and see you at the polls!',
+/home/z/my-project/src/data/templates.ts:191:    body: 'VOTING STEPS:\n\n1. Arrive at your polling unit by 8:30 AM\n2. Join the accreditation queue\n3. Present your PVC to INEC official\n4. Get verified on the Bimodal Voter Accreditation System (BVAS)\n5. Collect your ballot paper\n6. Go behind the voting screen\n7. Thumbprint beside your chosen party\'s logo\n8. Drop your ballot in the box\n\nThat\'s it! Simple and secure.',
+/home/z/my-project/src/data/templates.ts:231:    body: 'Know your election officials:\n\n• Presiding Officer (PO): Manages the polling unit\n• Assistant Presiding Officer (APO): Assists with accreditation and voting\n• Poll Clerk: Maintains the voter register\n• Security Personnel: Police and NSCDC maintain order\n• Party Agents: Observe the process on behalf of political parties\n• Domestic Observers: Monitor for fairness\n\nAll officials must wear their INEC identification.',
+/home/z/my-project/src/data/templates.ts:251:    body: 'Tips for a smooth voting experience:\n\n1. Join ONLY the queue for your polling unit\n2. Do NOT jump the queue\n3. If the queue is long, be patient — everyone will vote\n4. If you are in line before 2:30 PM, you WILL vote\n5. Bring water and wear comfortable shoes\n6. Keep your phone charged for communication',
+/home/z/my-project/src/data/templates.ts:261:    body: 'Voters with disabilities have equal rights!\n\n• INEC provides assistive materials (magnifying glasses, tactile ballots)\n• You may choose a companion to assist you behind the voting screen\n• Priority accreditation is available\n• Ramps and accessible polling units are designated\n\nIf you face any barriers, call our accessibility hotline.',
+/home/z/my-project/src/data/templates.ts:266:    mediaDescription: 'Infographic showing accessibility features at polling units for voters with disabilities',
+/home/z/my-project/src/data/templates.ts:271:    body: 'After you cast your ballot:\n\n1. Sort and count begins immediately at the polling unit\n2. Results are announced ON THE SPOT by the PO\n3. Party agents and observers copy the results\n4. Results are uploaded to INEC\'s IReV portal using BVAS\n5. Form EC8A is completed and signed by all agents\n\nSTAY BACK and watch the counting! Your presence ensures transparency.',
+/home/z/my-project/src/data/templates.ts:276:    mediaDescription: 'Video walkthrough of the vote counting and result declaration process at a polling unit',
+/home/z/my-project/src/data/templates.ts:281:    body: 'IReV (INEC Result Viewing Portal) allows you to see results from your polling unit online.\n\nAfter voting, results are uploaded from BVAS to irev.inecnigeria.org.\n\nCross-check what was announced at your PU with what appears on IReV. Any discrepancy should be reported immediately.',
+/home/z/my-project/src/data/templates.ts:291:    body: 'OVERVOTING means more ballots were cast than accredited voters at a polling unit.\n\nBVAS prevents this by counting accredited voters. If the number of ballots exceeds accredited voters, the election at that PU may be cancelled.\n\nThis is why your presence as an observer matters. Count the voters!',
+/home/z/my-project/src/data/templates.ts:301:    body: 'Party agents are critical to election integrity. If you are a party agent:\n\n• Arrive early at your assigned polling unit\n• You have the right to observe EVERY stage\n• You can challenge any voter whose identity is doubtful\n• You MUST sign Form EC8A after counting\n• You can take photos of the result sheet\n• Stay until results are announced and uploaded\n\nDo NOT leave your post!',
+/home/z/my-project/src/data/templates.ts:315:    body: 'See something wrong at your polling unit? Report it NOW.\n\nSteps:\n1. Stay safe — do not confront anyone\n2. Note the time, location, and what happened\n3. Take a photo or video if possible\n4. Send details to our monitoring team via this platform\n\nYour report helps us respond faster and protect other voters.\n\nEvery report counts.',
+/home/z/my-project/src/data/templates.ts:325:    body: 'ALERT: Reports of vote buying at {polling_unit}\n\nVote buying is a criminal offence under the Electoral Act 2022. If anyone offers you money, food, or gifts in exchange for your vote:\n\n1. Do NOT accept\n2. Note the person\'s description\n3. Take a photo/video if safe\n4. Report immediately through this platform\n\nYour vote cannot be bought. It is priceless.',
+/home/z/my-project/src/data/templates.ts:335:    body: 'SECURITY ALERT: If you witness violence or intimidation at any polling unit:\n\n1. Move to a safe location immediately\n2. Call 112 (emergency) or our hotline\n3. Send your location via this platform\n4. Do NOT try to intervene physically\n\nYour safety comes first. We will dispatch rapid response teams.',
+/home/z/my-project/src/data/templates.ts:340:    mediaDescription: 'Short safety video showing what to do when violence breaks out near a polling unit',
+/home/z/my-project/src/data/templates.ts:355:    body: 'If BVAS fails at your polling unit:\n\n1. The PO must call INEC technical support immediately\n2. If not resolved within 30 minutes, voting may be rescheduled\n3. Do NOT leave — wait for instructions\n4. Report the issue through this platform so we can track it\n\nBVAS failure does NOT mean the election is cancelled. Stay calm and informed.',
+/home/z/my-project/src/data/templates.ts:365:    body: 'REPORT: Multiple voting detected at {polling_unit}\n\nIf you see someone trying to vote more than once:\n1. Alert the Presiding Officer immediately\n2. The PO will verify using BVAS fingerprint/facial recognition\n3. If confirmed, the voter will be arrested\n4. Report through this platform for our records\n\nBVAS is designed to prevent this. Stay vigilant!',
+/home/z/my-project/src/data/templates.ts:395:    body: 'Voter intimidation is a serious electoral offence. Report it if:\n\n• Someone threatens you for voting a certain way\n• Armed men are present at your polling unit\n• Your employer threatens consequences for voting\n• Community leaders pressure you to vote for a candidate\n\nCall our hotline or report via this platform. Your identity is protected.',
+/home/z/my-project/src/data/templates.ts:405:    body: 'If INEC officials and materials have not arrived at your polling unit by 8:30 AM:\n\n1. Wait patiently — delays can happen due to logistics\n2. Contact our monitoring team with your PU code\n3. We will escalate to INEC headquarters\n4. Voting can still proceed when materials arrive\n\nDo not leave. Your vote still counts even with a delayed start.',
+/home/z/my-project/src/data/templates.ts:419:    body: 'Stay safe on election day:\n\n1. Go in groups if possible\n2. Wear comfortable clothes and shoes\n3. Carry only essentials — PVC, phone, water\n4. Avoid political arguments at the polling unit\n5. Know your emergency numbers: 112, 199, 767\n6. Keep your phone charged\n7. Share your location with a trusted contact\n8. Leave the area immediately after voting if tensions rise',
+/home/z/my-project/src/data/templates.ts:464:    mediaDescription: 'Animated safety video demonstrating how to respond if violence erupts at a polling unit',
+/home/z/my-project/src/data/templates.ts:479:    body: 'Please do NOT bring young children to polling units on election day.\n\nCrowded polling units can be overwhelming and potentially unsafe for children. If you must bring them:\n\n• Keep them close at all times\n• Identify the nearest exit\n• Bring snacks and water\n• Have a family emergency plan\n\nChild safety is everyone\'s responsibility.',
+/home/z/my-project/src/data/templates.ts:499:    body: 'Protect yourself online during elections:\n\n• Don\'t share your polling unit location on social media before voting\n• Verify information before sharing — fake news spreads fast\n• Disable location tags on photos\n• Be cautious of messages from unknown numbers\n• Use official channels for election information\n• Report fake news to our fact-checking team',
+/home/z/my-project/src/data/templates.ts:523:    body: 'IMPORTANT: Do not leave after voting!\n\nStay at your polling unit to watch the counting process. You have the RIGHT to observe:\n\n• Opening of the ballot box\n• Sorting of ballots by party\n• Counting of each party\'s votes\n• Recording of results on Form EC8A\n• Uploading of results to IReV via BVAS\n\nYour presence prevents manipulation.',
+/home/z/my-project/src/data/templates.ts:543:    body: 'Verify your polling unit results on IReV:\n\n1. Go to irev.inecnigeria.org\n2. Select your State → LGA → Registration Area → PU\n3. View the uploaded result sheet image\n4. Compare with what was announced at your PU\n5. If there\'s a discrepancy, report immediately\n\nIReV = Independent Result Verification. Use it!',
+/home/z/my-project/src/data/templates.ts:583:    body: 'Follow live election results on our monitoring dashboard!\n\nReal-time updates from polling units across the federation.\n\nTrack:\n• Voter turnout by state\n• Leading candidates per LGA\n• Reported incidents\n• IReV upload status\n\nStay informed. Knowledge is power.',
+/home/z/my-project/src/data/templates.ts:642:    mediaDescription: 'Visual do\'s and don\'ts guide for taking photos at polling units',
+/home/z/my-project/src/data/templates.ts:657:    body: 'Every polling unit has a unique code (e.g., PU Code: 34/12/05/003).\n\nThis means:\n• 34 = State code\n• 12 = Senatorial District\n• 05 = Registration Area/Ward\n• 003 = Polling Unit number\n\nAlways note the PU code when reporting. It helps us pinpoint the exact location.',
+/home/z/my-project/src/data/templates.ts:711:    body: 'DATA PROTECTION NOTICE:\n\nYour personal data (name, phone, polling unit) is collected solely for election monitoring purposes.\n\n• We do NOT share your data with third parties\n• We do NOT sell your information\n• You can request data deletion at any time\n• All data is encrypted in transit and at rest\n• We comply with the NDPR (Nigeria Data Protection Regulation)\n\nYour privacy is our priority.',
+/home/z/my-project/src/data/templates.ts:815:    body: 'DEMOCRACY HERO SPOTLIGHT:\n\nThis week, we celebrate {name} from {polling_unit}, who volunteered as a polling agent for the first time and helped ensure a transparent process.\n\nWant to nominate a Democracy Hero? Reply HERO to this message with their name and what they did.\n\nEvery citizen who participates is a hero.',
+/home/z/my-project/src/data/templates.ts:939:    body: 'Persons with disabilities have equal voting rights under Nigerian law.\n\nINEC provides:\n• Braille ballot guides\n• Magnifying glasses\n• Tactile ballot papers\n• Sign language interpreters at collation centres\n• Accessible polling unit locations\n\nIf your PU is not accessible, report it. Democracy includes everyone.',
+/home/z/my-project/src/data/templates.ts:983:    body: '7 DAYS TO GO!\n\n{name}, election day is {date}. Have you:\n\n✅ Located your polling unit?\n✅ Checked that your PVC is intact?\n✅ Informed your employer?\n✅ Arranged transport?\n✅ Charged your phone?\n\nIf not, do it today. Don\'t wait until the last minute.',
+/home/z/my-project/src/data/templates.ts:1003:    body: 'TOMORROW IS ELECTION DAY!\n\n{name}, here is your final checklist:\n\n1. PVC — confirmed in your wallet/bag\n2. Know your polling unit: {polling_unit}\n3. Set alarm for 7:00 AM\n4. Charge phone to 100%\n5. Pack water and light snacks\n6. Plan your route\n7. Inform family of your plan\n\nSee you at the polls tomorrow!',
+/home/z/my-project/src/data/templates.ts:1013:    body: 'Don\'t know your polling unit? Find it now:\n\n1. Visit: voters.inecnigeria.org\n2. Click "Find Polling Unit"\n3. Enter your State and LGA\n4. Search by name or Voter ID\n5. Note down your PU code and address\n\nOr SMS your Voter ID to our shortcode for instant results.\n\nKnow before you go!',
+/home/z/my-project/src/data/templates.ts:1023:    body: 'Observer Deployment Reminder:\n\n{name}, your assignment is:\n\n📍 PU: {polling_unit}\n📅 Date: {date}\n🕐 Report by: 8:00 AM\n\nBring:\n• Your observer ID card\n• Charged phone with data\n• Power bank\n• Notepad and pen\n• Water and snacks\n\nConfirm receipt of this message by replying YES.',
+/home/z/my-project/src/data/templates.ts:1033:    body: 'Quick reminder: Charge your phone to 100% tonight!\n\nOn election day, you will need your phone to:\n• Navigate to your polling unit\n• Report incidents via our platform\n• Take photos of results\n• Stay connected with family\n• Follow live updates\n\nA dead phone = a blind eye. Stay charged, stay connected.',
+/home/z/my-project/src/data/templates.ts:1043:    body: 'REMINDER: Campaign silence begins 24 hours before election day.\n\nDuring this period:\n• No political rallies or campaigns\n• No political broadcasts on TV/radio\n• No campaign messages on social media\n• No canvassing at polling units\n\nThis gives voters a quiet period to reflect before voting. Respect the silence.',
+/home/z/my-project/src/data/templates.ts:1073:    body: 'Observer check-in reminder:\n\n{name}, please check in when you arrive at {polling_unit}.\n\nSend: CHECKIN [PU Code] [Situation]\n\nExample: CHECKIN 34/12/05/003 Materials arrived. Queue forming. Peaceful.\n\nRegular check-ins help our operations centre track coverage gaps and deploy resources effectively.',
+/home/z/my-project/src/data/templates.ts:1087:    body: 'DOOR-TO-DOOR SCRIPT:\n\n"Good morning/afternoon. My name is {name} and I am a volunteer with the election monitoring team.\n\nI want to make sure you know:\n- Election day is {date}\n- Your PU is {polling_unit}\n- Bring your PVC\n- Arrive by 8:30 AM\n\nWould you like me to help you find your polling unit?"\n\nBe polite. Be brief. Be respectful of their time.',
+/home/z/my-project/src/data/templates.ts:1097:    body: 'ANNOUNCEMENT FOR PLACES OF WORSHIP:\n\n"Dear brothers and sisters,\n\nElection day is {date}. As people of faith, we have a duty to participate in the governance of our nation.\n\nPlease:\n1. Collect your PVC if you haven\'t\n2. Plan to vote on election day\n3. Pray for peaceful elections\n4. Encourage your neighbours to vote\n\nOur polling unit: {polling_unit}"\n\nGod bless Nigeria.',
+/home/z/my-project/src/data/templates.ts:1107:    body: 'MARKET OUTREACH MESSAGE:\n\n"Good morning, traders! After buying and selling today, remember:\n\nElection day is {date}. Your market, your roads, your children\'s future — all depend on your vote.\n\nPVC is your power. Don\'t leave home without it on election day.\n\nNearest polling unit: {polling_unit}"\n\nShare with 5 traders around you!',
+/home/z/my-project/src/data/templates.ts:1117:    body: 'To all students:\n\nYou have the power to shape Nigeria\'s future! Most of you are first-time voters. Make it count.\n\nOn {date}, go to {polling_unit} with your PVC.\n\nOrganise a "Go Vote" group with your classmates. Go together. Vote together. Celebrate democracy together.\n\n#StudentVote #FutureOfNigeria',
+/home/z/my-project/src/data/templates.ts:1137:    body: 'VOLUNTEERS NEEDED: Election Day Transport\n\nWe need drivers to help transport voters to polling units on {date}.\n\nWhat you provide:\n• Your vehicle (car, bus, tricycle, or motorcycle)\n• A few hours of your morning\n\nWhat we provide:\n• Fuel stipend\n• Volunteer certificate\n• A grateful community\n\nReply TRANSPORT to sign up!',
+/home/z/my-project/src/data/templates.ts:1147:    body: '📋 ELECTION CHECKLIST — Forward to 10 contacts!\n\n1. ✅ I have my PVC\n2. ✅ I know my polling unit\n3. ✅ I know the date: {date}\n4. ✅ I will arrive by 8:30 AM\n5. ✅ I will stay peaceful\n6. ✅ I will stay to watch counting\n\nForward this. Remind someone. Save a vote.\n\n#10ContactsChallenge #OmniVote',
+/home/z/my-project/src/data/templates.ts:1157:    body: 'COMMUNITY VOTER WALK!\n\nDate: {date}\nTime: 6:30 AM\nStarting point: {polling_unit}\n\nJoin us for a peaceful walk to the polls. Wear white. Carry no political banners — this is about CITIZEN PARTICIPATION, not partisanship.\n\nBring your PVC. Bring your family. Bring your neighbours.\n\nSee you at dawn!',
+/home/z/my-project/src/data/templates.ts:1167:    body: 'RADIO JINGLE SCRIPT (30 seconds):\n\n[SFX: Drumbeat]\n\nVO: "Your PVC. Your Voice. Your Vote."\n\nVO: "Election day is {date}. Don\'t sit at home. Go to your polling unit with your PVC."\n\nVO: "Find your PU at voters.inecnigeria.org"\n\nVO: "Vote not fight. Nigeria needs you."\n\nSFX: Upbeat music out.\n\n[END]',
+/home/z/my-project/src/data/templates.ts:1177:    body: 'FINAL PUSH! This is not a drill.\n\nTODAY is election day. RIGHT NOW, people are heading to the polls.\n\n{name}, if you haven\'t voted:\n1. Grab your PVC\n2. Go to {polling_unit} NOW\n3. Vote before 2:30 PM\n\nIf you HAVE voted:\n1. Call 5 people and remind them\n2. Share this message\n3. Stay to watch the counting\n\nEvery vote counts. GO NOW!',
+/home/z/my-project/src/data/templates.ts:1191:    body: 'Thank you for voting, {name}!\n\nYou have done your part for democracy. By casting your ballot, you have contributed to the future of Nigeria.\n\nRemember to stay to watch the counting at your polling unit. Your presence ensures transparency.\n\nTogether, we are building a stronger democracy.',
+/home/z/my-project/src/data/templates.ts:1201:    body: 'Thank you, {name}!\n\nYour service as an election observer at {polling_unit} is invaluable. Because of you, we have real-time visibility into the electoral process.\n\nYour dedication strengthens our democracy. Please submit your final observation report before end of day.\n\nWe appreciate you!',
+/home/z/my-project/src/data/templates.ts:1265:    body: '🚨 URGENT ALERT 🚨\n\nReports indicate a security threat at {polling_unit}.\n\nIf you are nearby:\n1. Move away from the area immediately\n2. Do NOT approach the polling unit\n3. Call 112 if you are in danger\n4. Send your location to this platform\n\nOur security team is aware and coordinating a response. Stay safe.',
+/home/z/my-project/src/data/templates.ts:1275:    body: '⚠️ ALERT: Results from {polling_unit} have NOT been uploaded to IReV 2 hours after counting.\n\nThis may indicate:\n• Technical issues with BVAS\n• Deliberate interference\n• Connectivity problems\n\nOur team is investigating. If you are at this PU, please confirm the situation.',
+/home/z/my-project/src/data/templates.ts:1329:    body: 'FREQUENTLY ASKED QUESTIONS:\n\nQ: Can I vote without a PVC?\nA: No. PVC is mandatory for all elections.\n\nQ: Can I vote at any polling unit?\nA: No. You must vote at your assigned PU.\n\nQ: What if I lose my PVC?\nA: Report to INEC for a replacement before election day.\n\nQ: Can my employer stop me from voting?\nA: No. The Electoral Act protects your right to vote.\n\nQ: What if I am in the queue at 2:30 PM?\nA: You will still be allowed to vote.',
+/home/z/my-project/src/hooks/use-sse.ts:4: * Replaces React Query polling for real-time data. Components subscribe
+
+[Showing results with pagination = limit: 250]

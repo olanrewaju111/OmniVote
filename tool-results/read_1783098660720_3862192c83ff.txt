@@ -1,0 +1,1344 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { cn } from '@/lib/utils';
+     5→import { useDashboardStore } from '@/store/dashboard';
+     6→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+     7→import { toast } from 'sonner';
+     8→import { fetchJson } from '@/lib/api';
+     9→import { motion } from 'framer-motion';
+    10→import { Card, CardContent } from '@/components/ui/card';
+    11→import { Badge } from '@/components/ui/badge';
+    12→import { Button } from '@/components/ui/button';
+    13→import { Input } from '@/components/ui/input';
+    14→import { Label } from '@/components/ui/label';
+    15→import { Switch } from '@/components/ui/switch';
+    16→import { Progress } from '@/components/ui/progress';
+    17→import { Separator } from '@/components/ui/separator';
+    18→import { Slider } from '@/components/ui/slider';
+    19→import {
+    20→  Tabs, TabsContent, TabsList, TabsTrigger,
+    21→} from '@/components/ui/tabs';
+    22→import {
+    23→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    24→} from '@/components/ui/table';
+    25→import {
+    26→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    27→} from '@/components/ui/dialog';
+    28→import {
+    29→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    30→} from '@/components/ui/select';
+    31→import {
+    32→  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+    33→} from '@/components/ui/tooltip';
+    34→import {
+    35→  Shield, ShieldAlert, ShieldCheck, Lock, Key, Eye, Clock,
+    36→  LogIn, Download, Fingerprint, Zap, Activity, User, Users,
+    37→  CheckCircle2, XCircle, AlertTriangle, Info, Plus, Trash2,
+    38→  ChevronDown, ChevronUp, Loader2, Settings, FileText,
+    39→} from 'lucide-react';
+    40→
+    41→/* ------------------------------------------------------------------ */
+    42→/*  Types                                                              */
+    43→/* ------------------------------------------------------------------ */
+    44→
+    45→interface SecurityEvent {
+    46→  id: string;
+    47→  eventType: string;
+    48→  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+    49→  userId: string | null;
+    50→  ipAddress: string | null;
+    51→  userAgent: string | null;
+    52→  description: string;
+    53→  metadata: Record<string, unknown>;
+    54→  resolved: boolean;
+    55→  resolvedById: string | null;
+    56→  resolvedAt: string | null;
+    57→  createdAt: string;
+    58→}
+    59→
+    60→interface SecurityUser {
+    61→  id: string;
+    62→  name: string;
+    63→  email: string;
+    64→  role: string;
+    65→  deviceTrustScore: number;
+    66→  biometricRiskScore: number;
+    67→  isLocked: boolean;
+    68→  lastSecurityAuditAt: string | null;
+    69→}
+    70→
+    71→interface SecurityPolicies {
+    72→  encryptionEnabled: boolean;
+    73→  twoFactorEnabled: boolean;
+    74→  sessionTimeoutMin: number;
+    75→  ipWhitelist: string[];
+    76→  dataRetentionDays: number;
+    77→  auditLogRetentionDays: number;
+    78→}
+    79→
+    80→interface SecurityCounts {
+    81→  total: number;
+    82→  unresolved: number;
+    83→  criticalUnresolved: number;
+    84→  bySeverity: Record<string, number>;
+    85→  byType: Record<string, number>;
+    86→}
+    87→
+    88→interface SecurityData {
+    89→  events: SecurityEvent[];
+    90→  counts: SecurityCounts;
+    91→  users: SecurityUser[];
+    92→  policies: SecurityPolicies | null;
+    93→  securityScore: number;
+    94→}
+    95→
+    96→/* ------------------------------------------------------------------ */
+    97→/*  Helpers                                                            */
+    98→/* ------------------------------------------------------------------ */
+    99→
+   100→function formatDate(d: string | null | undefined): string {
+   101→  if (!d) return '—';
+   102→  return new Date(d).toLocaleDateString('en-NG', {
+   103→    day: '2-digit',
+   104→    month: 'short',
+   105→    hour: '2-digit',
+   106→    minute: '2-digit',
+   107→  });
+   108→}
+   109→
+   110→function scoreColor(score: number): string {
+   111→  if (score >= 80) return 'text-emerald';
+   112→  if (score >= 50) return 'text-amber';
+   113→  return 'text-rose';
+   114→}
+   115→
+   116→function scoreStroke(score: number): string {
+   117→  if (score >= 80) return 'stroke-emerald';
+   118→  if (score >= 50) return 'stroke-amber';
+   119→  return 'stroke-rose';
+   120→}
+   121→
+   122→function scoreGlow(score: number): string {
+   123→  if (score >= 80) return 'glow-emerald';
+   124→  if (score >= 50) return 'glow-amber';
+   125→  return 'glow-rose';
+   126→}
+   127→
+   128→function severityBadge(severity: string) {
+   129→  switch (severity) {
+   130→    case 'CRITICAL':
+   131→      return (
+   132→        <Badge className="bg-rose text-white text-[10px] h-5 border-0">
+   133→          <ShieldAlert className="h-2.5 w-2.5 mr-0.5" />
+   134→          CRITICAL
+   135→        </Badge>
+   136→      );
+   137→    case 'WARNING':
+   138→      return (
+   139→        <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] h-5">
+   140→          <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+   141→          WARNING
+   142→        </Badge>
+   143→      );
+   144→    default:
+   145→      return (
+   146→        <Badge className="bg-cyan/15 text-cyan border-cyan/30 text-[10px] h-5">
+   147→          <Info className="h-2.5 w-2.5 mr-0.5" />
+   148→          INFO
+   149→        </Badge>
+   150→      );
+   151→  }
+   152→}
+   153→
+   154→function eventTypeIcon(type: string, className = 'h-4 w-4 shrink-0') {
+   155→  switch (type) {
+   156→    case 'LOGIN_SUCCESS': return <LogIn className={cn(className, 'text-emerald')} />;
+   157→    case 'LOGIN_FAILED': return <LogIn className={cn(className, 'text-rose')} />;
+   158→    case 'BRUTE_FORCE': return <ShieldAlert className={cn(className, 'text-rose')} />;
+   159→    case 'SUSPICIOUS_ACTIVITY': return <Eye className={cn(className, 'text-amber')} />;
+   160→    case 'ENCRYPTION_EVENT': return <Lock className={cn(className, 'text-cyan')} />;
+   161→    case 'SESSION_EXPIRED': return <Clock className={cn(className, 'text-amber')} />;
+   162→    case 'PERMISSION_CHANGE': return <Key className={cn(className, 'text-amber')} />;
+   163→    case 'DATA_EXPORT': return <Download className={cn(className, 'text-cyan')} />;
+   164→    case 'CERT_PINNING': return <Fingerprint className={cn(className, 'text-emerald')} />;
+   165→    case 'API_ABUSE': return <Zap className={cn(className, 'text-rose')} />;
+   166→    default: return <Shield className={cn(className, 'text-muted-foreground')} />;
+   167→  }
+   168→}
+   169→
+   170→function trustScoreColor(score: number): string {
+   171→  if (score > 80) return 'text-emerald';
+   172→  if (score >= 50) return 'text-amber';
+   173→  return 'text-rose';
+   174→}
+   175→
+   176→function trustBarColor(score: number): string {
+   177→  if (score > 80) return '[&>div]:bg-emerald';
+   178→  if (score >= 50) return '[&>div]:bg-amber';
+   179→  return '[&>div]:bg-rose';
+   180→}
+   181→
+   182→function riskBarColor(risk: number): string {
+   183→  if (risk < 0.3) return '[&>div]:bg-emerald';
+   184→  if (risk < 0.7) return '[&>div]:bg-amber';
+   185→  return '[&>div]:bg-rose';
+   186→}
+   187→
+   188→function riskLabel(risk: number): string {
+   189→  if (risk < 0.3) return 'Low';
+   190→  if (risk < 0.7) return 'Medium';
+   191→  return 'High';
+   192→}
+   193→
+   194→function riskLabelColor(risk: number): string {
+   195→  if (risk < 0.3) return 'text-emerald';
+   196→  if (risk < 0.7) return 'text-amber';
+   197→  return 'text-rose';
+   198→}
+   199→
+   200→/* ------------------------------------------------------------------ */
+   201→/*  Circular Gauge                                                     */
+   202→/* ------------------------------------------------------------------ */
+   203→
+   204→function SecurityGauge({ score }: { score: number }) {
+   205→  const radius = 54;
+   206→  const circumference = 2 * Math.PI * radius;
+   207→  const offset = circumference - (score / 100) * circumference;
+   208→  const color = scoreColor(score);
+   209→  const stroke = scoreStroke(score);
+   210→
+   211→  return (
+   212→    <div className="relative flex items-center justify-center">
+   213→      <svg width="140" height="140" viewBox="0 0 140 140" className="-rotate-90">
+   214→        <circle
+   215→          cx="70" cy="70" r={radius}
+   216→          fill="none" strokeWidth="8"
+   217→          className="stroke-muted/30"
+   218→        />
+   219→        <motion.circle
+   220→          cx="70" cy="70" r={radius}
+   221→          fill="none" strokeWidth="8"
+   222→          strokeLinecap="round"
+   223→          className={stroke}
+   224→          initial={{ strokeDashoffset: circumference }}
+   225→          animate={{ strokeDashoffset: offset }}
+   226→          transition={{ duration: 1.2, ease: 'easeOut' }}
+   227→          strokeDasharray={circumference}
+   228→          strokeDashoffset={offset}
+   229→        />
+   230→      </svg>
+   231→      <div className="absolute flex flex-col items-center">
+   232→        <motion.span
+   233→          className={cn('text-3xl font-bold tabular-nums', color)}
+   234→          initial={{ opacity: 0, scale: 0.8 }}
+   235→          animate={{ opacity: 1, scale: 1 }}
+   236→          transition={{ delay: 0.3, duration: 0.5 }}
+   237→        >
+   238→          {score}
+   239→        </motion.span>
+   240→        <span className="text-[10px] text-muted-foreground">/ 100</span>
+   241→      </div>
+   242→    </div>
+   243→  );
+   244→}
+   245→
+   246→/* ------------------------------------------------------------------ */
+   247→/*  Overview Tab                                                       */
+   248→/* ------------------------------------------------------------------ */
+   249→
+   250→function OverviewTab({ data }: { data: SecurityData }) {
+   251→  const { counts, events, policies, users, securityScore } = data;
+   252→  const recentEvents = events.slice(0, 10);
+   253→  const lockedUsers = users.filter(u => u.isLocked).length;
+   254→
+   255→  const kpis = [
+   256→    {
+   257→      label: 'Unresolved Events',
+   258→      value: counts.unresolved,
+   259→      icon: <AlertTriangle className="h-4 w-4 text-amber" />,
+   260→      color: counts.unresolved > 0 ? 'text-amber' : 'text-emerald',
+   261→      glow: counts.unresolved > 0 ? '' : 'glow-emerald',
+   262→    },
+   263→    {
+   264→      label: 'Critical Threats',
+   265→      value: counts.criticalUnresolved,
+   266→      icon: <ShieldAlert className="h-4 w-4 text-rose" />,
+   267→      color: counts.criticalUnresolved > 0 ? 'text-rose' : 'text-emerald',
+   268→      glow: counts.criticalUnresolved > 0 ? 'glow-rose' : '',
+   269→    },
+   270→    {
+   271→      label: 'Locked Users',
+   272→      value: lockedUsers,
+   273→      icon: <User className="h-4 w-4 text-rose" />,
+   274→      color: lockedUsers > 0 ? 'text-rose' : 'text-muted-foreground',
+   275→      glow: '',
+   276→    },
+   277→    {
+   278→      label: 'Security Score',
+   279→      value: securityScore,
+   280→      icon: <ShieldCheck className="h-4 w-4" style={{ color: 'var(--color-emerald)' }} />,
+   281→      color: scoreColor(securityScore),
+   282→      glow: scoreGlow(securityScore),
+   283→    },
+   284→  ];
+   285→
+   286→  return (
+   287→    <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+   288→      {/* Security Score + KPIs */}
+   289→      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4">
+   290→        {/* Gauge */}
+   291→        <Card className="bg-card/40 border-border">
+   292→          <CardContent className="p-4 flex flex-col items-center gap-2">
+   293→            <span className="text-xs text-muted-foreground font-medium">Security Score</span>
+   294→            <SecurityGauge score={securityScore} />
+   295→            <Badge
+   296→              className={cn(
+   297→                'text-[10px] h-5',
+   298→                securityScore >= 80
+   299→                  ? 'bg-emerald/15 text-emerald border-emerald/30'
+   300→                  : securityScore >= 50
+   301→                    ? 'bg-amber/15 text-amber border-amber/30'
+   302→                    : 'bg-rose/15 text-rose border-rose/30',
+   303→              )}
+   304→              variant="outline"
+   305→            >
+   306→              {securityScore >= 80 ? 'Healthy' : securityScore >= 50 ? 'Needs Attention' : 'At Risk'}
+   307→            </Badge>
+   308→          </CardContent>
+   309→        </Card>
+   310→
+   311→        {/* KPI Grid */}
+   312→        <div className="grid grid-cols-2 gap-3">
+   313→          {kpis.map((kpi, i) => (
+   314→            <motion.div
+   315→              key={kpi.label}
+   316→              initial={{ opacity: 0, y: 12 }}
+   317→              animate={{ opacity: 1, y: 0 }}
+   318→              transition={{ delay: i * 0.08, duration: 0.35 }}
+   319→            >
+   320→              <Card className={cn('bg-card/40 border-border h-full', kpi.glow && kpi.glow)}>
+   321→                <CardContent className="p-3.5">
+   322→                  <div className="flex items-center gap-2 mb-2">
+   323→                    {kpi.icon}
+   324→                    <span className="text-[11px] text-muted-foreground">{kpi.label}</span>
+   325→                  </div>
+   326→                  <p className={cn('text-xl font-bold tabular-nums', kpi.color)}>{kpi.value}</p>
+   327→                </CardContent>
+   328→              </Card>
+   329→            </motion.div>
+   330→          ))}
+   331→        </div>
+   332→      </div>
+   333→
+   334→      {/* Policy Status */}
+   335→      {policies && (
+   336→        <Card className="bg-card/40 border-border">
+   337→          <CardContent className="p-4 space-y-3">
+   338→            <h3 className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
+   339→              <Settings className="h-3.5 w-3.5" />
+   340→              Policy Status
+   341→            </h3>
+   342→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   343→              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+   344→                <Lock className={cn('h-4 w-4', policies.encryptionEnabled ? 'text-emerald' : 'text-muted-foreground/40')} />
+   345→                <div>
+   346→                  <p className="text-xs font-medium">Encryption</p>
+   347→                  <p className={cn('text-[10px]', policies.encryptionEnabled ? 'text-emerald' : 'text-muted-foreground')}>
+   348→                    AES-256 {policies.encryptionEnabled ? 'Active' : 'Disabled'}
+   349→                  </p>
+   350→                </div>
+   351→              </div>
+   352→              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+   353→                <Shield className={cn('h-4 w-4', policies.twoFactorEnabled ? 'text-emerald' : 'text-muted-foreground/40')} />
+   354→                <div>
+   355→                  <p className="text-xs font-medium">Two-Factor Auth</p>
+   356→                  <p className={cn('text-[10px]', policies.twoFactorEnabled ? 'text-emerald' : 'text-muted-foreground')}>
+   357→                    {policies.twoFactorEnabled ? 'Enforced' : 'Disabled'}
+   358→                  </p>
+   359→                </div>
+   360→              </div>
+   361→              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+   362→                <Clock className="h-4 w-4 text-cyan" />
+   363→                <div>
+   364→                  <p className="text-xs font-medium">Session Timeout</p>
+   365→                  <p className="text-[10px] text-muted-foreground">{policies.sessionTimeoutMin} min</p>
+   366→                </div>
+   367→              </div>
+   368→              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/30 border border-border">
+   369→                <Fingerprint className={cn('h-4 w-4', policies.ipWhitelist.length > 0 ? 'text-emerald' : 'text-muted-foreground/40')} />
+   370→                <div>
+   371→                  <p className="text-xs font-medium">IP Whitelist</p>
+   372→                  <p className="text-[10px] text-muted-foreground">{policies.ipWhitelist.length} IPs</p>
+   373→                </div>
+   374→              </div>
+   375→            </div>
+   376→          </CardContent>
+   377→        </Card>
+   378→      )}
+   379→
+   380→      {/* Recent Events */}
+   381→      <Card className="bg-card/40 border-border">
+   382→        <CardContent className="p-4 space-y-2">
+   383→          <div className="flex items-center justify-between">
+   384→            <h3 className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
+   385→              <FileText className="h-3.5 w-3.5" />
+   386→              Recent Events
+   387→            </h3>
+   388→            <span className="text-[10px] text-muted-foreground">{counts.total} total</span>
+   389→          </div>
+   390→          <div className="space-y-1.5">
+   391→            {recentEvents.map((event) => (
+   392→              <div
+   393→                key={event.id}
+   394→                className={cn(
+   395→                  'flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-colors',
+   396→                  event.severity === 'CRITICAL'
+   397→                    ? 'border-rose/20 bg-rose/5'
+   398→                    : event.severity === 'WARNING'
+   399→                      ? 'border-amber/15 bg-amber/5'
+   400→                      : 'border-border bg-card/20',
+   401→                )}
+   402→              >
+   403→                {eventTypeIcon(event.eventType)}
+   404→                <div className="flex-1 min-w-0">
+   405→                  <p className="text-xs font-medium truncate">{event.description}</p>
+   406→                  <p className="text-[10px] text-muted-foreground">
+   407→                    {event.eventType}
+   408→                    {event.ipAddress && (
+   409→                      <span className="ml-2">· {event.ipAddress}</span>
+   410→                    )}
+   411→                  </p>
+   412→                </div>
+   413→                <div className="flex items-center gap-2 shrink-0">
+   414→                  {severityBadge(event.severity)}
+   415→                  {!event.resolved && (
+   416→                    <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse-dot" />
+   417→                  )}
+   418→                </div>
+   419→                <span className="text-[10px] text-muted-foreground shrink-0 w-20 text-right">
+   420→                  {formatDate(event.createdAt)}
+   421→                </span>
+   422→              </div>
+   423→            ))}
+   424→            {recentEvents.length === 0 && (
+   425→              <div className="text-center py-6 text-xs text-muted-foreground">
+   426→                No security events recorded
+   427→              </div>
+   428→            )}
+   429→          </div>
+   430→        </CardContent>
+   431→      </Card>
+   432→    </div>
+   433→  );
+   434→}
+   435→
+   436→/* ------------------------------------------------------------------ */
+   437→/*  Event Log Tab                                                      */
+   438→/* ------------------------------------------------------------------ */
+   439→
+   440→function EventLogTab({ data, resolveMutation }: {
+   441→  data: SecurityData;
+   442→  resolveMutation: { mutate: (vars: { eventId: string; resolvedById: string | null }) => void; isPending: boolean };
+   443→}) {
+   444→  const [severityFilter, setSeverityFilter] = useState<string>('ALL');
+   445→  const [typeFilter, setTypeFilter] = useState<string>('ALL');
+   446→  const [expandedId, setExpandedId] = useState<string | null>(null);
+   447→
+   448→  const eventTypes = useMemo(() => {
+   449→    const types = new Set(data.events.map(e => e.eventType));
+   450→    return Array.from(types).sort();
+   451→  }, [data.events]);
+   452→
+   453→  const filtered = useMemo(() => {
+   454→    return data.events.filter(e => {
+   455→      if (severityFilter !== 'ALL' && e.severity !== severityFilter) return false;
+   456→      if (typeFilter !== 'ALL' && e.eventType !== typeFilter) return false;
+   457→      return true;
+   458→    });
+   459→  }, [data.events, severityFilter, typeFilter]);
+   460→
+   461→  const currentUser = useDashboardStore(s => s.user);
+   462→
+   463→  const handleResolve = (eventId: string) => {
+   464→    resolveMutation.mutate({
+   465→      eventId,
+   466→      resolvedById: currentUser?.id || null,
+   467→    });
+   468→  };
+   469→
+   470→  return (
+   471→    <div className="flex flex-col gap-3 flex-1 overflow-hidden">
+   472→      {/* Filter row */}
+   473→      <div className="flex items-center gap-3 shrink-0 flex-wrap">
+   474→        <Select value={severityFilter} onValueChange={setSeverityFilter}>
+   475→          <SelectTrigger className="w-[160px] h-8 text-xs">
+   476→            <SelectValue placeholder="Severity" />
+   477→          </SelectTrigger>
+   478→          <SelectContent>
+   479→            <SelectItem value="ALL">All Severities</SelectItem>
+   480→            <SelectItem value="INFO">Info</SelectItem>
+   481→            <SelectItem value="WARNING">Warning</SelectItem>
+   482→            <SelectItem value="CRITICAL">Critical</SelectItem>
+   483→          </SelectContent>
+   484→        </Select>
+   485→        <Select value={typeFilter} onValueChange={setTypeFilter}>
+   486→          <SelectTrigger className="w-[180px] h-8 text-xs">
+   487→            <SelectValue placeholder="Event Type" />
+   488→          </SelectTrigger>
+   489→          <SelectContent>
+   490→            <SelectItem value="ALL">All Types</SelectItem>
+   491→            {eventTypes.map(t => (
+   492→              <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>
+   493→            ))}
+   494→          </SelectContent>
+   495→        </Select>
+   496→        <span className="text-[10px] text-muted-foreground ml-auto">
+   497→          {filtered.length} of {data.events.length} events
+   498→        </span>
+   499→      </div>
+   500→
+   501→      {/* Table */}
+   502→      <div className="flex-1 overflow-y-auto rounded-lg border border-border">
+   503→        <Table>
+   504→          <TableHeader>
+   505→            <TableRow className="hover:bg-transparent">
+   506→              <TableHead className="text-[10px] h-8 w-28">Time</TableHead>
+   507→              <TableHead className="text-[10px] h-8 w-36">Type</TableHead>
+   508→              <TableHead className="text-[10px] h-8 w-24">Severity</TableHead>
+   509→              <TableHead className="text-[10px] h-8">Description</TableHead>
+   510→              <TableHead className="text-[10px] h-8 w-28">IP Address</TableHead>
+   511→              <TableHead className="text-[10px] h-8 w-28">User</TableHead>
+   512→              <TableHead className="text-[10px] h-8 w-20">Status</TableHead>
+   513→              <TableHead className="text-[10px] h-8 w-16" />
+   514→            </TableRow>
+   515→          </TableHeader>
+   516→          <TableBody>
+   517→            {filtered.map(event => (
+   518→              <>
+   519→                <TableRow
+   520→                  key={event.id}
+   521→                  className={cn(
+   522→                    'cursor-pointer transition-colors',
+   523→                    expandedId === event.id && 'bg-card/60',
+   524→                  )}
+   525→                  onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
+   526→                >
+   527→                  <TableCell className="text-[10px] py-2 text-muted-foreground">
+   528→                    {formatDate(event.createdAt)}
+   529→                  </TableCell>
+   530→                  <TableCell className="text-xs py-2">
+   531→                    <div className="flex items-center gap-1.5">
+   532→                      {eventTypeIcon(event.eventType, 'h-3.5 w-3.5')}
+   533→                      <span>{event.eventType.replace(/_/g, ' ')}</span>
+   534→                    </div>
+   535→                  </TableCell>
+   536→                  <TableCell className="py-2">{severityBadge(event.severity)}</TableCell>
+   537→                  <TableCell className="text-xs py-2 max-w-[300px] truncate">{event.description}</TableCell>
+   538→                  <TableCell className="text-[10px] py-2 text-muted-foreground font-mono">
+   539→                    {event.ipAddress || '—'}
+   540→                  </TableCell>
+   541→                  <TableCell className="text-[10px] py-2 text-muted-foreground">
+   542→                    {event.userId || '—'}
+   543→                  </TableCell>
+   544→                  <TableCell className="py-2">
+   545→                    {event.resolved ? (
+   546→                      <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5" variant="outline">
+   547→                        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+   548→                        Resolved
+   549→                      </Badge>
+   550→                    ) : (
+   551→                      <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] h-5" variant="outline">
+   552→                        <Clock className="h-2.5 w-2.5 mr-0.5" />
+   553→                        Pending
+   554→                      </Badge>
+   555→                    )}
+   556→                  </TableCell>
+   557→                  <TableCell className="py-2">
+   558→                    {expandedId === event.id ? (
+   559→                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+   560→                    ) : (
+   561→                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+   562→                    )}
+   563→                  </TableCell>
+   564→                </TableRow>
+   565→                {expandedId === event.id && (
+   566→                  <TableRow key={`${event.id}-detail`}>
+   567→                    <TableCell colSpan={8} className="px-6 py-3">
+   568→                      <div className="bg-card/40 border border-border rounded-lg p-3 space-y-2">
+   569→                        <div className="flex items-center justify-between">
+   570→                          <span className="text-xs font-semibold">Event Details</span>
+   571→                          {!event.resolved && (
+   572→                            <Button
+   573→                              size="sm"
+   574→                              className="h-6 text-[10px] bg-emerald/15 text-emerald hover:bg-emerald/25 border-0"
+   575→                              onClick={(e) => {
+   576→                                e.stopPropagation();
+   577→                                handleResolve(event.id);
+   578→                              }}
+   579→                              disabled={resolveMutation.isPending}
+   580→                            >
+   581→                              {resolveMutation.isPending ? (
+   582→                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+   583→                              ) : (
+   584→                                <CheckCircle2 className="h-3 w-3 mr-1" />
+   585→                              )}
+   586→                              Resolve Event
+   587→                            </Button>
+   588→                          )}
+   589→                        </div>
+   590→                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+   591→                          <div>
+   592→                            <span className="text-muted-foreground">Event ID: </span>
+   593→                            <span className="font-mono">{event.id}</span>
+   594→                          </div>
+   595→                          <div>
+   596→                            <span className="text-muted-foreground">Created: </span>
+   597→                            <span>{formatDate(event.createdAt)}</span>
+   598→                          </div>
+   599→                          {event.userAgent && (
+   600→                            <div className="col-span-2">
+   601→                              <span className="text-muted-foreground">User Agent: </span>
+   602→                              <span className="font-mono break-all">{event.userAgent}</span>
+   603→                            </div>
+   604→                          )}
+   605→                          {event.resolvedAt && (
+   606→                            <div>
+   607→                              <span className="text-muted-foreground">Resolved At: </span>
+   608→                              <span>{formatDate(event.resolvedAt)}</span>
+   609→                            </div>
+   610→                          )}
+   611→                          {event.resolvedById && (
+   612→                            <div>
+   613→                              <span className="text-muted-foreground">Resolved By: </span>
+   614→                              <span>{event.resolvedById}</span>
+   615→                            </div>
+   616→                          )}
+   617→                        </div>
+   618→                        {event.metadata && Object.keys(event.metadata).length > 0 && (
+   619→                          <>
+   620→                            <Separator className="bg-border" />
+   621→                            <div>
+   622→                              <span className="text-[10px] text-muted-foreground font-medium">Metadata:</span>
+   623→                              <pre className="text-[10px] mt-1 p-2 rounded bg-card/60 border border-border overflow-x-auto max-h-32 overflow-y-auto font-mono">
+   624→                                {JSON.stringify(event.metadata, null, 2)}
+   625→                              </pre>
+   626→                            </div>
+   627→                          </>
+   628→                        )}
+   629→                      </div>
+   630→                    </TableCell>
+   631→                  </TableRow>
+   632→                )}
+   633→              </>
+   634→            ))}
+   635→            {filtered.length === 0 && (
+   636→              <TableRow>
+   637→                <TableCell colSpan={8} className="text-center py-8 text-xs text-muted-foreground">
+   638→                  No events match the selected filters
+   639→                </TableCell>
+   640→              </TableRow>
+   641→            )}
+   642→          </TableBody>
+   643→        </Table>
+   644→      </div>
+   645→    </div>
+   646→  );
+   647→}
+   648→
+   649→/* ------------------------------------------------------------------ */
+   650→/*  Users Tab                                                          */
+   651→/* ------------------------------------------------------------------ */
+   652→
+   653→function UsersTab({ data, userMutation }: {
+   654→  data: SecurityData;
+   655→  userMutation: { mutate: (vars: { action: string; userId: string; reason?: string }) => void; isPending: boolean };
+   656→}) {
+   657→  const [confirmDialog, setConfirmDialog] = useState<{
+   658→    open: boolean;
+   659→    userId: string;
+   660→    userName: string;
+   661→    action: 'LOCK' | 'UNLOCK';
+   662→  }>({ open: false, userId: '', userName: '', action: 'LOCK' });
+   663→
+   664→  const handleAction = () => {
+   665→    if (!confirmDialog.userId) return;
+   666→    userMutation.mutate(
+   667→      {
+   668→        action: confirmDialog.action === 'LOCK' ? 'LOCK_USER' : 'UNLOCK_USER',
+   669→        userId: confirmDialog.userId,
+   670→        reason: confirmDialog.action === 'LOCK' ? 'Manual lock by security admin' : undefined,
+   671→      },
+   672→      {
+   673→        onSuccess: () => setConfirmDialog({ open: false, userId: '', userName: '', action: 'LOCK' }),
+   674→      },
+   675→    );
+   676→  };
+   677→
+   678→  return (
+   679→    <TooltipProvider>
+   680→      <div className="flex flex-col gap-3 flex-1 overflow-hidden">
+   681→        <div className="flex items-center gap-2 shrink-0">
+   682→          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+   683→          <span className="text-xs text-muted-foreground">{data.users.length} users</span>
+   684→        </div>
+   685→
+   686→        <div className="flex-1 overflow-y-auto rounded-lg border border-border">
+   687→          <Table>
+   688→            <TableHeader>
+   689→              <TableRow className="hover:bg-transparent">
+   690→                <TableHead className="text-[10px] h-8">Name</TableHead>
+   691→                <TableHead className="text-[10px] h-8">Email</TableHead>
+   692→                <TableHead className="text-[10px] h-8 w-24">Role</TableHead>
+   693→                <TableHead className="text-[10px] h-8 w-32">Trust Score</TableHead>
+   694→                <TableHead className="text-[10px] h-8 w-28">Biometric Risk</TableHead>
+   695→                <TableHead className="text-[10px] h-8 w-28">Last Audit</TableHead>
+   696→                <TableHead className="text-[10px] h-8 w-24">Status</TableHead>
+   697→                <TableHead className="text-[10px] h-8 w-20" />
+   698→              </TableRow>
+   699→            </TableHeader>
+   700→            <TableBody>
+   701→              {data.users.map(user => (
+   702→                <TableRow key={user.id}>
+   703→                  <TableCell className="text-xs py-2.5 font-medium">
+   704→                    <div className="flex items-center gap-2">
+   705→                      {user.isLocked ? (
+   706→                        <XCircle className="h-3.5 w-3.5 text-rose shrink-0" />
+   707→                      ) : (
+   708→                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald shrink-0" />
+   709→                      )}
+   710→                      {user.name}
+   711→                    </div>
+   712→                  </TableCell>
+   713→                  <TableCell className="text-[10px] py-2.5 text-muted-foreground">
+   714→                    {user.email}
+   715→                  </TableCell>
+   716→                  <TableCell className="py-2.5">
+   717→                    <Badge className="bg-cyan/15 text-cyan border-cyan/30 text-[10px] h-5" variant="outline">
+   718→                      {user.role}
+   719→                    </Badge>
+   720→                  </TableCell>
+   721→                  <TableCell className="py-2.5">
+   722→                    <div className="flex items-center gap-2">
+   723→                      <Progress
+   724→                        value={user.deviceTrustScore}
+   725→                        className={cn('h-1.5 w-16', trustBarColor(user.deviceTrustScore))}
+   726→                      />
+   727→                      <span className={cn('text-[10px] font-medium tabular-nums', trustScoreColor(user.deviceTrustScore))}>
+   728→                        {user.deviceTrustScore}
+   729→                      </span>
+   730→                    </div>
+   731→                  </TableCell>
+   732→                  <TableCell className="py-2.5">
+   733→                    <Tooltip>
+   734→                      <TooltipTrigger asChild>
+   735→                        <div className="flex items-center gap-2 cursor-default">
+   736→                          <Progress
+   737→                            value={user.biometricRiskScore * 100}
+   738→                            className={cn('h-1.5 w-12', riskBarColor(user.biometricRiskScore))}
+   739→                          />
+   740→                          <span className={cn('text-[10px] font-medium', riskLabelColor(user.biometricRiskScore))}>
+   741→                            {riskLabel(user.biometricRiskScore)}
+   742→                          </span>
+   743→                        </div>
+   744→                      </TooltipTrigger>
+   745→                      <TooltipContent side="top" className="text-[10px] max-w-[200px]">
+   746→                        <p>Biometric risk score: <span className="font-mono font-medium">{(user.biometricRiskScore * 100).toFixed(1)}%</span></p>
+   747→                        <p className="text-muted-foreground mt-1">
+   748→                          {user.biometricRiskScore < 0.3
+   749→                            ? 'Low risk — biometric patterns are consistent with enrolled identity.'
+   750→                            : user.biometricRiskScore < 0.7
+   751→                              ? 'Medium risk — some anomalies detected in biometric verification.'
+   752→                              : 'High risk — significant discrepancies in biometric data. Review recommended.'}
+   753→                        </p>
+   754→                      </TooltipContent>
+   755→                    </Tooltip>
+   756→                  </TableCell>
+   757→                  <TableCell className="text-[10px] py-2.5 text-muted-foreground">
+   758→                    {formatDate(user.lastSecurityAuditAt)}
+   759→                  </TableCell>
+   760→                  <TableCell className="py-2.5">
+   761→                    {user.isLocked ? (
+   762→                      <Badge className="bg-rose/15 text-rose border-rose/30 text-[10px] h-5" variant="outline">
+   763→                        <Lock className="h-2.5 w-2.5 mr-0.5" />
+   764→                        Locked
+   765→                      </Badge>
+   766→                    ) : (
+   767→                      <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5" variant="outline">
+   768→                        Active
+   769→                      </Badge>
+   770→                    )}
+   771→                  </TableCell>
+   772→                  <TableCell className="py-2.5">
+   773→                    {user.isLocked ? (
+   774→                      <Button
+   775→                        size="sm"
+   776→                        className="h-6 text-[10px] bg-emerald/15 text-emerald hover:bg-emerald/25 border-0"
+   777→                        onClick={() => setConfirmDialog({ open: true, userId: user.id, userName: user.name, action: 'UNLOCK' })}
+   778→                        disabled={userMutation.isPending}
+   779→                      >
+   780→                        Unlock
+   781→                      </Button>
+   782→                    ) : (
+   783→                      <Button
+   784→                        size="sm"
+   785→                        className="h-6 text-[10px] bg-rose/15 text-rose hover:bg-rose/25 border-0"
+   786→                        onClick={() => setConfirmDialog({ open: true, userId: user.id, userName: user.name, action: 'LOCK' })}
+   787→                        disabled={userMutation.isPending}
+   788→                      >
+   789→                        Lock
+   790→                      </Button>
+   791→                    )}
+   792→                  </TableCell>
+   793→                </TableRow>
+   794→              ))}
+   795→              {data.users.length === 0 && (
+   796→                <TableRow>
+   797→                  <TableCell colSpan={8} className="text-center py-8 text-xs text-muted-foreground">
+   798→                    No users found
+   799→                  </TableCell>
+   800→                </TableRow>
+   801→              )}
+   802→            </TableBody>
+   803→          </Table>
+   804→        </div>
+   805→
+   806→        {/* Confirm Dialog */}
+   807→        <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog(d => ({ ...d, open }))}>
+   808→          <DialogContent className="bg-card border-border max-w-sm">
+   809→            <DialogHeader>
+   810→              <DialogTitle className="text-sm flex items-center gap-2">
+   811→                {confirmDialog.action === 'LOCK' ? (
+   812→                  <Lock className="h-4 w-4 text-rose" />
+   813→                ) : (
+   814→                  <UnlockIcon className="h-4 w-4 text-emerald" />
+   815→                )}
+   816→                {confirmDialog.action === 'LOCK' ? 'Lock User Account' : 'Unlock User Account'}
+   817→              </DialogTitle>
+   818→              <DialogDescription className="text-xs text-muted-foreground">
+   819→                {confirmDialog.action === 'LOCK'
+   820→                  ? `Are you sure you want to lock ${confirmDialog.userName}? The user will be immediately signed out and prevented from logging in.`
+   821→                  : `Are you sure you want to unlock ${confirmDialog.userName}? The user will be able to log in again.`}
+   822→              </DialogDescription>
+   823→            </DialogHeader>
+   824→            <DialogFooter className="gap-2">
+   825→              <Button
+   826→                variant="outline"
+   827→                size="sm"
+   828→                className="h-8 text-xs"
+   829→                onClick={() => setConfirmDialog({ open: false, userId: '', userName: '', action: 'LOCK' })}
+   830→              >
+   831→                Cancel
+   832→              </Button>
+   833→              <Button
+   834→                size="sm"
+   835→                className={cn(
+   836→                  'h-8 text-xs border-0',
+   837→                  confirmDialog.action === 'LOCK'
+   838→                    ? 'bg-rose text-white hover:bg-rose/80'
+   839→                    : 'bg-emerald text-white hover:bg-emerald/80',
+   840→                )}
+   841→                onClick={handleAction}
+   842→                disabled={userMutation.isPending}
+   843→              >
+   844→                {userMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+   845→                {confirmDialog.action === 'LOCK' ? 'Lock Account' : 'Unlock Account'}
+   846→              </Button>
+   847→            </DialogFooter>
+   848→          </DialogContent>
+   849→        </Dialog>
+   850→      </div>
+   851→    </TooltipProvider>
+   852→  );
+   853→}
+   854→
+   855→/* Simple unlock icon (avoid importing Unlock from lucide if not available) */
+   856→function UnlockIcon({ className }: { className?: string }) {
+   857→  return (
+   858→    <svg
+   859→      xmlns="http://www.w3.org/2000/svg"
+   860→      viewBox="0 0 24 24"
+   861→      fill="none"
+   862→      stroke="currentColor"
+   863→      strokeWidth="2"
+   864→      strokeLinecap="round"
+   865→      strokeLinejoin="round"
+   866→      className={className}
+   867→      aria-hidden="true"
+   868→    >
+   869→      <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+   870→      <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+   871→    </svg>
+   872→  );
+   873→}
+   874→
+   875→/* ------------------------------------------------------------------ */
+   876→/*  Policies Tab                                                       */
+   877→/* ------------------------------------------------------------------ */
+   878→
+   879→function PoliciesTab({ data, policyMutation }: {
+   880→  data: SecurityData;
+   881→  policyMutation: { mutate: (body: Record<string, unknown>) => void; isPending: boolean };
+   882→}) {
+   883→  const policies = data.policies;
+   884→  const [encryptionEnabled, setEncryptionEnabled] = useState(policies?.encryptionEnabled ?? false);
+   885→  const [twoFactorEnabled, setTwoFactorEnabled] = useState(policies?.twoFactorEnabled ?? false);
+   886→  const [sessionTimeout, setSessionTimeout] = useState(policies?.sessionTimeoutMin ?? 30);
+   887→  const [dataRetention, setDataRetention] = useState(policies?.dataRetentionDays ?? 365);
+   888→  const [auditLogRetention, setAuditLogRetention] = useState(policies?.auditLogRetentionDays ?? 90);
+   889→  const [ipList, setIpList] = useState<string[]>(policies?.ipWhitelist ?? []);
+   890→  const [newIp, setNewIp] = useState('');
+   891→
+   892→  const handleAddIp = () => {
+   893→    const trimmed = newIp.trim();
+   894→    if (!trimmed) return;
+   895→    if (ipList.includes(trimmed)) {
+   896→      toast.error('IP address already in whitelist');
+   897→      return;
+   898→    }
+   899→    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+   900→    if (!ipRegex.test(trimmed)) {
+   901→      toast.error('Invalid IP address format');
+   902→      return;
+   903→    }
+   904→    setIpList(prev => [...prev, trimmed]);
+   905→    setNewIp('');
+   906→  };
+   907→
+   908→  const handleRemoveIp = (ip: string) => {
+   909→    setIpList(prev => prev.filter(i => i !== ip));
+   910→  };
+   911→
+   912→  const handleSave = () => {
+   913→    policyMutation.mutate({
+   914→      action: 'UPDATE_POLICY',
+   915→      encryptionEnabled,
+   916→      twoFactorEnabled,
+   917→      sessionTimeoutMin: sessionTimeout,
+   918→      ipWhitelist: JSON.stringify(ipList),
+   919→      dataRetentionDays: dataRetention,
+   920→    });
+   921→  };
+   922→
+   923→  const hasChanges = policies && (
+   924→    encryptionEnabled !== policies.encryptionEnabled ||
+   925→    twoFactorEnabled !== policies.twoFactorEnabled ||
+   926→    sessionTimeout !== policies.sessionTimeoutMin ||
+   927→    dataRetention !== policies.dataRetentionDays ||
+   928→    auditLogRetention !== policies.auditLogRetentionDays ||
+   929→    JSON.stringify(ipList) !== JSON.stringify(policies.ipWhitelist)
+   930→  );
+   931→
+   932→  if (!policies) {
+   933→    return (
+   934→      <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+   935→        No policy data available
+   936→      </div>
+   937→    );
+   938→  }
+   939→
+   940→  return (
+   941→    <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+   942→      {/* Encryption & 2FA */}
+   943→      <Card className="bg-card/40 border-border">
+   944→        <CardContent className="p-4 space-y-4">
+   945→          <h3 className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
+   946→            <Shield className="h-3.5 w-3.5" />
+   947→            Authentication & Encryption
+   948→          </h3>
+   949→
+   950→          <div className="flex items-center justify-between">
+   951→            <div className="flex items-center gap-3">
+   952→              <Lock className="h-4 w-4 text-cyan" />
+   953→              <div>
+   954→                <Label htmlFor="setting-encryption" className="text-xs font-medium">Encryption at Rest (AES-256)</Label>
+   955→                <p className="text-[10px] text-muted-foreground">Encrypt all sensitive data stored in the database</p>
+   956→              </div>
+   957→            </div>
+   958→            <Switch
+   959→              id="setting-encryption"
+   960→              checked={encryptionEnabled}
+   961→              onCheckedChange={setEncryptionEnabled}
+   962→            />
+   963→          </div>
+   964→
+   965→          <Separator className="bg-border" />
+   966→
+   967→          <div className="flex items-center justify-between">
+   968→            <div className="flex items-center gap-3">
+   969→              <ShieldCheck className="h-4 w-4 text-emerald" />
+   970→              <div>
+   971→                <Label htmlFor="setting-2fa" className="text-xs font-medium">Two-Factor Authentication</Label>
+   972→                <p className="text-[10px] text-muted-foreground">Require 2FA for all user accounts in this tenant</p>
+   973→              </div>
+   974→            </div>
+   975→            <Switch
+   976→              id="setting-2fa"
+   977→              checked={twoFactorEnabled}
+   978→              onCheckedChange={setTwoFactorEnabled}
+   979→            />
+   980→          </div>
+   981→
+   982→          <Separator className="bg-border" />
+   983→
+   984→          <div className="flex items-center justify-between">
+   985→            <div className="flex items-center gap-3">
+   986→              <Fingerprint className="h-4 w-4 text-amber" />
+   987→              <div>
+   988→                <Label htmlFor="setting-ip-whitelist" className="text-xs font-medium">IP Whitelisting</Label>
+   989→                <p className="text-[10px] text-muted-foreground">Restrict access to whitelisted IP addresses only</p>
+   990→              </div>
+   991→            </div>
+   992→            <div className="flex items-center gap-2">
+   993→              <Badge className="bg-card/60 border-border text-[10px] h-5" variant="outline">
+   994→                {ipList.length} IPs
+   995→              </Badge>
+   996→              <Switch
+   997→                id="setting-ip-whitelist"
+   998→                checked={ipList.length > 0}
+   999→                onCheckedChange={(checked) => {
+  1000→                  if (!checked) {
+  1001→                    setIpList([]);
+  1002→                  }
+  1003→                }}
+  1004→              />
+  1005→            </div>
+  1006→          </div>
+  1007→        </CardContent>
+  1008→      </Card>
+  1009→
+  1010→      {/* Session & Retention */}
+  1011→      <Card className="bg-card/40 border-border">
+  1012→        <CardContent className="p-4 space-y-4">
+  1013→          <h3 className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
+  1014→            <Clock className="h-3.5 w-3.5" />
+  1015→            Session & Data Retention
+  1016→          </h3>
+  1017→
+  1018→          <div className="space-y-2">
+  1019→            <div className="flex items-center justify-between">
+  1020→              <Label htmlFor="setting-session-timeout" className="text-xs font-medium">Session Timeout</Label>
+  1021→              <span className="text-xs font-medium tabular-nums text-cyan">{sessionTimeout} min</span>
+  1022→            </div>
+  1023→            <Slider
+  1024→              id="setting-session-timeout"
+  1025→              aria-label="Session timeout in minutes"
+  1026→              value={[sessionTimeout]}
+  1027→              onValueChange={([v]) => setSessionTimeout(v)}
+  1028→              min={5}
+  1029→              max={120}
+  1030→              step={5}
+  1031→              className="w-full"
+  1032→            />
+  1033→            <div className="flex justify-between text-[10px] text-muted-foreground">
+  1034→              <span>5 min</span>
+  1035→              <span>120 min</span>
+  1036→            </div>
+  1037→          </div>
+  1038→
+  1039→          <Separator className="bg-border" />
+  1040→
+  1041→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+  1042→            <div className="space-y-1.5">
+  1043→              <Label htmlFor="setting-data-retention" className="text-xs font-medium">Data Retention (days)</Label>
+  1044→              <Input
+  1045→                id="setting-data-retention"
+  1046→                type="number"
+  1047→                value={dataRetention}
+  1048→                onChange={(e) => setDataRetention(Math.max(1, parseInt(e.target.value) || 1))}
+  1049→                min={1}
+  1050→                max={3650}
+  1051→                className="h-8 text-xs"
+  1052→              />
+  1053→              <p className="text-[10px] text-muted-foreground">How long to retain election and incident data</p>
+  1054→            </div>
+  1055→            <div className="space-y-1.5">
+  1056→              <Label htmlFor="setting-audit-retention" className="text-xs font-medium">Audit Log Retention (days)</Label>
+  1057→              <Input
+  1058→                id="setting-audit-retention"
+  1059→                type="number"
+  1060→                value={auditLogRetention}
+  1061→                onChange={(e) => setAuditLogRetention(Math.max(1, parseInt(e.target.value) || 1))}
+  1062→                min={1}
+  1063→                max={3650}
+  1064→                className="h-8 text-xs"
+  1065→              />
+  1066→              <p className="text-[10px] text-muted-foreground">How long to retain security audit logs</p>
+  1067→            </div>
+  1068→          </div>
+  1069→        </CardContent>
+  1070→      </Card>
+  1071→
+  1072→      {/* IP Whitelist Management */}
+  1073→      <Card className="bg-card/40 border-border">
+  1074→        <CardContent className="p-4 space-y-3">
+  1075→          <h3 className="text-xs font-semibold flex items-center gap-2 text-muted-foreground">
+  1076→            <Fingerprint className="h-3.5 w-3.5" />
+  1077→            IP Whitelist Management
+  1078→          </h3>
+  1079→
+  1080→          <div className="flex items-center gap-2">
+  1081→            <Input
+  1082→              id="setting-ip-address"
+  1083→              aria-label="IP address to whitelist"
+  1084→              placeholder="e.g. 192.168.1.0/24"
+  1085→              value={newIp}
+  1086→              onChange={(e) => setNewIp(e.target.value)}
+  1087→              onKeyDown={(e) => e.key === 'Enter' && handleAddIp()}
+  1088→              className="h-8 text-xs font-mono flex-1"
+  1089→            />
+  1090→            <Button
+  1091→              size="sm"
+  1092→              className="h-8 text-xs bg-emerald/15 text-emerald hover:bg-emerald/25 border-0 shrink-0"
+  1093→              onClick={handleAddIp}
+  1094→              disabled={!newIp.trim()}
+  1095→            >
+  1096→              <Plus className="h-3 w-3 mr-1" />
+  1097→              Add
+  1098→            </Button>
+  1099→          </div>
+  1100→
+  1101→          {ipList.length > 0 ? (
+  1102→            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+  1103→              {ipList.map(ip => (
+  1104→                <div
+  1105→                  key={ip}
+  1106→                  className="flex items-center justify-between px-3 py-2 rounded-lg bg-card/30 border border-border group"
+  1107→                >
+  1108→                  <div className="flex items-center gap-2">
+  1109→                    <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
+  1110→                    <span className="text-xs font-mono">{ip}</span>
+  1111→                  </div>
+  1112→                  <Button
+  1113→                    variant="ghost"
+  1114→                    size="sm"
+  1115→                    className="h-6 w-6 p-0 text-muted-foreground hover:text-rose opacity-0 group-hover:opacity-100 transition-opacity"
+  1116→                    onClick={() => handleRemoveIp(ip)}
+  1117→                  >
+  1118→                    <Trash2 className="h-3 w-3" />
+  1119→                  </Button>
+  1120→                </div>
+  1121→              ))}
+  1122→            </div>
+  1123→          ) : (
+  1124→            <div className="text-center py-4 text-[10px] text-muted-foreground">
+  1125→              No IP addresses in whitelist. Add IPs above or disable IP whitelisting.
+  1126→            </div>
+  1127→          )}
+  1128→        </CardContent>
+  1129→      </Card>
+  1130→
+  1131→      {/* Save Button */}
+  1132→      <div className="flex items-center justify-between sticky bottom-0 py-2">
+  1133→        {hasChanges && (
+  1134→          <span className="text-[10px] text-amber flex items-center gap-1">
+  1135→            <AlertTriangle className="h-3 w-3" />
+  1136→            Unsaved changes
+  1137→          </span>
+  1138→        )}
+  1139→        <div className="ml-auto flex items-center gap-2">
+  1140→          {hasChanges && (
+  1141→            <Button
+  1142→              variant="outline"
+  1143→              size="sm"
+  1144→              className="h-8 text-xs"
+  1145→              onClick={() => {
+  1146→                if (!policies) return;
+  1147→                setEncryptionEnabled(policies.encryptionEnabled);
+  1148→                setTwoFactorEnabled(policies.twoFactorEnabled);
+  1149→                setSessionTimeout(policies.sessionTimeoutMin);
+  1150→                setDataRetention(policies.dataRetentionDays);
+  1151→                setAuditLogRetention(policies.auditLogRetentionDays);
+  1152→                setIpList(policies.ipWhitelist);
+  1153→                toast.info('Changes discarded');
+  1154→              }}
+  1155→            >
+  1156→              Discard
+  1157→            </Button>
+  1158→          )}
+  1159→          <Button
+  1160→            size="sm"
+  1161→            className={cn(
+  1162→              'h-8 text-xs',
+  1163→              hasChanges
+  1164→                ? 'bg-emerald text-white hover:bg-emerald/80'
+  1165→                : 'bg-muted text-muted-foreground',
+  1166→            )}
+  1167→            onClick={handleSave}
+  1168→            disabled={!hasChanges || policyMutation.isPending}
+  1169→          >
+  1170→            {policyMutation.isPending ? (
+  1171→              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+  1172→            ) : (
+  1173→              <ShieldCheck className="h-3 w-3 mr-1" />
+  1174→            )}
+  1175→            Save Policies
+  1176→          </Button>
+  1177→        </div>
+  1178→      </div>
+  1179→    </div>
+  1180→  );
+  1181→}
+  1182→
+  1183→/* ------------------------------------------------------------------ */
+  1184→/*  Main Export                                                        */
+  1185→/* ------------------------------------------------------------------ */
+  1186→
+  1187→export function SecurityCenter() {
+  1188→  const tenantId = useDashboardStore(s => s.tenantId);
+  1189→  const queryClient = useQueryClient();
+  1190→
+  1191→  const { data, isLoading, isError } = useQuery<SecurityData>({
+  1192→    queryKey: ['security', tenantId],
+  1193→    queryFn: async () => {
+  1194→      return fetchJson(`/api/security?tenantId=${tenantId}`);
+  1195→    },
+  1196→    refetchInterval: 15000,
+  1197→    enabled: !!tenantId,
+  1198→  });
+  1199→
+  1200→  /* Mutations */
+  1201→  const resolveMutation = useMutation({
+  1202→    mutationFn: async (vars: { eventId: string; resolvedById: string | null }) => {
+  1203→      await fetchJson('/api/security', {
+  1204→        method: 'POST',
+  1205→        headers: { 'Content-Type': 'application/json' },
+  1206→        body: JSON.stringify({
+  1207→          action: 'RESOLVE_EVENT',
+  1208→          eventId: vars.eventId,
+  1209→          resolvedById: vars.resolvedById,
+  1210→        }),
+  1211→      });
+  1212→    },
+  1213→    onSuccess: () => {
+  1214→      toast.success('Event resolved successfully');
+  1215→      queryClient.invalidateQueries({ queryKey: ['security', tenantId] });
+  1216→    },
+  1217→    onError: () => {
+  1218→      toast.error('Failed to resolve event');
+  1219→    },
+  1220→  });
+  1221→
+  1222→  const userMutation = useMutation({
+  1223→    mutationFn: async (vars: { action: string; userId: string; reason?: string }) => {
+  1224→      await fetchJson('/api/security', {
+  1225→        method: 'POST',
+  1226→        headers: { 'Content-Type': 'application/json' },
+  1227→        body: JSON.stringify({
+  1228→          action: vars.action,
+  1229→          userId: vars.userId,
+  1230→          reason: vars.reason,
+  1231→        }),
+  1232→      });
+  1233→    },
+  1234→    onSuccess: (_data, vars) => {
+  1235→      const label = vars.action === 'LOCK_USER' ? 'locked' : 'unlocked';
+  1236→      toast.success(`User ${label} successfully`);
+  1237→      queryClient.invalidateQueries({ queryKey: ['security', tenantId] });
+  1238→    },
+  1239→    onError: (_data, vars) => {
+  1240→      toast.error(`Failed to ${vars.action.replace('_', ' ').toLowerCase()}`);
+  1241→    },
+  1242→  });
+  1243→
+  1244→  const policyMutation = useMutation({
+  1245→    mutationFn: async (body: Record<string, unknown>) => {
+  1246→      await fetchJson('/api/security', {
+  1247→        method: 'POST',
+  1248→        headers: { 'Content-Type': 'application/json' },
+  1249→        body: JSON.stringify(body),
+  1250→      });
+  1251→    },
+  1252→    onSuccess: () => {
+  1253→      toast.success('Security policies updated');
+  1254→      queryClient.invalidateQueries({ queryKey: ['security', tenantId] });
+  1255→    },
+  1256→    onError: () => {
+  1257→      toast.error('Failed to update policies');
+  1258→    },
+  1259→  });
+  1260→
+  1261→  /* Render */
+  1262→  return (
+  1263→    <div className="h-full flex flex-col gap-4 p-4 overflow-hidden">
+  1264→      {/* Header */}
+  1265→      <div className="flex items-center justify-between shrink-0">
+  1266→        <div className="flex items-center gap-2.5">
+  1267→          <Shield className="h-5 w-5 text-emerald" />
+  1268→          <h2 className="text-sm font-semibold">Security Center</h2>
+  1269→        </div>
+  1270→        {data && (
+  1271→          <Badge
+  1272→            className={cn(
+  1273→              'text-[10px] h-5 font-medium',
+  1274→              data.securityScore >= 80
+  1275→                ? 'bg-emerald/15 text-emerald border-emerald/30'
+  1276→                : data.securityScore >= 50
+  1277→                  ? 'bg-amber/15 text-amber border-amber/30'
+  1278→                  : 'bg-rose/15 text-rose border-rose/30',
+  1279→            )}
+  1280→            variant="outline"
+  1281→          >
+  1282→            <Activity className="h-2.5 w-2.5 mr-0.5" />
+  1283→            Score: {data.securityScore}
+  1284→          </Badge>
+  1285→        )}
+  1286→      </div>
+  1287→
+  1288→      {/* Content */}
+  1289→      {isLoading && !data ? (
+  1290→        <div className="flex-1 flex items-center justify-center">
+  1291→          <Loader2 className="h-6 w-6 text-muted-foreground animate-spin" />
+  1292→          <span className="ml-2 text-xs text-muted-foreground">Loading security data...</span>
+  1293→        </div>
+  1294→      ) : isError && !data ? (
+  1295→        <div className="flex-1 flex items-center justify-center">
+  1296→          <ShieldAlert className="h-6 w-6 text-rose mr-2" />
+  1297→          <span className="text-xs text-rose">Failed to load security data</span>
+  1298→        </div>
+  1299→      ) : data ? (
+  1300→        <Tabs defaultValue="overview" className="flex flex-col flex-1 overflow-hidden">
+  1301→          <TabsList className="shrink-0 h-8">
+  1302→            <TabsTrigger value="overview" className="text-[11px] px-3 gap-1.5">
+  1303→              <Activity className="h-3.5 w-3.5" />
+  1304→              Overview
+  1305→            </TabsTrigger>
+  1306→            <TabsTrigger value="events" className="text-[11px] px-3 gap-1.5">
+  1307→              <FileText className="h-3.5 w-3.5" />
+  1308→              Event Log
+  1309→              {data.counts.unresolved > 0 && (
+  1310→                <Badge className="bg-amber/15 text-amber border-amber/30 text-[9px] h-4 ml-0.5 px-1">
+  1311→                  {data.counts.unresolved}
+  1312→                </Badge>
+  1313→              )}
+  1314→            </TabsTrigger>
+  1315→            <TabsTrigger value="users" className="text-[11px] px-3 gap-1.5">
+  1316→              <Users className="h-3.5 w-3.5" />
+  1317→              Users
+  1318→            </TabsTrigger>
+  1319→            <TabsTrigger value="policies" className="text-[11px] px-3 gap-1.5">
+  1320→              <Settings className="h-3.5 w-3.5" />
+  1321→              Policies
+  1322→            </TabsTrigger>
+  1323→          </TabsList>
+  1324→
+  1325→          <TabsContent value="overview" className="flex-1 overflow-hidden mt-2">
+  1326→            <OverviewTab data={data} />
+  1327→          </TabsContent>
+  1328→
+  1329→          <TabsContent value="events" className="flex-1 overflow-hidden mt-2">
+  1330→            <EventLogTab data={data} resolveMutation={resolveMutation} />
+  1331→          </TabsContent>
+  1332→
+  1333→          <TabsContent value="users" className="flex-1 overflow-hidden mt-2">
+  1334→            <UsersTab data={data} userMutation={userMutation} />
+  1335→          </TabsContent>
+  1336→
+  1337→          <TabsContent value="policies" className="flex-1 overflow-hidden mt-2">
+  1338→            <PoliciesTab data={data} policyMutation={policyMutation} />
+  1339→          </TabsContent>
+  1340→        </Tabs>
+  1341→      ) : null}
+  1342→    </div>
+  1343→  );
+  1344→}
