@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -52,3 +53,16 @@ prompt
 server.log
 # Skills directory
 /skills/tool-results/
+
+# Docker volumes & local DB
+db/
+*.db
+*.db-shm
+*.db-wal
+
+# Tool results (debug artifacts)
+tool-results/
+
+# Nginx local state
+nginx/certs/
+nginx/logs/

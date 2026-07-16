@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+.next
+.git
+.gitignore
+
+# Build artifacts
+*.tsbuildinfo
+*.log
+dev.log
+server.log
+
+# Database (mounted as volume in container)
+db/
+*.db
+*.db-shm
+*.db-wal
+
+# Tool results (debug artifacts)
+tool-results/
+
+# Docker
+.docker/
+docker-compose*.yml
+Dockerfile
+
+# IDE
+.vscode/
+.idea/
+
+# Environment files (secrets injected at runtime)
+.env
+.env.*
+!.env.example
+
+# Misc
+*.md
+LICENSE
+scripts/keepalive-*.sh
+scripts/adversarial-*.ts
+scripts/adversarial-*.py
+scripts/adversarial-*.sh
+scripts/e2e-*.sh
+scripts/e2e-*.ts
+scripts/migrate-*.sh
+scripts/seed-*.ts
+scripts/deploy-and-verify.sh
+scripts/start-production.sh
+nginx/
+.github/
