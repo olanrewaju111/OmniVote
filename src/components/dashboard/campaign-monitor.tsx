@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -302,17 +302,28 @@ export function CampaignMonitor() {
     e.aiFlags?.includes('hate_speech_detected')
   );
 
-  // ── Billboard Simulated Data ──
-  const billboards = [
-    { id: 'bb-1', party: 'APC', location: 'Lagos – Ikeja GRA', extractedText: 'Progress for All – Vote APC', photoCount: 4, dominance: 92 },
-    { id: 'bb-2', party: 'PDP', location: 'Abuja – Central Business District', extractedText: 'Rescue Mission Continues – Atiku 2027', photoCount: 3, dominance: 87 },
-    { id: 'bb-3', party: 'LP', location: 'Lagos – Lekki Expressway', extractedText: 'New Nigeria – Obi', photoCount: 5, dominance: 78 },
-    { id: 'bb-4', party: 'APC', location: 'Kano – Nassarawa GRA', extractedText: 'Renewed Hope – Tinubu', photoCount: 2, dominance: 95 },
-    { id: 'bb-5', party: 'PDP', location: 'Rivers – Port Harcourt', extractedText: 'Power to the People – PDP', photoCount: 3, dominance: 71 },
-    { id: 'bb-6', party: 'NNPP', location: 'Kano – Kano City', extractedText: 'Kwankwaso for Kano', photoCount: 6, dominance: 64 },
-    { id: 'bb-7', party: 'APC', location: 'Oyo – Ibadan Ring Road', extractedText: 'APC: Moving Forward Together', photoCount: 2, dominance: 83 },
-    { id: 'bb-8', party: 'LP', location: 'Anambra – Awka', extractedText: 'Obi-Datti: The Youth Choice', photoCount: 4, dominance: 59 },
-  ];
+  // ── Billboard Data (fetched from campaign events API) ──
+  const [billboards, setBillboards] = useState<Array<{id: string; party: string; location: string; extractedText: string; photoCount: number; dominance: number}>>([]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    fetchJson(`/api/campaign-events?tenantId=${tenantId}&limit=20`)
+      .then((data: any) => {
+        if (Array.isArray(data.events) && data.events.length > 0) {
+          setBillboards(data.events.map((e: any) => ({
+            id: e.id,
+            party: e.party || 'N/A',
+            location: e.venue || e.location || e.description?.substring(0, 50) || 'Unknown',
+            extractedText: e.title || e.description?.substring(0, 60) || 'N/A',
+            photoCount: e.mediaUrls?.length || 0,
+            dominance: e.estimatedCrowd ? Math.min(99, Math.max(10, Math.round((e.estimatedCrowd || 50) / 10))) : 50,
+          })));
+        } else {
+          setBillboards([]);
+        }
+      })
+      .catch(() => setBillboards([]));
+  }, [tenantId]);
 
   const billboardByParty = billboards.reduce((acc, b) => {
     acc[b.party] = (acc[b.party] || 0) + 1;
@@ -1052,6 +1063,19 @@ function BillboardsTab({
   byParty: Record<string, number>;
   states: string[];
 }) {
+  if (billboards.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-3 px-6">
+          <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto" />
+          <p className="text-sm text-muted-foreground">
+            No billboard monitoring data available. Campaign events will appear here when field agents report them.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Stats Row */}

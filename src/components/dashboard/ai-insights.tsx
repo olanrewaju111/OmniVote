@@ -10,6 +10,7 @@ import {
   FileWarning, Fingerprint, Network, Layers, Loader2,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
@@ -33,14 +34,14 @@ interface SecurityEvent {
 }
 
 const AI_MODULES = [
-  { name: 'Transcription (Whisper)', status: 'active' as const, icon: <Scan className="h-4 w-4" /> },
-  { name: 'Deepfake Detection (CV)', status: 'active' as const, icon: <Eye className="h-4 w-4" /> },
-  { name: 'CIB / NLP Analysis', status: 'active' as const, icon: <Network className="h-4 w-4" /> },
-  { name: 'Adversarial Input Sanitizer', status: 'active' as const, icon: <ShieldAlert className="h-4 w-4" /> },
-  { name: 'Geofence Validator', status: 'active' as const, icon: <Fingerprint className="h-4 w-4" /> },
-  { name: 'C2PA Provenance Engine', status: 'active' as const, icon: <ShieldCheck className="h-4 w-4" /> },
-  { name: 'Optimization Advisor', status: 'degraded' as const, icon: <Layers className="h-4 w-4" /> },
-  { name: 'Rate Limiter / DDoS Shield', status: 'active' as const, icon: <Zap className="h-4 w-4" /> },
+  { name: 'Transcription (Whisper)', status: 'active' as const, icon: <Scan className="h-4 w-4" />, key: 'transcription' },
+  { name: 'Deepfake Detection (CV)', status: 'active' as const, icon: <Eye className="h-4 w-4" />, key: 'deepfake' },
+  { name: 'CIB / NLP Analysis', status: 'active' as const, icon: <Network className="h-4 w-4" />, key: 'cib' },
+  { name: 'Adversarial Input Sanitizer', status: 'active' as const, icon: <ShieldAlert className="h-4 w-4" />, key: 'sanitizer' },
+  { name: 'Geofence Validator', status: 'active' as const, icon: <Fingerprint className="h-4 w-4" />, key: 'geofence' },
+  { name: 'C2PA Provenance Engine', status: 'active' as const, icon: <ShieldCheck className="h-4 w-4" />, key: 'c2pa' },
+  { name: 'Optimization Advisor', status: 'active' as const, icon: <Layers className="h-4 w-4" />, key: 'optimizer' },
+  { name: 'Rate Limiter / DDoS Shield', status: 'active' as const, icon: <Zap className="h-4 w-4" />, key: 'ratelimit' },
 ];
 
 function relativeTime(date: string | Date) {
@@ -63,6 +64,22 @@ function eventTypeToModule(eventType: string): string {
 
 export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
   const { tenantId } = useDashboardStore();
+
+  // Derive real module statuses from incident data
+  const moduleStatuses = useMemo(() => {
+    const statuses: Record<string, 'active' | 'degraded' | 'error'> = {};
+    const hasDeepfake = incidents.some(i => i.type === 'DEEPFAKE_SUSPECT' && i.isQuarantined);
+    const hasCib = incidents.some(i => i.type === 'CIB_DETECTED');
+    const hasGpsAnomaly = incidents.some((i: any) => i.gpsAnomaly || i.isQuarantined);
+    const highQuarantineCount = incidents.filter(i => i.isQuarantined).length;
+
+    if (hasDeepfake) statuses['deepfake'] = 'degraded';
+    if (hasCib) statuses['cib'] = 'degraded';
+    if (hasGpsAnomaly) statuses['geofence'] = 'degraded';
+    if (highQuarantineCount > 10) statuses['optimizer'] = 'degraded';
+
+    return statuses;
+  }, [incidents]);
 
   const { data: secData, isLoading: secLoading } = useQuery<{
     events: SecurityEvent[];
@@ -142,24 +159,27 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
         </CardHeader>
         <CardContent className="px-4 pb-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {AI_MODULES.map(mod => (
+            {AI_MODULES.map(mod => {
+              const effectiveStatus = moduleStatuses[mod.key] || mod.status;
+              return (
               <div
                 key={mod.name}
                 className="flex items-center gap-2 px-2.5 py-2 rounded-md border border-border bg-card/40"
               >
-                <span className={mod.status === 'active' ? 'text-emerald' : 'text-amber'}>{mod.icon}</span>
+                <span className={effectiveStatus === 'active' ? 'text-emerald' : 'text-amber'}>{mod.icon}</span>
                 <div className="min-w-0">
                   <p className="text-[11px] font-medium truncate">{mod.name}</p>
                   <div className="flex items-center gap-1">
                     <span className={cn(
                       'w-1.5 h-1.5 rounded-full',
-                      mod.status === 'active' ? 'bg-emerald' : 'bg-amber'
+                      effectiveStatus === 'active' ? 'bg-emerald' : 'bg-amber'
                     )} />
-                    <span className="text-[10px] text-muted-foreground">{mod.status}</span>
+                    <span className="text-[10px] text-muted-foreground">{effectiveStatus}</span>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

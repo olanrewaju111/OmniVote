@@ -553,7 +553,7 @@ export function AgentRoster() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction.type === 'DELETE' && (
-                <>Are you sure you want to permanently remove <strong>{confirmAction.agent?.name}</strong>? This will delete their account and all associated audit logs. This action cannot be undone.</>
+                <>Are you sure you want to remove <strong>{confirmAction.agent?.name}</strong>? This action cannot be undone if the agent has no incident reports.</>
               )}
               {confirmAction.type === 'REMOTE_WIPE' && (
                 <>Send a remote wipe command to <strong>{confirmAction.agent?.name}</strong>&apos;s device? This will clear all cached data, credentials, and session tokens on the device. The agent will be set to offline.</>

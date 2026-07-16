@@ -9,7 +9,7 @@ import dynamic from 'next/dynamic';
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
-import { useDashboardStore, type ElectionInfo } from '@/store/dashboard';
+import { useDashboardStore, ROLE_TABS, type ViewTab, type ElectionInfo } from '@/store/dashboard';
 import { KpiGrid } from '@/components/dashboard/kpi-grid';
 import { PwaRegistration } from '@/components/pwa-registration';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -110,7 +110,26 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId, setSelectedTab } = useDashboardStore();
+
+  // Sync URL hash with active tab on mount
+  useEffect(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash && hash !== activeTab) {
+      const validTabs = user ? (ROLE_TABS[user.role] || []) : [];
+      if (validTabs.includes(hash as ViewTab)) {
+        setSelectedTab(hash as ViewTab);
+      }
+    }
+  }, []);
+
+  // Update hash when tab changes
+  useEffect(() => {
+    if (activeTab) {
+      window.location.hash = activeTab;
+      document.title = `OmniVote — ${activeTab.replace(/-/g, ' ')}`;
+    }
+  }, [activeTab]);
 
   // ── Session restoration: check if a valid cookie session exists on mount ──
   const sessionRestore = useQuery<{
@@ -428,12 +447,9 @@ function OverviewTab({
         />
       </div>
 
-      {/* Map + Feed: takes remaining space, no scroll overflow */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-3 rounded-xl border border-border bg-card/40 overflow-hidden">
-          <GeoMapView points={dashData.pollingUnits} bounds={dashData.mapBounds || undefined} />
-        </div>
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card/40 overflow-hidden">
+      {/* Feed: takes remaining space, no scroll overflow */}
+      <div className="flex-1 min-h-0">
+        <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
           <LiveFeed incidents={incidents.slice(0, 25)} />
         </div>
       </div>

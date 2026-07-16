@@ -85,6 +85,16 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
     onError: () => { /* non-critical — badge updates on next refetch */ },
   });
 
+  const updateIncident = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return fetchJson(`/api/incidents/${id}?tenantId=${tenantId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
+  });
+
   const filtered = alerts.filter(a => {
     if (alertFilter !== 'ALL' && a.type !== alertFilter) return false;
     return true;
@@ -218,6 +228,37 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
                     <div className="flex items-center gap-2 mt-1.5">
                       <Badge variant="outline" className="text-[10px] h-5">{alert.incident.severity}</Badge>
                       <Badge variant="outline" className="text-[10px] h-5">{alert.incident.status}</Badge>
+                    </div>
+                  )}
+                  {alert.incident && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      {alert.incident.status !== 'REVIEWED' && (
+                        <Button
+                          size="sm" variant="outline" className="h-6 text-[10px] px-2"
+                          onClick={(e) => { e.stopPropagation(); updateIncident.mutate({ id: alert.id, status: 'REVIEWED' }); }}
+                          disabled={updateIncident.isPending}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Review
+                        </Button>
+                      )}
+                      {alert.incident.status !== 'ESCALATED' && alert.incident.severity !== 'LOW' && (
+                        <Button
+                          size="sm" variant="outline" className="h-6 text-[10px] px-2 border-amber/30 text-amber hover:bg-amber/10"
+                          onClick={(e) => { e.stopPropagation(); updateIncident.mutate({ id: alert.id, status: 'ESCALATED' }); }}
+                          disabled={updateIncident.isPending}
+                        >
+                          <AlertTriangle className="h-3 w-3 mr-1" /> Escalate
+                        </Button>
+                      )}
+                      {alert.incident.status !== 'DISMISSED' && (
+                        <Button
+                          size="sm" variant="outline" className="h-6 text-[10px] px-2 border-slate/30 text-slate hover:bg-slate/10"
+                          onClick={(e) => { e.stopPropagation(); updateIncident.mutate({ id: alert.id, status: 'DISMISSED' }); }}
+                          disabled={updateIncident.isPending}
+                        >
+                          <ShieldOff className="h-3 w-3 mr-1" /> Dismiss
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

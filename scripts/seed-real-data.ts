@@ -609,7 +609,7 @@ async function seedAdditionalCheckIns() {
       checkInEntries.push({
         tenantId: agent.tenantId,
         agentId: agent.id,
-        geofenceZoneId: gf ? gf.id : null,
+        geofenceZoneId: gf ? gf.id : 'default-geofence',
         status,
         latitude: loc.lat + (Math.random() - 0.5) * 0.03,
         longitude: loc.lng + (Math.random() - 0.5) * 0.03,

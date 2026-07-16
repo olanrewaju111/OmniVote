@@ -119,16 +119,9 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
-function generateNigerianNumbers(count: number): string[] {
-  const prefixes = ['0703', '0803', '0806', '0809', '0810', '0811', '0812', '0813', '0814', '0815', '0816', '0817', '0818', '0902', '0903', '0905', '0906', '0907', '0908', '0909', '0913', '0915', '0916'];
-  const numbers: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const suffix = String(Math.floor(Math.random() * 10_000_000)).padStart(7, '0');
-    numbers.push(`${prefix}${suffix}`);
-  }
-  return numbers;
-}
+// NOTE: Phone number generation has been removed. Contacts must come from
+// uploaded contact lists (via /api/campaigns/contacts). Real contacts are
+// loaded from the database when a contact list is selected for a campaign.
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -286,9 +279,9 @@ export function MobilizationEngine() {
   function handleUploadContacts() {
     if (!uploadForm.name.trim()) { toast.error('List name is required'); return; }
     if (!uploadForm.consentChecked) { toast.error('You must confirm consent'); return; }
-    const count = Math.floor(Math.random() * 151) + 50; // 50–200
-    const contacts = generateNigerianNumbers(count);
-    uploadContacts.mutate({ name: uploadForm.name, segment: uploadForm.segment, contacts });
+    // Create an empty contact list — contacts should be added via CSV upload
+    // or manual entry in the Campaign Monitor tab.
+    uploadContacts.mutate({ name: uploadForm.name, segment: uploadForm.segment, contacts: [] });
   }
 
   function handleCreateTemplate() {
@@ -622,13 +615,14 @@ export function MobilizationEngine() {
                           <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <Users className="h-8 w-8 opacity-30" />
                             <p className="text-sm">No contact lists yet</p>
+                            <p className="text-xs text-muted-foreground/70">No contacts in selected contact list. Add contacts via the Campaign Monitor tab.</p>
                             <Button
                               size="sm"
                               variant="outline"
                               className="text-xs rounded-lg mt-1"
                               onClick={() => setUploadOpen(true)}
                             >
-                              <Upload className="h-3 w-3 mr-1" /> Upload your first list
+                              <Upload className="h-3 w-3 mr-1" /> Create contact list
                             </Button>
                           </div>
                         </TableCell>
@@ -1043,7 +1037,7 @@ export function MobilizationEngine() {
               Upload Contacts
             </DialogTitle>
             <DialogDescription>
-              Create a new contact list. Phone numbers will be simulated for demo purposes.
+              Create a new contact list. Add real contacts via CSV upload or manual entry.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

@@ -112,8 +112,17 @@ export async function POST(req: NextRequest) {
       if (pu) { gpsLat = pu.latitude; gpsLng = pu.longitude; }
     }
 
-    // Simulate GPS anomaly check (5% chance)
-    const gpsAnomaly = Math.random() < 0.05;
+    // Deterministic GPS anomaly: flag if coordinates are suspiciously round (likely fake)
+    let gpsAnomaly = false;
+    if (gpsLat !== null && gpsLng !== null) {
+      const latStr = String(gpsLat);
+      const lngStr = String(gpsLng);
+      // Flag if coordinates have too many trailing zeros (e.g. 6.000000, 3.000000)
+      const latZeros = (latStr.split('.')[1] || '').replace(/0+$/, '').length === 0;
+      const lngZeros = (lngStr.split('.')[1] || '').replace(/0+$/, '').length === 0;
+      // Flag if both lat and lng are suspiciously round numbers
+      gpsAnomaly = latZeros && lngZeros && (latStr.includes('.0') || lngStr.includes('.0'));
+    }
 
     const incident = await db.incident.create({
       data: {

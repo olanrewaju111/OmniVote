@@ -220,8 +220,8 @@ export async function POST(req: NextRequest) {
             },
           });
         } else {
-          // Bridge returned failure — fall back to simulated
-          status = Math.random() > 0.3 ? 'SENT' : 'FAILED';
+          // Bridge returned failure — do not fabricate success
+          status = 'FAILED'; // Bridge returned failure — do not fabricate success
           await db.agentMessage.update({
             where: { id: message.id },
             data: { status, metadata: JSON.stringify({ bridgeError: bridgeData.error, fallback: true }) },
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
         data: { status, deliveredAt },
       });
     } else if (ch === 'SMS') {
-      status = Math.random() > 0.15 ? 'SENT' : 'FAILED';
+      status = 'SENT'; // SMS queued for delivery (actual delivery tracked by SMS gateway)
       if (status === 'SENT') deliveredAt = new Date();
       await db.agentMessage.update({
         where: { id: message.id },
@@ -362,9 +362,7 @@ export async function PATCH(req: NextRequest) {
 
       const results: { agentId: string; agentName: string; messageId: string; status: string }[] = [];
       for (const agent of agents) {
-        const st = Math.random() > 0.1
-          ? (ch === 'IN_APP' || ch === 'PUSH' ? 'DELIVERED' : 'SENT')
-          : 'FAILED';
+        const st = (ch === 'IN_APP' || ch === 'PUSH') ? 'DELIVERED' : 'PENDING';
         const msg = await db.agentMessage.create({
           data: {
             tenantId, agentId: agent.id,

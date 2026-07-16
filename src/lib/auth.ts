@@ -8,7 +8,7 @@
  * The fallback below is ONLY for development.
  */
 
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify as joseJwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 
@@ -53,10 +53,21 @@ export async function createToken(payload: JwtPayload): Promise<string> {
     .sign(key);
 }
 
+/**
+ * Verify a JWT token and return the payload.
+ * Throws on invalid/expired tokens (unlike verifyToken which returns null).
+ * Used by SSE and other token-based (non-cookie) endpoints.
+ */
+export async function jwtVerify(token: string): Promise<JwtPayload> {
+  const result = await verifyToken(token);
+  if (!result) throw new Error('Invalid or expired token');
+  return result;
+}
+
 export async function verifyToken(token: string): Promise<JwtPayload | null> {
   try {
     const key = getSecretKey();
-    const { payload } = await jwtVerify(token, key);
+    const { payload } = await joseJwtVerify(token, key);
     return payload as unknown as JwtPayload;
   } catch {
     return null;

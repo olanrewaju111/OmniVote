@@ -142,7 +142,7 @@ export async function PATCH(req: NextRequest) {
         break;
 
       case 'REMOTE_WIPE':
-        // Simulate remote wipe — mark offline and log
+        // Remote wipe: marks device offline and logs the action. Actual MDM wipe requires a mobile device management integration (e.g. Firebase, Microsoft Intune).
         updated = await db.user.update({
           where: { id: userId },
           data: { isOnline: false, lastSeenAt: null },

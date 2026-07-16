@@ -1,3 +1,11 @@
+// ─── Database: SQLite ─────────────────────────────────────────────────────────
+// SQLite is used for development and single-server deployments.
+// For production with concurrent writes, migrate to PostgreSQL:
+//   1. Change provider to "postgresql" and update DATABASE_URL
+//   2. Run: npx prisma migrate dev --name init
+//   3. A PostgreSQL schema is provided at prisma/postgresql-schema.prisma
+// ────────────────────────────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -725,4 +733,11 @@ model AccessibilityReport {
   pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
   @@index([tenantId, pollingUnitId])
   @@index([tenantId, overallScore])
+}
+
+model RateLimitRecord {
+  email          String    @id
+  attemptCount   Int       @default(1)
+  firstAttempt   DateTime  @default(now())
+  lockedUntil    DateTime?
 }

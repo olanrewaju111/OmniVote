@@ -8,50 +8,61 @@ import {
   getAuthUser,
 } from '@/lib/auth';
 
-// ─── In-memory login rate limiter ─────────────────────────────────────────
-// Tracks failed login attempts per email. In production, replace with Redis.
-const loginAttempts = new Map<string, { count: number; firstAttempt: number; lockedUntil: number }>();
+// ─── SQLite-backed login rate limiter ───────────────────────────────────
+// Uses the database for persistence across server restarts.
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes window
 
-function isRateLimited(email: string): { limited: boolean; retryAfterMs?: number } {
-  const entry = loginAttempts.get(email.toLowerCase());
-  if (!entry) return { limited: false };
+async function isRateLimited(email: string): Promise<{ limited: boolean; retryAfterMs?: number }> {
+  try {
+    const record = await db.rateLimitRecord.findUnique({ where: { email: email.toLowerCase() } });
+    if (!record) return { limited: false };
 
-  const now = Date.now();
-
-  // If locked out, check if lockout period has passed
-  if (entry.lockedUntil > now) {
-    return { limited: true, retryAfterMs: entry.lockedUntil - now };
-  }
-
-  // If attempt window has passed, reset
-  if (now - entry.firstAttempt > ATTEMPT_WINDOW_MS) {
-    loginAttempts.delete(email.toLowerCase());
+    const now = Date.now();
+    if (record.lockedUntil && record.lockedUntil.getTime() > now) {
+      return { limited: true, retryAfterMs: record.lockedUntil.getTime() - now };
+    }
+    if (now - record.firstAttempt.getTime() > ATTEMPT_WINDOW_MS) {
+      await db.rateLimitRecord.delete({ where: { email: email.toLowerCase() } });
+      return { limited: false };
+    }
+    return { limited: false };
+  } catch {
+    // If DB is unreachable, allow the request (fail open)
     return { limited: false };
   }
-
-  return { limited: false };
 }
 
-function recordFailedAttempt(email: string): void {
-  const key = email.toLowerCase();
-  const now = Date.now();
-  const entry = loginAttempts.get(key);
+async function recordFailedAttempt(email: string): Promise<void> {
+  try {
+    const key = email.toLowerCase();
+    const now = new Date();
+    const existing = await db.rateLimitRecord.findUnique({ where: { email: key } });
 
-  if (!entry) {
-    loginAttempts.set(key, { count: 1, firstAttempt: now, lockedUntil: 0 });
-  } else {
-    entry.count++;
-    if (entry.count >= MAX_ATTEMPTS) {
-      entry.lockedUntil = now + LOCKOUT_DURATION_MS;
+    if (!existing) {
+      await db.rateLimitRecord.create({
+        data: { email: key, attemptCount: 1, firstAttempt: now, lockedUntil: null },
+      });
+    } else {
+      const newCount = existing.attemptCount + 1;
+      const lockedUntil = newCount >= MAX_ATTEMPTS ? new Date(Date.now() + LOCKOUT_DURATION_MS) : null;
+      await db.rateLimitRecord.update({
+        where: { email: key },
+        data: { attemptCount: newCount, lockedUntil },
+      });
     }
+  } catch {
+    // Non-fatal: rate limiting should never block login
   }
 }
 
-function clearAttempts(email: string): void {
-  loginAttempts.delete(email.toLowerCase());
+async function clearAttempts(email: string): Promise<void> {
+  try {
+    await db.rateLimitRecord.delete({ where: { email: email.toLowerCase() } });
+  } catch {
+    // Non-fatal
+  }
 }
 
 // ─── POST /api/auth — Login ────────────────────────────────────────────────
@@ -63,7 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limiting check
-    const rateCheck = isRateLimited(email);
+    const rateCheck = await isRateLimited(email);
     if (rateCheck.limited) {
       const retryAfterSecs = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
       return NextResponse.json(
@@ -85,7 +96,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!user) {
-      recordFailedAttempt(email);
+      await recordFailedAttempt(email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -106,12 +117,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!passwordValid) {
-      recordFailedAttempt(email);
+      await recordFailedAttempt(email);
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     // Successful login — clear rate limit counter
-    clearAttempts(email);
+    await clearAttempts(email);
 
     const tenant = await db.tenant.findUnique({ where: { id: user.tenantId } });
     if (!tenant) {

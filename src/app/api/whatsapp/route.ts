@@ -27,7 +27,14 @@ async function proxyToBridge(path: string, init?: RequestInit) {
   return NextResponse.json(data, { status: res.status });
 }
 
-// ─── In-memory mock state (survives hot reloads in dev) ───────────────
+// ─── Mock state (active when WHATSAPP_BRIDGE_URL is unreachable) ─────
+// In production, deploy the Go WhatsApp bridge service and set WHATSAPP_BRIDGE_URL
+// to enable real WhatsApp messaging. Without the bridge, all messages use
+// in-app delivery and the mock QR/session state below.
+//
+// NOTE: This in-memory state is lost on server restart and does not persist
+// across multiple server instances. For production, the Go bridge handles
+// all WhatsApp state. This mock exists only for development/demo purposes.
 const mockClients = new Map<string, {
   phone: string;
   jid: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2 } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -83,6 +83,32 @@ function inferSearchTab(query: string, userRole: string): ViewTab | null {
   return null;
 }
 
+function OfflineBanner() {
+  const [isOffline, setIsOffline] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    setIsOffline(!navigator.onLine);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOffline) return null;
+
+  return (
+    <div className="bg-amber text-amber-950 text-center text-xs font-medium py-1.5 px-4 flex items-center justify-center gap-2">
+      <WifiOff className="h-3.5 w-3.5" />
+      You are offline. Some features may be unavailable. Data will sync when connection is restored.
+    </div>
+  );
+}
+
 export function AppHeader({ kpis }: HeaderProps) {
   const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch } = useDashboardStore();
   const queryClient = useQueryClient();
@@ -144,6 +170,7 @@ export function AppHeader({ kpis }: HeaderProps) {
 
   return (
     <>
+      <OfflineBanner />
       <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
