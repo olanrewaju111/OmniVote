@@ -68,7 +68,7 @@ async function clearAttempts(email: string): Promise<void> {
 // ─── POST /api/auth — Login ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, tenantSlug } = await req.json();
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
@@ -86,9 +86,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find user across ALL tenants
+    // Find user — if tenantSlug provided, scope to that tenant for security
+    const whereClause = tenantSlug
+      ? { email, tenant: { slug: tenantSlug, isActive: true } }
+      : { email };
     const user = await db.user.findFirst({
-      where: { email },
+      where: whereClause,
       select: {
         id: true, email: true, name: true, role: true,
         tenantId: true, passwordHash: true, isLocked: true,

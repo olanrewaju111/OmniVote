@@ -385,3 +385,26 @@ Stage Summary:
 - Election CRUD and system health improvements (P1) also resolved
 - Production deployment verified: https://v10hw5v35e80-d.space-z.ai/ (HTTP 200)
 - GitHub push blocked: no credentials configured in environment
+---
+Task ID: tenant-login-pages
+Agent: Main Agent
+Task: Create tenant-specific login URLs (/t/[slug]) and logout redirect
+
+Work Log:
+- Diagnosed Next.js 16 production server crash: removed `output: "standalone"` from next.config.ts
+- Created `/t/[slug]` route with SSR-safe dynamic import wrapper
+- Created `TenantLogin` component in `/components/dashboard/tenant-login.tsx`
+- Updated `/api/tenants` to support public `?slug=xxx` lookup (no auth required)
+- Updated `/api/auth` POST to accept `tenantSlug` and scope user lookup to that tenant
+- Updated middleware to allow `/api/tenants` as public endpoint
+- Updated `LoginScreen` to navigate to `/t/[slug]` on tenant selection (removed inline credentials)
+- Updated `useDashboardStore.logout()` to redirect to `/t/{tenantSlug}` after logout
+- All 3 tenant login pages (presidential, governorship, local-gov) serve correctly
+- Branded login with tenant primary color, tier badge, and scoped authentication
+
+Stage Summary:
+- Tenant login URLs: /t/presidential, /t/governorship, /t/local-gov
+- Logout redirects to user's tenant login page
+- Auth scoped to tenant on branded login pages
+- Production build passes, tenant pages stable under 512MB memory limit
+- Root page (/) is too heavy for current memory constraints (needs optimization separately)

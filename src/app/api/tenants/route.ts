@@ -3,8 +3,23 @@ import { db } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 
 // GET /api/tenants — list all tenants (SUPER_ADMIN only in practice)
-export async function GET() {
+// GET /api/tenants?slug=xxx — public tenant lookup for branded login pages
+export async function GET(req: NextRequest) {
   try {
+    // Public slug lookup (no auth required) — used by /t/[slug] login pages
+    const { searchParams } = new URL(req.url);
+    const slug = searchParams.get('slug');
+    if (slug) {
+      const tenant = await db.tenant.findFirst({
+        where: { slug, isActive: true },
+        select: { id: true, name: true, slug: true, primaryColor: true },
+      });
+      if (!tenant) {
+        return NextResponse.json({ tenant: null }, { status: 200 });
+      }
+      return NextResponse.json({ tenant });
+    }
+
     const authUser = await getAuthUser(new Request(''));
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

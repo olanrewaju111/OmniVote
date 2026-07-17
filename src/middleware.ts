@@ -90,8 +90,8 @@ export async function middleware(req: NextRequest) {
   ].join(', '));
 
   // ─── Skip auth for non-API routes and public endpoints ──────────────────
-  // API auth routes and health check are public
-  const isPublicApi = pathname === '/api/auth' || pathname === '/api/health';
+  // API auth routes, health check, and tenant slug lookup are public
+  const isPublicApi = pathname === '/api/auth' || pathname === '/api/health' || pathname === '/api/tenants';
   // Static assets, _next internals, favicon, etc.
   const isStatic = pathname.startsWith('/_next') || pathname.startsWith('/static') || pathname === '/favicon.ico';
   // Non-API routes (the SPA page) — let client handle auth state

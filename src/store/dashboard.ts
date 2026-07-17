@@ -87,9 +87,14 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     set({ user, isAuthenticated: true, activeTab: defaultTab, alertFilter: 'ALL' });
   },
   logout: () => {
+    const currentSlug = get().user?.tenantSlug || '';
     // Clear server-side session
     fetch('/api/auth', { method: 'DELETE', credentials: 'include' }).catch(() => {});
     set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL', tenantId: '', unreadAlerts: 0, globalSearch: '' });
+    // Redirect to tenant-specific login page
+    if (currentSlug) {
+      window.location.href = `/t/${currentSlug}`;
+    }
   },
 
   // Election — server-driven, one tier per tenant
