@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
+import { sendEmail, passwordResetHtml, buildResetLink } from '@/lib/email';
 
 // POST /api/auth/forgot-password — request a password reset
 export async function POST(req: NextRequest) {
@@ -20,12 +21,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: 'If an account exists, a reset link has been sent.' });
     }
 
+    // Resolve tenant slug for branded reset link
+    const tenant = user.tenantId
+      ? await db.tenant.findUnique({ where: { id: user.tenantId }, select: { slug: true } })
+      : null;
+
     // Generate reset token (expires in 1 hour)
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Store reset token (in a real app, this would be Redis or a separate table)
-    // For now, we store it in the user's metadata via audit log
+    // Store reset token in audit log
     await db.auditLog.create({
       data: {
         userId: user.id,
@@ -37,9 +42,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // In production, send email via SMTP/SendGrid/etc.
-    // For now, log the reset token for demo purposes
-    console.log(`[PASSWORD RESET] Email: ${user.email}, Token: ${resetToken}, Expires: ${resetExpires.toISOString()}`);
+    // Send reset email (fire-and-forget — don't block response)
+    const resetLink = buildResetLink(resetToken, tenant?.slug || undefined);
+    const firstName = user.name?.split(' ')[0] || 'User';
+    const html = passwordResetHtml(firstName, resetLink);
+
+    sendEmail({
+      to: user.email,
+      subject: 'OmniVote — Password Reset Request',
+      html,
+    }).catch(() => {/* already logged inside sendEmail */});
 
     return NextResponse.json({
       success: true,
