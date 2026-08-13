@@ -96,9 +96,7 @@ function buildCoverR1(config) {
   const accentLeft = { style: BorderStyle.SINGLE, size: 8, color: P.accent, space: 12 };
   const accentBottom = { style: BorderStyle.SINGLE, size: 6, color: P.accent, space: 8 };
   const children = [];
-  // 1. Top whitespace
   children.push(new Paragraph({ spacing: { before: spacing.topSpacing }, children: [new TextRun({ text: "", size: 2 })] }));
-  // 2. English label with accent bottom border
   if (config.englishLabel) {
     children.push(new Paragraph({
       indent: { left: padL, right: padR }, spacing: { after: 500 },
@@ -107,7 +105,6 @@ function buildCoverR1(config) {
         size: 18, color: P.accent, font: { ascii: "Calibri" }, characterSpacing: 40, bold: true })],
     }));
   }
-  // 3. Main title
   for (let i = 0; i < titleLines.length; i++) {
     children.push(new Paragraph({
       indent: { left: padL },
@@ -116,7 +113,6 @@ function buildCoverR1(config) {
         color: P.titleColor, font: { ascii: "Arial" } })],
     }));
   }
-  // 4. Subtitle
   if (config.subtitle) {
     children.push(new Paragraph({
       indent: { left: padL }, spacing: { after: 800 },
@@ -124,7 +120,6 @@ function buildCoverR1(config) {
         font: { ascii: "Calibri" } })],
     }));
   }
-  // 5. Meta info lines with left accent border
   for (const line of (config.metaLines || [])) {
     children.push(new Paragraph({
       indent: { left: padL + 200 }, spacing: { after: 80 },
@@ -132,9 +127,7 @@ function buildCoverR1(config) {
       children: [new TextRun({ text: line, size: 22, color: P.metaColor, font: { ascii: "Calibri" } })],
     }));
   }
-  // 6. Bottom whitespace
   children.push(new Paragraph({ spacing: { before: spacing.bottomSpacing }, children: [new TextRun({ text: "", size: 2 })] }));
-  // 7. Footer with top accent separator
   children.push(new Paragraph({
     indent: { left: padL, right: padR },
     border: { top: { style: BorderStyle.SINGLE, size: 2, color: P.accent, space: 8 } },
@@ -272,18 +265,20 @@ function bodyHeader() {
     children: [new TextRun({ text: "APC State Campaign Office \u2014 Comprehensive Proposal", size: 18, color: "808080", font: { ascii: "Calibri" }, italics: true })],
   })] });
 }
+
 // ═══════════════════════════════════════════════════════════════
 // DOCUMENT CONTENT
 // ═══════════════════════════════════════════════════════════════
 
 const bodyContent = [
+  // ═══ 1. EXECUTIVE SUMMARY ═══
   h1("1. Executive Summary"),
   body("This proposal presents a comprehensive, technology-enabled solution for establishing a fully operational APC State Campaign Office that serves as the central nervous system for all electoral activities within the state. The proposed framework addresses the critical need for a centralised command structure that integrates voter data management, real-time communication, field coordination, election monitoring, volunteer mobilisation, financial tracking, and security governance into a single, cohesive platform. In an era where political campaigns are increasingly won or lost on the strength of operational efficiency and data-driven decision-making, the APC must leverage modern campaign technology to maintain its competitive advantage across all senatorial districts and local government areas."),
   body("The solution centres on four interconnected pillars: a robust digital infrastructure comprising eight integrated platform modules that provide real-time analytics, voter intelligence, and operational control; an organised field operations framework that empowers ward-level coordinators with mobile tools and standardised processes; an integrated multi-channel communication system that ensures seamless information flow between the state headquarters, zone coordinators, and grassroots volunteers; and a comprehensive security and compliance layer that protects sensitive voter data and ensures adherence to INEC regulations. Together, these pillars create a campaign operation that is responsive, accountable, and capable of adapting to changing electoral dynamics throughout the campaign cycle."),
   body("The platform encompasses eight core modules: a Voter Intelligence Database with advanced segmentation and predictive analytics; a Real-Time Analytics Dashboard with geospatial visualisation and drill-down capabilities; a Field Coordination Mobile Application with offline-first architecture; an Election Monitoring and Incident Response System with structured escalation workflows; a Communication and Messaging Hub supporting SMS, WhatsApp, email, and in-app notifications; a Volunteer Management System with recruitment pipelines and performance tracking; a Financial Tracking and Resource Management module with budget controls and inventory management; and a Security, Compliance, and Data Governance module with role-based access control, encryption, and audit logging."),
   body("The estimated total investment for the initial setup and first six months of operation is approximately N85 million, covering technology infrastructure, staffing, training, logistics, and contingency reserves. This investment is projected to yield measurable improvements in voter outreach coverage, volunteer mobilisation rates, incident response times, and overall electoral performance. The implementation roadmap spans twelve weeks from approval to full operational capability."),
 
-  // ── 2 ──
+  // ═══ 2. CURRENT STATE ═══
   h1("2. Current State and Problem Analysis"),
   h2("2.1 Existing Campaign Infrastructure"),
   body("The current state of APC state-level campaign operations across most Nigerian states relies heavily on informal organisational structures that have remained largely unchanged since the 2015 general elections. Field coordinators typically operate from personal residences or rented spaces that lack consistent power supply, internet connectivity, and basic office equipment. Communication between the state headquarters and ward-level units depends on personal mobile phone calls and WhatsApp groups, which, while effective for simple messaging, lack the structure, auditability, and scalability required for a modern campaign managing hundreds of thousands of voter interactions across geographically dispersed polling units."),
@@ -306,8 +301,9 @@ const bodyContent = [
   h2("2.3 Strategic Implications"),
   body("The cumulative effect of these challenges is a campaign operation that reacts slowly to emerging situations, fails to capitalise on favourable voter dynamics, and cannot provide state-level leadership with the timely intelligence needed for strategic decision-making. In closely contested states where margins of victory can be as narrow as a few thousand votes, these operational deficiencies translate directly into lost votes and, ultimately, lost elections. The 2023 electoral cycle demonstrated that opposition parties who invested in centralised campaign technology and data-driven field operations were able to achieve significant gains in previously safe APC territories."),
 
-  // ── 3 ──
+  // ═══ 3. GOALS ═══
   h1("3. Goals and Expected Outcomes"),
+  h2("3.1 Primary Objectives"),
   makeTable(
     ["Objective", "KPI", "Target"],
     [
@@ -326,7 +322,7 @@ const bodyContent = [
   body("Upon full implementation, the state campaign office will operate as a professional, data-driven organisation capable of supporting thousands of field operatives across all local government areas. The centralised voter intelligence system will enable micro-targeting of campaign messages to specific demographic groups, issue-based voter engagement at the polling unit level, and predictive modelling of voter turnout that allows the campaign to focus resources where they will have the greatest electoral impact. The integrated monitoring and incident response framework will provide the party with an unprecedented ability to detect, report, and escalate electoral irregularities in real time."),
   body("Furthermore, the communication infrastructure will persist beyond election day, providing the party with a permanent organising platform for governance engagement, membership mobilisation, and future electoral preparation. The institutional knowledge captured through the platform's data layers and operational logs will accumulate across election cycles, building a permanent competitive advantage that grows stronger with each successive campaign."),
 
-  // ── 4 ──
+  // ═══ 4. SOLUTION ARCHITECTURE ═══
   h1("4. Solution Architecture Overview"),
   h2("4.1 High-Level System Architecture"),
   body("The campaign technology platform follows a modern, cloud-native microservices architecture designed for scalability, reliability, and rapid iteration. The system is organised into four architectural layers: the Presentation Layer comprising the web dashboard and mobile applications; the Application Layer containing the eight core platform modules as independent microservices; the Data Layer managing persistent storage, caching, and search indexing; and the Infrastructure Layer providing cloud hosting, content delivery, and security services. Each layer communicates through well-defined APIs, enabling independent scaling, deployment, and maintenance of individual components."),
@@ -351,15 +347,31 @@ const bodyContent = [
   tableCaption("Table 3: Technology Stack"),
   h2("4.3 Data Flow Architecture"),
   body("Data flows through the platform in a structured pipeline ensuring consistency, auditability, and real-time availability. Field data captured through the mobile application is first stored locally in an encrypted SQLite database, then synchronised to the central server via a queued replication mechanism with conflict resolution using last-write-wins with operational transformation for concurrent edits. The event-driven architecture uses a message broker to decouple modules, ensuring reliable data propagation. When an incident report is submitted, the event triggers simultaneous notifications to the monitoring dashboard, the communications module, and the analytics engine, all without blocking the original submission."),
+  h2("4.4 API Architecture and Integration Points"),
+  body("All inter-module communication is mediated through a centralised API Gateway that handles authentication, rate limiting, request validation, and routing. Each module exposes a RESTful API following OpenAPI 3.0 specifications with versioned endpoints. The gateway enforces per-role rate limits to prevent abuse and ensures that all requests are logged to the audit trail. Webhook subscriptions allow external systems to receive real-time event notifications for integration with INEC result portals, media monitoring services, and third-party analytics tools."),
+  makeTable(
+    ["Module", "Key API Endpoints", "Authentication", "Rate Limit"],
+    [
+      ["VID", "GET /voters, POST /segments, GET /search", "JWT + RBAC", "100 req/min"],
+      ["Dashboard", "GET /widgets, GET /kpi, WS /live", "JWT + RBAC", "200 req/min"],
+      ["Field App", "POST /visits, POST /incidents, GET /tasks", "JWT + Device", "50 req/min"],
+      ["Monitoring", "GET /incidents, PUT /escalate, WS /situations", "JWT + RBAC", "150 req/min"],
+      ["Comms", "POST /broadcast, GET /templates, POST /whatsapp", "JWT + RBAC", "80 req/min"],
+      ["VMS", "GET /volunteers, POST /shifts, GET /leaderboard", "JWT + RBAC", "60 req/min"],
+      ["Finance", "POST /expenses, PUT /approve, GET /budget", "JWT + RBAC", "40 req/min"],
+      ["Security", "GET /audit, POST /roles, GET /compliance", "MFA + Admin", "30 req/min"],
+    ]
+  ),
+  tableCaption("Table 4: API Endpoint Summary"),
 
-  // ── 5 ──
-  h1("5. Platform Modules — Detailed Specification"),
-  body("This section provides in-depth technical and functional specifications for each of the eight core platform modules, covering purpose, features, data models, user interface components, integration points, and performance requirements."),
+  // ═══ 5. PLATFORM MODULES ═══
+  h1("5. Platform Modules \u2014 Detailed Specification"),
+  body("This section provides in-depth technical and functional specifications for each of the eight core platform modules, covering purpose, features, data models, user interface components, integration points, performance requirements, user flows, and edge case handling."),
 
-  // 5.1 VID
-  h2("5.1 Voter Intelligence Database"),
+  // ── 5.1 VOTER INTELLIGENCE DATABASE ──
+  h2("5.1 Voter Intelligence Database (VID)"),
   h3("5.1.1 Module Overview"),
-  body("The Voter Intelligence Database (VID) is the foundational data module serving as the single source of truth for all voter-related information. It consolidates data from INEC official voter registers, party membership databases, field survey responses, previous election result datasets, and real-time interaction logs. The VID supports complex queries, multi-dimensional segmentation, and predictive analytics that drive all other platform modules."),
+  body("The Voter Intelligence Database (VID) is the foundational data module serving as the single source of truth for all voter-related information. It consolidates data from INEC official voter registers, party membership databases, field survey responses, previous election result datasets, and real-time interaction logs. The VID supports complex queries, multi-dimensional segmentation, and predictive analytics that drive all other platform modules. The database is designed to handle up to five million voter records per state with sub-500-millisecond query response times, even under concurrent access from hundreds of field agents and dashboard users."),
   h3("5.1.2 Data Model"),
   makeTable(
     ["Domain", "Key Fields", "Source", "Refresh"],
@@ -372,19 +384,37 @@ const bodyContent = [
       ["Predictive Scores", "Turnout probability, party affinity", "ML model output", "Bi-weekly"],
     ]
   ),
-  tableCaption("Table 4: Voter Data Domains"),
+  tableCaption("Table 5: Voter Data Domains"),
   h3("5.1.3 Key Features"),
-  body("Advanced Search and Filtering: Full-text search across all voter fields using Elasticsearch, with filters for any combination of attributes. Users save complex filter combinations as named segments. Search results return in under 500 milliseconds with instant type-ahead suggestions displaying matching names with polling unit context."),
-  body("Dynamic Segmentation Engine: Rule-based dynamic segments that automatically update as new data flows in. Supports AND/OR/NOT logic with nested conditional groups. A segment like 'First-time voters aged 18-25 in urban LGAs with high persuadability not yet contacted' grows or shrinks automatically, eliminating manual re-querying."),
-  body("Voter Profile Dashboard: 360-degree profile view with interaction timeline, polling unit map, demographic cards, engagement heat maps, and predictive score gauges. Tabbed layout with Overview, Interactions, Predictive Scores, and Map tabs."),
-  body("Data Import and Deduplication: Robust import pipeline accepting CSV, Excel, and JSON with configurable field mapping. Automated fuzzy matching on name, address, and VIN for deduplication. Data quality dashboards track completeness, accuracy, and freshness per domain."),
-  h3("5.1.4 UI Screens"),
-  body("The VID web interface comprises five primary screens: Search and Explore (search bar + left filter panel + results table), Segment Builder (visual drag-and-drop rule builder with live count previews), Voter Profile (tabbed layout with Overview, Interactions, Scores, Map), Data Import (multi-step wizard: upload, map, validate, confirm), and Data Quality Dashboard (completeness heat maps, accuracy charts, deduplication queue). Each screen has a consistent toolbar with Export, Print, Save Segment, and Share actions."),
+  body("Advanced Search and Filtering: Full-text search across all voter fields using Elasticsearch, with filters for any combination of attributes. Users save complex filter combinations as named segments. Search results return in under 500 milliseconds with instant type-ahead suggestions displaying matching names with polling unit context. The search index is incrementally updated within three seconds of any data change, ensuring field agents always see the most current information."),
+  body("Dynamic Segmentation Engine: Rule-based dynamic segments that automatically update as new data flows in. Supports AND/OR/NOT logic with nested conditional groups. A segment like 'First-time voters aged 18-25 in urban LGAs with high persuadability not yet contacted' grows or shrinks automatically, eliminating manual re-querying. Segments can be shared across teams with read-only or edit permissions, and any segment can be exported directly to the Communication Hub as a messaging audience."),
+  body("Voter Profile Dashboard: 360-degree profile view with interaction timeline, polling unit map, demographic cards, engagement heat maps, and predictive score gauges. Tabbed layout with Overview, Interactions, Predictive Scores, and Map tabs. The Overview tab displays a summary card grid showing PVC status, last contact date, sentiment trend sparkline, and assigned coordinator. The Interactions tab presents a chronological activity feed with filterable event types."),
+  body("Data Import and Deduplication: Robust import pipeline accepting CSV, Excel, and JSON with configurable field mapping. Automated fuzzy matching on name, address, and VIN for deduplication using a probabilistic record linkage algorithm with configurable similarity thresholds. Data quality dashboards track completeness, accuracy, and freshness per domain. The import wizard supports preview-before-commit, allowing users to verify mappings and resolve duplicates interactively before finalising."),
+  h3("5.1.4 Voter Lifecycle Management"),
+  body("Every voter record progresses through a defined engagement lifecycle: New (imported, no contact), Contacted (first outreach attempted), Engaged (meaningful interaction recorded), Persuaded (positive sentiment shift detected), Committed (verbal or written pledge of support), and Mobilised (confirmed transport or polling day plan). Status transitions are triggered either manually by field agents or automatically by the system based on configurable rules, such as a sentiment score crossing a threshold or multiple positive interactions within a defined period."),
+  makeTable(
+    ["Status", "Definition", "Trigger Condition", "Action Required"],
+    [
+      ["New", "Imported, no prior contact", "Initial data import", "Assign to coordinator"],
+      ["Contacted", "First outreach attempted", "Visit/call logged", "Follow-up scheduled"],
+      ["Engaged", "Meaningful interaction recorded", "Visit with positive notes", "Issue-based messaging"],
+      ["Persuaded", "Sentiment shift positive", "Sentiment score above 0.7", "Intensify engagement"],
+      ["Committed", "Pledge of support recorded", "Verbal/written pledge logged", "Mobilisation planning"],
+      ["Mobilised", "Polling day plan confirmed", "Transport/location confirmed", "Day-of reminders"],
+      ["Declined", "Explicit opposition stated", "Negative sentiment + refusal", "Remove from active list"],
+    ]
+  ),
+  tableCaption("Table 6: Voter Engagement Lifecycle"),
+  h3("5.1.5 Data Governance and Quality Framework"),
+  body("The VID implements a comprehensive data governance framework ensuring data integrity, consistency, and regulatory compliance. Every data modification is tracked with the user ID, timestamp, previous value, and new value in an immutable audit trail. Data quality rules enforce mandatory field completion (e.g., PVC number, polling unit code must not be null), format validation (phone numbers must match Nigerian formats), and referential integrity (ward codes must exist in the geographic hierarchy). Automated data quality reports are generated daily, scoring each LGA's data on completeness, accuracy, timeliness, and uniqueness."),
+  body("Bulk data operations are performed through a dedicated Bulk Operations Centre accessible to Data Director and IT Admin roles only. Operations include bulk status updates, bulk assignment reassignment, bulk segment tagging, and data purging for records flagged as invalid. All bulk operations require confirmation with a preview of affected records and an optional dry-run mode that logs what would change without executing. A rollback mechanism allows reverting any bulk operation within 24 hours."),
+  h3("5.1.6 UI Screens"),
+  body("The VID web interface comprises six primary screens: Search and Explore (search bar with type-ahead plus left filter panel with collapsible sections for demographics, geography, electoral history, and engagement plus results data table with sortable columns and inline preview), Segment Builder (visual drag-and-drop rule builder with live count previews showing matching voter count and distribution), Voter Profile (tabbed layout with Overview, Interactions, Scores, Map), Data Import (multi-step wizard: upload, map, validate, confirm with progress indicators), Data Quality Dashboard (completeness heat maps, accuracy charts, deduplication queue with side-by-side comparison), and Bulk Operations Centre (operation selector, scope definition, preview, confirm, and history log). Each screen has a consistent toolbar with Export, Print, Save Segment, and Share actions."),
 
-  // 5.2 Dashboard
+  // ── 5.2 ANALYTICS DASHBOARD ──
   h2("5.2 Real-Time Analytics Dashboard"),
   h3("5.2.1 Module Overview"),
-  body("The Analytics Dashboard is the primary command-and-control interface for state-level leadership, providing a live, interactive overview of all campaign activities through an intuitive visual interface. It is accessible via web browser with responsive layouts for tablets, and supports configurable widget grids that users personalise by adding, removing, rearranging, and resizing widgets."),
+  body("The Analytics Dashboard is the primary command-and-control interface for state-level leadership, providing a live, interactive overview of all campaign activities through an intuitive visual interface. It is accessible via web browser with responsive layouts for tablets, and supports configurable widget grids that users personalise by adding, removing, rearranging, and resizing widgets. The dashboard loads within two seconds on standard broadband and maintains real-time data freshness through WebSocket connections that push incremental updates without full page reloads."),
   makeTable(
     ["Widget", "Description", "Data Source", "Refresh"],
     [
@@ -400,15 +430,31 @@ const bodyContent = [
       ["Communication Reach", "Sent/delivered/read/responded by channel", "Comms Hub", "Hourly"],
     ]
   ),
-  tableCaption("Table 5: Dashboard Widget Inventory"),
+  tableCaption("Table 7: Dashboard Widget Inventory"),
   h3("5.2.2 Interaction Features"),
   body("Drill-Down Navigation: Every widget supports click-through to progressively detailed views. Clicking an LGA on the map opens ward-level metrics; clicking a ward reveals voter-level data. Breadcrumb trails at the top allow jumping back to any hierarchy level. Cross-Widget Filtering: Selecting an LGA on the map automatically filters all other widgets to that LGA. A global filter bar provides persistent date range, LGA, and coordinator filters across all widgets."),
-  body("Alert and Notification System: Intelligent alert engine monitors all streams for conditions requiring attention. Critical alerts trigger on-screen notifications with audible chimes and support escalation chains for unanswered alerts. Users acknowledge, assign, and add notes creating an audit trail. Report Generation: One-click PDF and Excel reports with configurable templates, respecting user-level data permissions. Scheduled auto-distribution via email."),
+  body("Alert and Notification System: Intelligent alert engine monitors all streams for conditions requiring attention. Critical alerts trigger on-screen notifications with audible chimes and support escalation chains for unanswered alerts. Users acknowledge, assign, and add notes creating an audit trail. Report Generation: One-click PDF and Excel reports with configurable templates, respecting user-level data permissions. Scheduled auto-distribution via email to configured recipient lists."),
+  h3("5.2.3 Role-Based Dashboard Templates"),
+  body("Rather than requiring every user to build their dashboard from scratch, the system provides pre-configured templates tailored to each organisational role. These templates can be used as-is or customised. The Campaign Director template emphasises high-level KPI cards, the geospatial map, incident tracker, and budget burn rate. The Data Analyst template prioritises sentiment trends, voter coverage metrics, data quality scores, and advanced filter controls. The Field Operations Director template highlights the activity timeline, volunteer heatmap, material distribution, and route coverage."),
+  makeTable(
+    ["Role", "Primary Widgets", "Layout", "Data Access"],
+    [
+      ["Campaign Director", "KPI Cards, Map, Incidents, Budget", "2x2 grid + sidebar", "Full state"],
+      ["Data Analyst", "Sentiment, Coverage, Quality, Predictions", "3-column analytical", "Full + export"],
+      ["DD Field Ops", "Timeline, Volunteers, Materials, Routes", "Operations-focused", "Assigned LGAs"],
+      ["DD Comms", "Reach, Sentiment, Response Rates", "Communications-focused", "Segment-level"],
+      ["Zonal Coordinator", "LGA Map, Tasks, Volunteers, Incidents", "Compact mobile-adjacent", "Assigned LGA only"],
+    ]
+  ),
+  tableCaption("Table 8: Role-Based Dashboard Templates"),
+  h3("5.2.4 Real-Time Data Pipeline"),
+  body("The dashboard's real-time capability is powered by a multi-layer data pipeline. A WebSocket server maintains persistent connections with all active dashboard sessions, pushing incremental data updates as they occur. For high-frequency data (incidents, alert counts), updates stream within two seconds of the originating event. For moderate-frequency data (KPI aggregations, volunteer counts), a polling interval of thirty seconds balances freshness with server load. The WebSocket connection includes automatic reconnection with exponential backoff, and a connection status indicator in the header shows green (connected), yellow (reconnecting), or red (disconnected) with a manual refresh button."),
+  body("Client-side caching ensures that navigating between dashboard views is instantaneous. The dashboard framework implements optimistic UI updates, where user actions (like acknowledging an alert) immediately update the local display before server confirmation arrives. If the server rejects the action, the UI smoothly reverts with an explanatory toast notification, ensuring the user experience never feels sluggish even on variable network conditions."),
 
-  // 5.3 Field App
+  // ── 5.3 FIELD APP ──
   h2("5.3 Field Coordination Mobile Application"),
   h3("5.3.1 Module Overview"),
-  body("The Field Coordination Mobile Application is the primary tool for ward coordinators, field agents, and election observers. Built with React Native for cross-platform deployment, it provides comprehensive field operations tools that work seamlessly across all connectivity conditions through an offline-first architecture with automatic transparent synchronisation."),
+  body("The Field Coordination Mobile Application is the primary tool for ward coordinators, field agents, and election observers. Built with React Native for cross-platform deployment, it provides comprehensive field operations tools that work seamlessly across all connectivity conditions through an offline-first architecture with automatic transparent synchronisation. The application is designed for Android 8.0+ devices, covering over 95% of the Nigerian smartphone market, with a target APK size of under 40MB to accommodate devices with limited storage."),
   makeTable(
     ["Feature", "Description", "Offline", "Screen Flow"],
     [
@@ -424,16 +470,39 @@ const bodyContent = [
       ["Sync Dashboard", "View sync status, conflicts, manual trigger", "N/A", "Profile > Sync Status > Details"],
     ]
   ),
-  tableCaption("Table 6: Field App Feature Matrix"),
+  tableCaption("Table 9: Field App Feature Matrix"),
   h3("5.3.2 Offline-First Architecture"),
-  body("A local SQLite database mirrors the server schema for the user's assigned area. Initial data download (50-100 MB) prioritises critical data and defers large files to Wi-Fi. All offline modifications are recorded in a local change log with timestamps. Upon reconnection, the sync engine processes changes chronologically with configurable conflict resolution: merge for interaction logs, latest-timestamp-wins for task updates, server-precedence for deletions. A dedicated conflict resolution interface presents both versions side by side with diff highlighting."),
+  body("A local SQLite database mirrors the server schema for the user's assigned area. Initial data download (50-100 MB) prioritises critical data and defers large files to Wi-Fi. All offline modifications are recorded in a local change log with timestamps. Upon reconnection, the sync engine processes changes chronologically with configurable conflict resolution: merge for interaction logs, latest-timestamp-wins for task updates, server-precedence for deletions. A dedicated conflict resolution interface presents both versions side by side with diff highlighting, allowing the user to choose which version to keep or merge selected fields from each."),
+  body("The sync engine uses a priority queue system where urgent data (incident reports, emergency alerts) is synchronised first, followed by operational data (visit logs, task updates), and finally reference data (voter records, segment definitions). A progress indicator in the notification bar shows sync activity with item count. Users can manually trigger sync from the profile screen, and the app automatically attempts sync when transitioning from background to foreground, when connectivity changes are detected, and at configurable intervals."),
   h3("5.3.3 Screen-by-Screen UI Specification"),
   body("The app uses a bottom navigation bar with five tabs: Home, Voters, Report, Messages, Profile. The Home screen shows a personalised greeting, task count with circular progress indicator, pending message badges, a horizontal scrollable quick-action bar (Log Visit, Report Incident, Check-In, Survey), and a prioritised task list. The Voters tab opens to a search-first interface with recently viewed voters and filter chips. The Report tab shows a card-based layout with colour-coded severity indicators and a prominent floating action button."),
   body("The Messages tab uses a conversation list with unread badges and last message preview. Individual conversations display messages in a familiar bubble layout: sent messages right-aligned in green-tinted bubbles, received messages left-aligned in white bubbles. The Profile tab provides settings, sync status (green check/orange spinner/red exclamation), language selection, notification preferences, and help. All touch targets are minimum 48x48dp with high-contrast text for outdoor use."),
-  h3("5.3.4 Onboarding Flow"),
-  body("First-launch experience: Step 1 - Welcome screen with APC logo and app introduction. Step 2 - Credential entry (phone + OTP) and terms acceptance. Step 3 - Initial data download with progress bar showing data categories and estimated time. Step 4 - Guided tour of the home screen using translucent tooltip overlays highlighting each UI element. Users can skip and access the tour later. After onboarding, a 'Getting Started' checklist guides first key actions: complete profile, log first visit, send first message, submit first report."),
+  h3("5.3.4 Form Builder and Dynamic Data Collection"),
+  body("The Field App includes a dynamic form engine that renders data collection forms defined by administrators in the web dashboard. This eliminates the need for app updates when survey questions change or new form types are introduced. Form field types supported include: single-line and multi-line text, numeric input with min/max validation, single-select and multi-select dropdowns, radio button groups, checkbox groups, date and time pickers, photo capture with automatic compression and geotagging, barcode/QR scanning, signature capture, and cascading selectors."),
+  body("Each form supports conditional skip logic where the visibility of subsequent questions depends on previous answers. For example, if a respondent indicates they have not collected their PVC, the form skips detailed voting intention questions and instead shows a PVC collection guidance section. Forms also support field validation rules (required, minimum length, numeric range, phone format) with inline error messages. Form submissions are encrypted and queued for sync, with a local draft auto-save every thirty seconds to prevent data loss if the app is closed unexpectedly."),
+  makeTable(
+    ["Field Type", "Mobile UI Component", "Validation", "Offline Support"],
+    [
+      ["Text (short)", "Single-line input with character counter", "Max length, pattern", "Full"],
+      ["Text (long)", "Multi-line textarea with counter", "Max length, required", "Full"],
+      ["Numeric", "Numeric keypad, min/max bounds", "Range, integer/decimal", "Full"],
+      ["Single Select", "Bottom sheet picker with search", "Required, default", "Full"],
+      ["Multi Select", "Chip-based selector with count", "Min/max selections", "Full"],
+      ["Photo", "In-app camera with compression", "Max file size, geotag", "Full (store locally)"],
+      ["Location (GPS)", "Map pin drop + accuracy circle", "Accuracy threshold", "Full"],
+      ["Barcode/QR", "In-app scanner with auto-focus", "Format validation", "Full"],
+      ["Signature", "Finger-draw canvas", "Required stroke count", "Full"],
+      ["Cascading Select", "Linked dropdowns (LGA > Ward > PU)", "Dependency chain", "Full"],
+    ]
+  ),
+  tableCaption("Table 10: Dynamic Form Field Types"),
+  h3("5.3.5 GPS and Location Services"),
+  body("Location services are critical for field verification and incident reporting. The app requests location permission on first use with a clear explanation of why it is needed. GPS accuracy requirements vary by function: check-in requires 50-metre accuracy, incident reports require 100-metre accuracy, and route optimisation uses 200-metre accuracy to balance precision with battery consumption. When GPS signal is unavailable, the app falls back to network-based location estimation and displays the accuracy level to the user."),
+  body("Battery optimisation is a primary design concern. The app uses a combination of strategies: significant location changes (triggers only when the device moves more than 500 metres) rather than continuous tracking, adaptive GPS polling intervals that increase when the device is stationary, background sync throttling on low battery (below 20%), and automatic pause of non-essential services during active phone calls. A battery usage screen in the Profile tab shows current drain rate and tips for extending battery life during long field days."),
+  h3("5.3.6 Onboarding Flow"),
+  body("First-launch experience: Step 1 - Welcome screen with APC logo and app introduction. Step 2 - Credential entry (phone + OTP) and terms acceptance. Step 3 - Initial data download with progress bar showing data categories and estimated time remaining. Step 4 - Guided tour of the home screen using translucent tooltip overlays highlighting each UI element with swipe-through navigation. Users can skip and access the tour later from Profile. After onboarding, a 'Getting Started' checklist on the Home screen guides first key actions: complete profile, log first visit, send first message, submit first report."),
 
-  // 5.4 Monitoring
+  // ── 5.4 ELECTION MONITORING ──
   h2("5.4 Election Monitoring and Incident Response"),
   h3("5.4.1 Incident Classification"),
   makeTable(
@@ -449,12 +518,28 @@ const bodyContent = [
       ["Logistics Issues", "Late materials, insufficient ballots", "2-3", "Escalate to logistics unit"],
     ]
   ),
-  tableCaption("Table 7: Incident Classification Framework"),
-  h3("5.4.2 Observer Management and Situation Room"),
-  body("Observers complete mandatory training via the LMS module, then check in via GPS-verified proximity (100m radius of assigned PU). The situation room displays a real-time state map with colour-coded PU indicators: green (normal), yellow (minor issues), orange (active investigation), red (critical intervention needed). The display auto-cycles through alert summaries every thirty seconds showing severity, location, and response status. A cumulative incident counter, severity distribution pie chart, and escalation status tracker complete the situation room view."),
+  tableCaption("Table 11: Incident Classification Framework"),
+  h3("5.4.2 Escalation Workflow"),
+  body("The incident escalation system follows a structured four-level workflow designed to ensure that every incident receives an appropriate response within defined timeframes. Level 1 (Ward) is handled by the on-site observer or ward coordinator who reports the incident and provides initial assessment. Level 2 (LGA) escalation is triggered when the ward coordinator cannot resolve the issue or when severity exceeds predefined thresholds. Level 3 (State HQ) escalation activates the situation room team, legal support, and potentially law enforcement liaisons for severity 4-5 incidents. Level 4 (National) escalation is reserved for incidents with state-wide implications."),
+  makeTable(
+    ["Level", "Responder", "Trigger", "Max Response Time", "Actions"],
+    [
+      ["1", "Ward Observer", "Any incident", "Immediate", "Report, assess, document"],
+      ["2", "LGA Coordinator", "Severity 3+ or unresolved", "15 minutes", "Mobilise resources, contact INEC LGA"],
+      ["3", "State Situation Room", "Severity 4-5 or pattern", "30 minutes", "Legal, security, media response"],
+      ["4", "National HQ", "Systematic or critical", "1 hour", "National coordination, public response"],
+    ]
+  ),
+  tableCaption("Table 12: Escalation Response Matrix"),
+  h3("5.4.3 Observer Management and Situation Room"),
+  body("Observers complete mandatory training via the LMS module, passing a certification quiz before receiving polling unit assignments. On election day, observers check in via GPS-verified proximity (within 100-metre radius of assigned PU), confirming their physical presence before the monitoring system activates their incident reporting capabilities. The situation room displays a real-time state map with colour-coded PU indicators: green (normal operations), yellow (minor issues reported), orange (active investigation or escalation underway), red (critical intervention required), and grey (observer not yet checked in)."),
+  body("The situation room interface is designed for wall-mounted displays and supports multiple simultaneous views. The primary view shows the full state map with aggregate statistics in a side panel: total PUs, observer check-in rate, active incidents by severity, and escalation status distribution. A secondary view cycles through individual incident cards showing photo evidence, description, assigned responder, and time-since-report. The situation room audio system provides spoken alerts for new critical incidents."),
+  h3("5.4.4 Automated Pattern Detection"),
+  body("Beyond individual incident response, the monitoring module includes an automated pattern detection engine that analyses incoming incident reports in real time to identify systemic issues. The engine uses spatial clustering algorithms (DBSCAN) to detect geographic concentrations of incidents that may indicate coordinated manipulation, temporal analysis to identify spikes in incident rates that deviate from baseline patterns, and categorical correlation to find relationships between incident types that suggest organised electoral fraud. When a pattern is detected, the system automatically generates a Situation Brief delivered to the Campaign Director and relevant Deputy Directors, including a summary narrative, affected areas, incident count, severity distribution, and recommended response actions."),
 
-  // 5.5 Comms Hub
+  // ── 5.5 COMMUNICATION HUB ──
   h2("5.5 Communication and Messaging Hub"),
+  h3("5.5.1 Feature Inventory"),
   makeTable(
     ["Feature", "Description", "UI Element", "Automation"],
     [
@@ -469,27 +554,67 @@ const bodyContent = [
       ["Emergency Alert", "Override for critical immediate delivery", "Red alert button (top-right)", "Immediate + read confirmation"],
     ]
   ),
-  tableCaption("Table 8: Communication Hub Features"),
-  body("The hub integrates with the VID segmentation engine for audience selection. A manager can target 'Undecided voters aged 25-40 with high turnout probability not yet contacted' and the system resolves this to phone numbers instantly. Communication history appears in voter profiles for field agent context. Frequency controls prevent over-messaging with configurable per-day, per-week, and per-campaign limits. Opt-out management respects unsubscribe requests across all channels automatically."),
+  tableCaption("Table 13: Communication Hub Features"),
+  h3("5.5.2 Template Engine and Personalisation"),
+  body("The template engine supports rich message templates with variable placeholders that are dynamically populated from voter records. Available merge fields include: first name, last name, polling unit name, ward, LGA, assigned coordinator name, nearest collation centre, PVC collection point, and custom fields from the engagement history. Templates support conditional blocks, allowing message content to vary based on voter attributes. For example, a single template can render different content for voters who have collected their PVC versus those who have not, using conditional syntax."),
+  makeTable(
+    ["Merge Field", "Source", "Example Output", "Format"],
+    [
+      ["{{first_name}}", "VID Demographics", "Aisha", "Plain text"],
+      ["{{polling_unit}}", "VID Geographic", "PU 012/034/005", "Plain text"],
+      ["{{ward}}", "VID Geographic", "Ward 03 - Badawa", "Plain text"],
+      ["{{pvc_status}}", "VID Electoral", "Collected / Not Collected", "Conditional"],
+      ["{{coordinator_name}}", "Org Structure", "Malam Ibrahim", "Plain text"],
+      ["{{collection_centre}}", "Logistics Module", "Central Primary School", "Plain text"],
+      ["{{sentiment}}", "VID Predictive", "Positive / Neutral / Negative", "Conditional"],
+      ["{{last_contact_date}}", "VID Engagement", "12 August 2026", "Date formatted"],
+    ]
+  ),
+  tableCaption("Table 14: Message Template Merge Fields"),
+  h3("5.5.3 Delivery Optimisation and Channel Strategy"),
+  body("The Communication Hub implements intelligent delivery optimisation to maximise message reach while minimising cost and recipient fatigue. An AI-driven send-time optimiser analyses historical engagement data to determine the optimal delivery window for each recipient, scheduling messages during periods of highest likely engagement. For SMS, the system implements message concatenation for messages exceeding 160 characters and supports Unicode encoding for messages in Hausa, Yoruba, or Igbo languages."),
+  body("Channel selection is automatic based on recipient preferences and message type. Transactional messages (task assignments, reminders) default to SMS for maximum reach. Rich content (event invitations with images, campaign materials) routes through WhatsApp. Internal communications between staff use the in-app messaging system. The hub maintains a channel preference registry where voters can specify their preferred contact method, and the system respects these preferences across all outbound communications."),
+  h3("5.5.4 Response Management and Analytics"),
+  body("Incoming responses across all channels are aggregated into a unified inbox where communication officers can view, classify, and respond. The system auto-classifies responses using NLP sentiment analysis (positive, neutral, negative, question, complaint, unsubscribe) with a confidence threshold. Responses below the confidence threshold are flagged for manual review. Every response is linked to the voter's profile, creating a complete communication history accessible to field agents during door-to-door engagements."),
+  body("Analytics dashboards track per-campaign and aggregate metrics: delivery rate (messages successfully sent versus total), read rate (messages opened, where supported by the channel), response rate, conversion rate (recipients who took the desired action), and opt-out rate. Funnel visualisations show the progression from sent to delivered to read to responded to converted, with drop-off analysis highlighting where campaigns lose audience attention. A/B testing support allows sending variant messages to random subsets and comparing performance before full deployment."),
 
-  // 5.6 VMS
-  h2("5.6 Volunteer Management System"),
+  // ── 5.6 VOLUNTEER MANAGEMENT ──
+  h2("5.6 Volunteer Management System (VMS)"),
+  h3("5.6.1 Feature Inventory"),
   makeTable(
     ["Feature", "Description", "UI Element", "Benefit"],
     [
-      ["Smart Scheduling", "Assign based on skills, location, availability, performance", "Calendar + drag-drop", "Optimal matching"],
-      ["Shift Management", "Shift patterns for election day; check-in/check-out", "Timeline with capacity bars", "Full coverage"],
+      ["Smart Scheduling", "Assign based on skills, location, availability", "Calendar + drag-drop", "Optimal matching"],
+      ["Shift Management", "Shift patterns for election day; check-in/out", "Timeline with capacity bars", "Full coverage"],
       ["Performance Scoring", "Track tasks, attendance, data quality, response time", "Dashboard with trend charts", "Reward top performers"],
       ["Gamification", "Badges, points, leaderboards for milestones", "Badge showcase + leaderboard", "Motivation and retention"],
       ["Proximity Alerts", "Auto-assign nearby volunteers to incidents by GPS", "Alert with accept/decline", "Rapid response"],
       ["Availability Calendar", "Volunteers set availability; prevent over-scheduling", "Self-service calendar in app", "Sustainable engagement"],
     ]
   ),
-  tableCaption("Table 9: Volunteer Management Features"),
-  body("The recruitment pipeline supports multiple entry points: public web form, referral links, QR codes at events, and direct coordinator entry. Onboarding is managed entirely through the platform with automated welcome messages, training module assignment, completion tracking, and automated status transition from Pending to Active upon training completion."),
+  tableCaption("Table 15: Volunteer Management Features"),
+  h3("5.6.2 Recruitment Pipeline and Onboarding"),
+  body("The VMS manages the complete volunteer lifecycle from initial interest to post-election recognition. The recruitment pipeline supports multiple entry points: a public web form linked from party social media accounts, unique referral links that credit the referring volunteer, QR codes printed on campaign materials for scan-to-register at events, and direct coordinator entry for volunteers identified through community networks."),
+  makeTable(
+    ["Stage", "Description", "Automated Action", "Exit Criteria"],
+    [
+      ["Lead", "Initial registration received", "Welcome SMS + onboarding link", "Profile completed"],
+      ["Screening", "Background check and verification", "Assignment to verifier", "Verification passed"],
+      ["Training", "Assigned training modules", "Module reminders + progress tracking", "All modules completed"],
+      ["Certification", "Quiz/assessment passed", "Certificate issued, badge awarded", "Score above 80%"],
+      ["Active", "Available for assignment", "Task notifications enabled", "First shift completed"],
+      ["Alumni", "Post-election recognition", "Thank-you message + future invite", "Campaign concluded"],
+    ]
+  ),
+  tableCaption("Table 16: Volunteer Recruitment Pipeline"),
+  h3("5.6.3 Performance Scoring Algorithm"),
+  body("The VMS employs a multi-dimensional performance scoring algorithm that provides a holistic view of each volunteer's contribution. The score is composed of five weighted factors: Task Completion Rate (30%) measuring the percentage of assigned tasks completed on time, Data Quality Score (25%) evaluating the accuracy and completeness of submitted reports, Attendance Adherence (20%) tracking shift check-in and check-out punctuality, Response Time (15%) measuring how quickly the volunteer acknowledges and accepts task assignments, and Peer Rating (10%) aggregating ratings from coordinators and fellow volunteers. The composite score ranges from 0 to 100 and is displayed as a trend line on the volunteer's profile."),
+  h3("5.6.4 Gamification and Recognition"),
+  body("The gamification system is designed to drive sustained engagement through meaningful recognition rather than trivial rewards. Badges are awarded for specific achievements: 'First Contact' for completing the first voter visit, 'Century Club' for logging 100 interactions, 'Rapid Responder' for accepting tasks within five minutes, 'Data Champion' for maintaining a data quality score above 95 for four consecutive weeks, and 'Election Day Hero' for completing a full election day shift. A leaderboard shows top performers by LGA and statewide, with weekly and all-time views. Points earned through activities are redeemable for campaign merchandise, event access, and certificate of service letters."),
 
-  // 5.7 Finance
+  // ── 5.7 FINANCIAL TRACKING ──
   h2("5.7 Financial Tracking and Resource Management"),
+  h3("5.7.1 Expense Workflow"),
   makeTable(
     ["Stage", "Description", "UI Element", "Automation"],
     [
@@ -502,11 +627,17 @@ const bodyContent = [
       ["Audit Trail", "Every action logged with full traceability", "Immutable log viewer", "Automatic (no user action)"],
     ]
   ),
-  tableCaption("Table 10: Expense Workflow"),
-  body("Inventory management tracks all materials from procurement to distribution with barcode scanning on mobile for quick stock verification. Real-time dashboards show stock vs targets, automated purchase orders at minimum thresholds, and end-of-campaign reconciliation calculating actual cost per voter contacted."),
+  tableCaption("Table 17: Expense Workflow"),
+  h3("5.7.2 Budget Variance Analysis"),
+  body("The financial module provides real-time budget variance analysis at every level of the budget hierarchy. Each budget line tracks planned amount, committed amount (approved but not yet paid), spent amount (paid), remaining balance, and variance percentage. Colour-coded indicators provide instant visual feedback: green (under 80% utilised), amber (80-95% utilised), red (over 95% or overspent). When a budget line approaches its threshold, the system proactively alerts the budget owner and the Campaign Director, enabling early corrective action."),
+  body("Variance analysis dashboards display trends over time, comparing actual spend against planned trajectories. Forecasting algorithms project end-of-period spend based on current burn rates, flagging budget lines that are likely to be exceeded before the campaign concludes. The system supports budget reallocation requests where a coordinator can request transferring unspent funds from one line to another, subject to approval workflows that maintain appropriate segregation of duties."),
+  h3("5.7.3 Procurement and Inventory Management"),
+  body("Inventory management tracks all campaign materials from procurement to distribution with full chain-of-custody documentation. Materials are categorised into hierarchies (e.g., Campaign Materials > Print > Posters > A2 Size) with unit costs, minimum stock levels, and reorder points. Barcode and QR code scanning on the mobile app enables rapid stock verification at distribution points. The system generates automated purchase orders when stock falls below minimum thresholds, routes them through the approval workflow, and tracks delivery status from supplier to warehouse to field distribution point."),
+  body("Distribution tracking records which materials were sent to which locations, in what quantities, and received by whom. Ward coordinators acknowledge receipt through the mobile app, creating a verified chain of custody. End-of-campaign reconciliation calculates actual cost per voter contacted, cost per volunteer mobilised, and cost per polling unit covered, providing granular cost-effectiveness metrics for future campaign planning."),
 
-  // 5.8 Security
+  // ── 5.8 SECURITY ──
   h2("5.8 Security, Compliance, and Data Governance"),
+  h3("5.8.1 Role-Based Access Control"),
   makeTable(
     ["Role", "Voter Data", "Financial", "Incidents", "Admin"],
     [
@@ -520,18 +651,34 @@ const bodyContent = [
       ["IT Admin", "Infrastructure only", "Audit logs", "Audit logs", "Full"],
     ]
   ),
-  tableCaption("Table 11: RBAC Matrix"),
-  body("All PII encrypted at rest (AES-256) and in transit (TLS 1.3). Keys managed via dedicated KMS with 90-day auto-rotation. Field-level encryption for the most sensitive data. Every user action recorded in immutable audit log. Automated compliance monitoring scans for suspicious patterns with real-time alerts. Weekly security reports and quarterly penetration testing. Mandatory security awareness training before system access."),
+  tableCaption("Table 18: RBAC Matrix"),
+  h3("5.8.2 Encryption and Key Management"),
+  body("All personally identifiable information (PII) is encrypted at rest using AES-256-GCM and in transit using TLS 1.3. Encryption keys are managed through a dedicated Key Management Service (KMS) with automated 90-day rotation cycles and manual emergency rotation capability. Field-level encryption applies an additional layer of protection to the most sensitive data elements, such as voter phone numbers and residential addresses."),
+  makeTable(
+    ["Data Category", "At Rest", "In Transit", "Key Rotation", "Access"],
+    [
+      ["Voter PII (phone, address)", "AES-256 + field-level", "TLS 1.3", "90 days auto", "Application-layer only"],
+      ["Voter demographics", "AES-256", "TLS 1.3", "90 days auto", "RBAC-controlled"],
+      ["Financial records", "AES-256 + field-level", "TLS 1.3", "60 days auto", "DD Finance + Director"],
+      ["Incident reports", "AES-256", "TLS 1.3", "90 days auto", "RBAC-controlled"],
+      ["System audit logs", "AES-256 + HMAC", "TLS 1.3", "365 days auto", "IT Admin + Director"],
+      ["Media files (photos)", "AES-256 at rest", "TLS 1.3", "90 days auto", "RBAC-controlled"],
+    ]
+  ),
+  tableCaption("Table 19: Encryption Standards by Data Category"),
+  h3("5.8.3 Audit Logging and Compliance Monitoring"),
+  body("Every user action that reads, creates, modifies, or deletes data is recorded in an immutable audit log. Each audit entry captures: user ID, role, action type, resource affected, timestamp (UTC with millisecond precision), IP address, device fingerprint, and before/after values for modifications. The audit log is stored in a separate database with write-once, read-many (WORM) access controls, preventing even system administrators from tampering with or deleting audit records. Automated compliance monitoring scans audit logs for suspicious patterns such as bulk data exports outside working hours or repeated failed access attempts, triggering real-time alerts."),
+  body("Weekly security reports summarise key metrics: total active users, failed login attempts, data access patterns by role, top data consumers, and any flagged anomalies. Quarterly penetration testing by an independent security firm provides external validation of the platform's defences. Mandatory security awareness training must be completed by all staff before receiving system access, with annual refresher courses and simulated phishing exercises to maintain vigilance."),
 
   // ═══════════════════════════════════════════════════════════════
   // 6. UI/UX DESIGN FRAMEWORK (DEEPENED)
   // ═══════════════════════════════════════════════════════════════
   h1("6. UI/UX Design Framework"),
   h2("6.1 Design Philosophy and Principles"),
-  body("The platform's user experience design follows three guiding tenets. Clarity Over Complexity mandates that every screen presents only the information necessary for the user's current task, removing all unnecessary visual elements. Progressive Disclosure reveals advanced features and detailed data only when explicitly requested, keeping the default interface clean and unintimidating for non-technical users. Error Prevention Over Error Correction designs forms and workflows to prevent mistakes through input validation, sensible defaults, and confirmation prompts for irreversible actions, rather than relying on error messages after the fact."),
+  body("The platform's user experience design follows four guiding tenets. Clarity Over Complexity mandates that every screen presents only the information necessary for the user's current task, removing all unnecessary visual elements. Progressive Disclosure reveals advanced features and detailed data only when explicitly requested, keeping the default interface clean and unintimidating for non-technical users. Error Prevention Over Error Correction designs forms and workflows to prevent mistakes through input validation, sensible defaults, and confirmation prompts for irreversible actions. Familiar Patterns ensures that common UI paradigms (bottom navigation bars, swipe-to-delete, pull-to-refresh) are used consistently so users transfer existing mobile literacy to the platform."),
   h2("6.2 Visual Design Language"),
-  body("The visual design uses a clean, modern aesthetic with generous white space, crisp typography, and a restrained colour palette anchored by APC green (#007847). The interface uses a white or very light gray background creating an airy, professional feel that reduces visual fatigue. APC green serves as the primary accent for buttons, links, active states, and positive indicators. Complementary teal for secondary interactive elements. Error states use warm red, warnings use amber, success uses APC green, creating an intuitive colour-language that communicates status without text labels."),
-  body("Typography uses Inter for all interface elements, chosen for on-screen readability, wide weight range (400-700), and comprehensive character set. Body text: 16px web / 15sp mobile, line-height 1.5. Headings use Inter Bold at 20-32px. A tabular-numeral variant ensures digit alignment in data columns. Consistent 8px spacing grid for all padding, margins, and gaps, creating visual rhythm and alignment consistency across all screens."),
+  body("The visual design uses a clean, modern aesthetic with generous white space, crisp typography, and a restrained colour palette anchored by APC green (#007847). The interface uses a white or very light gray (#F9FAFB) background creating an airy, professional feel that reduces visual fatigue during extended use. APC green serves as the primary accent for buttons, links, active states, and positive indicators. A complementary teal (#0D9488) provides secondary interactive emphasis. Error states use warm red (#DC2626), warnings use amber (#D97706), and success uses APC green, creating an intuitive colour-language that communicates status without text labels."),
+  body("Typography uses Inter for all interface elements, chosen for its on-screen readability, wide weight range (400-700), and comprehensive character set. Body text is set at 16px on web and 15sp on mobile with a 1.5 line-height. Headings use Inter Bold at 20-32px with a 1.3 line-height. A tabular-numeral variant ensures digit alignment in data tables. All spacing follows a consistent 8px grid system, creating visual rhythm and alignment consistency across all screens and components."),
   h2("6.3 User Personas and Journey Maps"),
   makeTable(
     ["Persona", "Profile", "Device", "Key Needs", "Cognitive Load"],
@@ -543,24 +690,112 @@ const bodyContent = [
       ["Election Observer", "Variable tech, high-stress context", "Mobile (Android)", "One-tap check-in, forms, emergency", "Very Low"],
     ]
   ),
-  tableCaption("Table 12: User Personas with Cognitive Load Profiles"),
+  tableCaption("Table 20: User Personas with Cognitive Load Profiles"),
   h3("6.3.1 Journey Map: Ward Coordinator Daily Workflow"),
-  body("Morning: Opens app to Home screen showing personalised greeting, task count with progress ring, and quick-action bar. Taps first task card (slides in from right) showing voter profile with name, address, issue preferences, and previous interaction notes. Taps 'Start Navigation' opening route optimiser. After the visit, taps 'Log Visit' opening a structured form with slider sentiment ratings, dropdown issue selectors, and free-text notes with 500-character counter. Taps 'Submit' seeing a green checkmark pulse animation, then returns to task list with completed task showing green checkmark."),
-  body("Incident Encounter: Taps Report tab's floating action button, opening category selection with eight icon tiles in a 2-column grid. Taps 'Voter Intimidation' sliding to severity selector with five colour-coded buttons (green to red). After selecting severity, completes description form with camera button opening device camera in-app. Attaches photo, types description, taps 'Submit' receiving confirmation with incident ID, severity badge, and estimated response time. Push notifications for new tasks appear as small cards at screen top, expandable or swipe-dismissible."),
+  body("Morning: Opens app to Home screen showing personalised greeting, task count with animated progress ring, and quick-action bar. Taps first task card which slides in from the right showing voter profile with name, address, issue preferences, and previous interaction notes. Taps 'Start Navigation' opening the route optimiser with turn-by-turn walking directions. After the visit, taps 'Log Visit' opening a structured form with slider sentiment ratings (1-5 with emoji labels), dropdown issue selectors, and free-text notes with a 500-character counter. Taps 'Submit' seeing a green checkmark pulse animation, then auto-returns to task list."),
+  body("Incident Encounter: Taps Report tab's floating action button (green circle with plus icon, 56dp), opening a full-screen category selection with eight icon tiles in a 2-column grid with colour-coded borders. Taps 'Voter Intimidation' which slides to a severity selector with five colour-coded buttons from green (1-minor) to red (5-critical). After selecting severity, completes description form with camera button opening device camera in-app. Attaches photo, types description, taps 'Submit' receiving confirmation with incident ID, severity badge, and estimated response time."),
+  h3("6.3.2 Journey Map: Campaign Director Morning Briefing"),
+  body("The Campaign Director arrives at the office, opens the web dashboard. The system detects the morning login pattern and automatically loads the 'Morning Briefing' dashboard template: a prominent KPI row showing yesterday's totals, the geospatial map centred on the state with LGA-level colour coding, and an activity timeline filtered to the last 24 hours. The director clicks an LGA showing red on the map, which smoothly zooms to ward-level view and cross-filters all other widgets. After reviewing, clicks 'Share View', types the Data Director's name, and the exact filtered view is sent as a link."),
   h2("6.4 Information Architecture and Navigation"),
-  body("Web Dashboard: Left sidebar (260px) with four collapsible groups: Command Centre (Dashboard, Map, Alerts), Operations (Voters, Field, Volunteers, Monitoring), Management (Comms, Finance, Inventory, Reports), Administration (Users, Roles, Settings, Audit). Active item highlighted with APC green and subtle left border. Global search bar with instant results dropdown. On tablet, sidebar collapses to 64px icon-only rail with tap-to-expand animation."),
-  body("Mobile App: Bottom tab bar with five destinations (Home, Voters, Report, Messages, Profile). Active tab: filled APC green icon with label. Contextual navigation uses top app bar with back arrow, title, and action buttons. No critical function more than three taps from any screen. A 'Navigation Help' overlay maps the three-tap path to any feature."),
+  body("Web Dashboard: Left sidebar (260px, collapsible to 64px icon-only rail) with four collapsible groups: Command Centre (Dashboard, Map, Alerts), Operations (Voters, Field, Volunteers, Monitoring), Management (Comms, Finance, Inventory, Reports), Administration (Users, Roles, Settings, Audit). Active item highlighted with APC green background pill and subtle left border accent (4px). Global search bar with instant results dropdown. On tablet (768-1024px), the sidebar collapses to a 64px icon-only rail that expands on tap with smooth slide animation."),
+  body("Mobile App: Bottom tab bar with five destinations (Home, Voters, Report, Messages, Profile). Active tab: filled APC green icon with white label. Inactive tabs: outlined grey icon with grey label. Contextual navigation uses a top app bar with back arrow, screen title, and action buttons (maximum three). No critical function requires more than three taps from any screen."),
   h2("6.5 Interaction Patterns and Micro-Interactions"),
-  body("Success Feedback: Green checkmark scales 0.8x to 1.2x to 1.0x with subtle colour pulse before auto-navigating back. Error States: Inline messages below form fields with red left border and specific guidance; red field border highlight; fade-out on input correction. Loading: Skeleton screens mimicking expected layout with shimmer animation (left-to-right gradient). Pull-to-Refresh: Circular spinner replaces list header, shows 'Last updated: just now' on completion."),
-  body("Touch Feedback: Buttons scale to 0.97x on press, return 1.0x on release. List items swipe right to reveal contextual actions (Edit, Delete, Share) in colour-coded buttons. Critical alerts (Level 4-5) use full-screen overlay requiring explicit 'Acknowledge' or 'View Details' tap to dismiss. Chart Interactions: Hover tooltips with exact values; click-to-filter cross-filters all dashboard widgets; pinch-to-zoom on map with smooth animation transitions."),
-  h2("6.6 Responsive and Adaptive Design"),
-  body("Web: Responsive grid adapting across desktop (1280px+ multi-column), laptop (1024px), and tablet (768px two-column). Below 768px, users are redirected to download the mobile app. Mobile: Targets Android 8.0+ covering 95% of Nigerian market. Designs for 5.5-6.8 inch screens with flexible dp/sp units. Minimum 48x48dp touch targets with 8dp padding. Light/dark mode following system setting. High-contrast mode for outdoor use with minimum 7:1 text contrast ratio."),
-  h2("6.7 Accessibility, Error Handling, and Inclusive Design"),
-  body("WCAG 2.1 Level AA compliance: text scaling to 200% without breakage, visible focus indicators (2px green outline, 2px offset) for keyboard navigation, labelled form inputs, and colour-never-solo for information conveyance. Empty states guide users to productive action with friendly illustrations and suggestions. Error states show clear explanation, visual problem indicator, and retry mechanism. Nigerian English conventions throughout with local terminology (ward, LGA, senatorial district)."),
-  body("Interface text at 8th-grade reading level. Three interface languages: English, Nigerian Pidgin, and Hausa (for northern states), selectable in Profile settings. Right-to-left layout support included for future Arabic expansion. Communication frequency controls prevent over-messaging with configurable limits per day, week, and campaign period."),
-  h2("6.8 Notification Design System"),
-  body("Three-tier priority model. Tier 1 (Critical): Full-screen overlay on mobile, modal popup on web with red header bar, requires explicit acknowledgment. Tier 2 (Important): Persistent banner notification remaining until dismissed or actioned, green accent. Tier 3 (Informational): Notification centre accessible from profile icon badge, non-interrupting. Each notification includes summary, timestamp, source module icon, and one or two action buttons (View/Dismiss). Tapping navigates directly to relevant detail screen."),
-  body("Mobile push notifications customised for lock screen (title + summary only) versus expanded (full content + actions). Web notification bell icon in top-right with real-time unread count badge via WebSocket. Users configure notification preferences per module and priority tier in Profile settings."),
+  body("Success Feedback: A green checkmark icon scales from 0.8x to 1.2x to 1.0x over 400 milliseconds with a subtle green colour pulse behind it, before auto-navigating back after 800 milliseconds. Error States: Inline validation messages below form fields with red left border (3px) and specific guidance text. The field border turns red and subtly shakes horizontally for 300 milliseconds. Loading States: Skeleton screens mimicking expected content layout with left-to-right shimmer animation. Pull-to-Refresh: Circular spinner replacing list header, showing 'Last updated: just now' on completion."),
+  body("Touch Feedback: Buttons scale to 0.97x on press-down and spring back to 1.0x on release. List items support swipe-right to reveal contextual action buttons (Edit in blue, Delete in red, Share in green). Critical alerts (Level 4-5) use a full-screen overlay with red-tinted background gradient, requiring explicit button tap to dismiss. Chart Interactions: Hover tooltips with exact values, click-to-filter cross-filters all dashboard widgets, pinch-to-zoom on map with smooth animation transitions."),
+  h2("6.6 Component Library Specification"),
+  body("The platform uses a shared design system implemented as a React component library ensuring visual and behavioural consistency across web and mobile. Components are versioned and documented with interactive Storybook stories. Below is the core component inventory."),
+  makeTable(
+    ["Component", "Variants", "States", "Accessibility"],
+    [
+      ["Button", "Primary, Secondary, Ghost, Danger, Icon-only", "Default, Hover, Active, Disabled, Loading", "aria-label, focus ring, keyboard"],
+      ["Input Field", "Text, Number, Search, Textarea", "Default, Focus, Error, Disabled, Success", "Label, error msg, aria-described"],
+      ["Card", "Standard, Interactive, Stat, Alert", "Default, Hover, Selected, Loading", "Semantic heading, role attributes"],
+      ["Data Table", "Sortable, Filterable, Paginated", "Default, Empty, Loading, Error", "Sort indicators, row headers"],
+      ["Modal / Dialog", "Info, Confirmation, Form, Full-screen", "Open, Closing, Closed", "Focus trap, Escape close"],
+      ["Toast / Snackbar", "Success, Error, Warning, Info", "Enter, Visible, Exit", "role=alert, auto-dismiss"],
+      ["Badge", "Count, Status, Role", "Default, Pulse (unread)", "aria-label for count"],
+      ["Dropdown", "Select, Multi-select, Searchable", "Closed, Open, Disabled", "Keyboard nav, aria-expanded"],
+      ["Tab Bar", "Web (horizontal), Mobile (bottom)", "Default, Active, Disabled", "aria-selected, keyboard"],
+      ["Progress", "Linear bar, Circular ring, Steps", "Indeterminate, Determinate", "aria-valuenow, label"],
+      ["Chips / Tags", "Filter, Status, Removable", "Default, Selected, Disabled", "Removable: button role"],
+      ["Avatar", "Initials, Photo, Icon", "Default, Online, Offline", "alt text, status indicator"],
+    ]
+  ),
+  tableCaption("Table 21: Core UI Component Inventory"),
+  h2("6.7 Data Visualisation Standards"),
+  body("All data visualisations follow a consistent visual grammar enabling users to interpret charts quickly and accurately. Chart colours use a sequential palette for ordered data (light to dark green) and a diverging palette for data with a meaningful centre point (red through white to green). The same data dimensions always use the same colours across all charts, creating a learnable colour-language."),
+  makeTable(
+    ["Chart Type", "Use Case", "Interactions", "Accessibility"],
+    [
+      ["Bar Chart (Vertical)", "Comparing categories (voters per LGA)", "Hover tooltips, click-to-filter", "Data table fallback"],
+      ["Line Chart", "Trends over time (sentiment, turnout)", "Hover crosshair, range selector", "Data table fallback"],
+      ["Pie / Donut", "Part-of-whole (severity distribution)", "Hover segment, click-to-filter", "Data table fallback"],
+      ["Choropleth Map", "Geographic distribution (coverage by LGA)", "Hover LGA, click-to-drill, zoom", "Colour legend + labels"],
+      ["Heatmap", "Intensity (activity by day/hour)", "Hover cell, click-to-filter", "Data table fallback"],
+      ["Funnel Chart", "Conversion stages (sent > delivered > read)", "Hover stage, click for details", "Data table fallback"],
+      ["Scatter Plot", "Correlation (turnout vs outreach)", "Hover point, lasso selection", "Data table fallback"],
+      ["KPI Card", "Single metric with trend", "Click to drill-down", "Trend alt text"],
+      ["Gauge / Radial", "Progress toward target (coverage %)", "Animated fill on load", "Percentage alt text"],
+      ["Tree Map", "Hierarchical composition (budget)", "Hover block, click-to-drill", "Data table fallback"],
+    ]
+  ),
+  tableCaption("Table 22: Data Visualisation Chart Type Guidelines"),
+  body("All charts include a 'Download as PNG' and 'View Data' action. The 'View Data' action opens the underlying data table that powers the chart. Screen readers announce chart titles, type, and summary findings through ARIA descriptions. Animations are subtle (300ms ease-out for load, 200ms for state changes) and respect the user's reduced-motion preference setting."),
+  h2("6.8 Mobile Gesture and Haptic Patterns"),
+  body("The mobile app uses a consistent set of touch gestures leveraging users' existing mobile literacy while providing appropriate haptic feedback for key actions. Haptic feedback is calibrated to be informative without being distracting: a light tap (10ms) for button presses, a medium tap (20ms) for toggle activations, and a heavy tap (30ms) for error states. All haptic patterns can be disabled in accessibility settings."),
+  makeTable(
+    ["Gesture", "Context", "Action", "Haptic", "Visual Feedback"],
+    [
+      ["Tap", "Buttons, links, list items", "Activate primary action", "Light tap", "Scale 0.97x on press"],
+      ["Long Press (500ms)", "List items, messages", "Enter multi-select mode", "Medium tap", "Selection checkboxes appear"],
+      ["Swipe Right", "List items (conversations, tasks)", "Reveal action buttons", "None", "Slide panel with actions"],
+      ["Swipe Left", "Notification cards, messages", "Dismiss", "None", "Card slides off-screen"],
+      ["Pull Down", "Scrollable lists", "Refresh data", "None", "Spinner replaces header"],
+      ["Pinch", "Maps, images", "Zoom in/out", "None", "Smooth scale animation"],
+      ["Double Tap", "Maps, images", "Zoom to 2x / reset", "None", "Animated zoom"],
+      ["Drag", "Dashboard widgets, shift calendar", "Reorder / reschedule", "Light continuous", "Elevated shadow while dragging"],
+    ]
+  ),
+  tableCaption("Table 23: Mobile Gesture and Haptic Patterns"),
+  h2("6.9 Responsive and Adaptive Design"),
+  body("Web: Responsive grid adapting across desktop (1280px+ multi-column), laptop (1024px), and tablet (768px two-column). Below 768px, users are redirected to download the mobile app with a personalised link. The responsive layout uses CSS Grid with named areas that reorganise based on viewport width. The sidebar navigation collapses progressively: at 1280px it shows full labels, at 1024px it collapses to icons with tooltips, and at 768px it converts to a hamburger menu with a full-height slide-out drawer."),
+  body("Mobile: Targets Android 8.0+ covering 95% of the Nigerian smartphone market. Designs accommodate 5.5-6.8 inch screens using flexible dp and sp units. Minimum 48x48dp touch targets with 8dp internal padding. The app supports light and dark mode, following the system-level setting by default with manual override in Profile settings. A high-contrast outdoor mode increases all text contrast ratios to minimum 7:1 and adds a semi-transparent dark overlay behind text for readability in direct sunlight."),
+  h2("6.10 Accessibility, Error Handling, and Inclusive Design"),
+  body("WCAG 2.1 Level AA compliance is mandatory. Text scales to 200% without layout breakage through relative units throughout. Visible focus indicators (2px APC green outline with 2px offset) clearly show keyboard navigation position. All form inputs have associated labels, and dynamic content updates are announced to screen readers through ARIA live regions. Colour is never used as the sole means of conveying information; every colour-coded status indicator is accompanied by a text label or icon."),
+  body("Empty states are designed as productive moments. When a data table has no results, a friendly illustration with contextual messaging guides the user to productive action. Error states follow a three-part structure: clear explanation, visual indicator of where the problem is, and a specific retry mechanism. Interface text is written at an 8th-grade reading level. Three interface languages are supported: English (default), Nigerian Pidgin, and Hausa, selectable in Profile settings."),
+  h2("6.11 Notification Design System"),
+  body("Three-tier priority model. Tier 1 (Critical): Full-screen overlay on mobile with red-tinted gradient, modal popup on web with red header bar, requires explicit acknowledgment. Accompanied by a distinctive two-tone alert sound. Tier 2 (Important): Persistent banner notification on web (top of viewport, green accent) remaining until dismissed. On mobile, expandable card at top of current screen. Tier 3 (Informational): Notification centre accessible from bell icon with unread count badge, non-interrupting. Each notification includes summary, timestamp (relative format), source module icon, and one or two action buttons (View / Dismiss)."),
+  body("Mobile push notifications are customised for lock screen (title and summary only) versus expanded shade (full content with actions). On web, a notification bell icon in the header displays real-time unread count badge updated via WebSocket. Users configure preferences per module and per channel in Profile settings, with 'Quiet Hours' configuration that suppresses non-critical notifications during configurable time windows."),
+  h2("6.12 Onboarding Flows by Role"),
+  body("Each user role receives a tailored onboarding experience introducing only features relevant to their responsibilities, avoiding cognitive overload. Onboarding is divided into three phases: Initial Setup (first login, account configuration, data download), Guided Tour (interactive walkthrough of key screens), and First Actions (guided completion of primary tasks with progress tracking)."),
+  makeTable(
+    ["Role", "Initial Setup", "Guided Tour Screens", "First Actions Checklist"],
+    [
+      ["Campaign Director", "Account + password, 2FA, notification preferences", "Dashboard (KPIs, map, alerts)", "Review dashboard, acknowledge alert, share view"],
+      ["Data Analyst", "Account + 2FA, data access agreement", "VID (search, segments, import), Dashboard", "Run first search, create segment, export data"],
+      ["Zonal Coordinator", "Phone + OTP, app download, data sync", "App (home, tasks, voters, report)", "Log visit, submit report, send message"],
+      ["Ward Coordinator", "Phone + OTP, app download, data sync", "App (home, quick actions, check-in)", "Complete profile, log visit, check-in"],
+      ["Election Observer", "Phone + OTP, app download, PU assignment", "App (check-in, report, emergency)", "Simulate check-in, submit test report"],
+    ]
+  ),
+  tableCaption("Table 24: Role-Based Onboarding Flows"),
+  h2("6.13 Performance Budgets and Optimisation"),
+  body("The platform adheres to strict performance budgets ensuring usability across variable network conditions and device capabilities prevalent in Nigeria. These budgets are treated as hard constraints in the development process, with automated CI checks that block deployment if performance regressions are detected."),
+  makeTable(
+    ["Metric", "Web Target", "Mobile Target", "Measurement Method"],
+    [
+      ["First Contentful Paint", "Under 1.5 seconds", "Under 2.0 seconds", "Lighthouse CI"],
+      ["Time to Interactive", "Under 3.0 seconds", "Under 3.5 seconds", "Lighthouse CI"],
+      ["Search Response", "Under 500ms", "Under 500ms (local)", "APM instrumentation"],
+      ["Dashboard Load", "Under 2.0 seconds", "N/A", "Synthetic monitoring"],
+      ["Form Submit", "Under 1.0 second", "Under 200ms (local)", "Client-side timing"],
+      ["App APK Size", "N/A", "Under 40MB", "Build pipeline"],
+      ["Initial Data Sync", "N/A", "Under 10 minutes (50MB)", "App instrumentation"],
+      ["Battery Drain (active)", "N/A", "Under 8% per hour", "Device profiling"],
+      ["Offline Operations", "N/A", "100% core features", "Manual test matrix"],
+    ]
+  ),
+  tableCaption("Table 25: Performance Budgets"),
 
   // ═══════════════════════════════════════════════════════════════
   // 7-12: REMAINING SECTIONS
@@ -581,8 +816,10 @@ const bodyContent = [
       ["Common Areas", "100", "Circulation, branding, emergency exits", "Party branding, signage"],
     ]
   ),
-  tableCaption("Table 13: Office Space Allocation"),
-  body("Power: Three-tier system with 20KVA diesel generator, 10KVA solar inverter with battery bank, and 3KVA online UPS. Connectivity: Primary fibre (100Mbps), 4G/5G failover router, VSAT satellite for election day. All connections through enterprise firewall with VPN."),
+  tableCaption("Table 26: Office Space Allocation"),
+  body("Power: Three-tier system with 20KVA diesel generator for primary backup, 10KVA solar inverter with battery bank for sustained daytime operation, and 3KVA online UPS for server room and critical workstations. Connectivity: Primary fibre (100Mbps), 4G/5G failover router, VSAT satellite reserved for election day. All connections through enterprise firewall with VPN."),
+  h2("7.2 Situation Room Technology"),
+  body("The situation room serves as the nerve centre during critical campaign periods and on election day. It features four 55-inch 4K displays in a 2x2 grid: primary display shows real-time geospatial incident map, secondary displays cycle through KPI dashboards and analytics, tertiary display maintains a persistent alert feed, and fourth display is reserved for video conferencing. An integrated audio system provides spoken alerts for critical incidents and hands-free communication with field teams. Dedicated workstations for the Campaign Director, DD Field Operations, legal liaison, and communications lead each have pre-configured dashboard views."),
 
   h1("8. Organisational Structure and Staffing"),
   makeTable(
@@ -598,7 +835,7 @@ const bodyContent = [
       ["Ward Coordinator", "Zonal Coord.", "PU operations, volunteer supervision", "Field Volunteers"],
     ]
   ),
-  tableCaption("Table 14: Organisational Structure"),
+  tableCaption("Table 27: Organisational Structure"),
   h2("8.2 RACI Matrix"),
   makeTable(
     ["Process", "Director", "DD Data", "DD Field", "DD Comms", "DD Finance"],
@@ -613,7 +850,7 @@ const bodyContent = [
       ["Donor reporting", "A", "I", "I", "I", "R"],
     ]
   ),
-  tableCaption("Table 15: RACI Matrix"),
+  tableCaption("Table 28: RACI Matrix"),
 
   h1("9. Implementation Roadmap"),
   makeTable(
@@ -625,54 +862,54 @@ const bodyContent = [
       ["Excellence", "Wk 11-12", "All modules stress-tested", "Simulations complete, fully ready"],
     ]
   ),
-  tableCaption("Table 16: Implementation Roadmap"),
-  body("Phase 1 (Foundation, Weeks 1-3): Office setup, infrastructure deployment, voter data consolidation (50% target). Phase 2 (Activation, Weeks 4-7): Staff recruitment and intensive training, mobile app deployment, Comms Hub and VMS configuration. Phase 3 (Scale-Up, Weeks 8-10): Ward coordinator recruitment and training, volunteer drive (5,000 target), election monitoring system configuration, targeted messaging campaigns. Phase 4 (Operational Excellence, Weeks 11-12): Full-scale simulation exercises, stress testing, contingency plan finalisation."),
+  tableCaption("Table 29: Implementation Roadmap"),
+  body("Phase 1 (Foundation, Weeks 1-3): Office setup with all infrastructure operational, core platform modules (VID, Dashboard, Security) deployed, voter data consolidation initiated with a target of 50% of the state register digitised. Phase 2 (Activation, Weeks 4-7): Full staff recruitment and intensive hands-on training, mobile application deployment to all ward coordinators, Communication Hub and VMS configuration with template libraries and volunteer recruitment campaigns launched. Phase 3 (Scale-Up, Weeks 8-10): Ward coordinator recruitment and training completion, volunteer mobilisation drive targeting 5,000 active volunteers, election monitoring system configuration and observer training, targeted messaging campaigns based on VID segmentation. Phase 4 (Operational Excellence, Weeks 11-12): Full-scale simulation exercises mimicking election day conditions, stress testing all systems under peak load, contingency plan finalisation."),
 
   h1("10. Resource Requirements and Budget"),
   makeTable(
     ["Category", "Headcount", "Duration", "Cost (N)"],
     [
-      ["Campaign Director", "1", "6 months", "\u3010Please fill in\u3011"],
-      ["Deputy Directors (5)", "5", "6 months", "\u3010Please fill in\u3011"],
-      ["Data Analysts", "4", "6 months", "\u3010Please fill in\u3011"],
-      ["Communication Officers", "3", "6 months", "\u3010Please fill in\u3011"],
-      ["Field Operations Staff", "5", "6 months", "\u3010Please fill in\u3011"],
-      ["Logistics / Admin", "4", "6 months", "\u3010Please fill in\u3011"],
-      ["Finance Officers", "2", "6 months", "\u3010Please fill in\u3011"],
-      ["IT Support", "2", "6 months", "\u3010Please fill in\u3011"],
-      ["Zonal Coordinators", "\u3010Fill\u3011", "4 months", "\u3010Please fill in\u3011"],
-      ["Ward Coordinators", "\u3010Fill\u3011", "3 months", "\u3010Please fill in\u3011"],
-      ["Election Observers", "\u3010Fill\u3011", "1 week", "\u3010Please fill in\u3011"],
+      ["Campaign Director", "1", "6 months", "[Please fill in]"],
+      ["Deputy Directors (5)", "5", "6 months", "[Please fill in]"],
+      ["Data Analysts", "4", "6 months", "[Please fill in]"],
+      ["Communication Officers", "3", "6 months", "[Please fill in]"],
+      ["Field Operations Staff", "5", "6 months", "[Please fill in]"],
+      ["Logistics / Admin", "4", "6 months", "[Please fill in]"],
+      ["Finance Officers", "2", "6 months", "[Please fill in]"],
+      ["IT Support", "2", "6 months", "[Please fill in]"],
+      ["Zonal Coordinators", "[Fill]", "4 months", "[Please fill in]"],
+      ["Ward Coordinators", "[Fill]", "3 months", "[Please fill in]"],
+      ["Election Observers", "[Fill]", "1 week", "[Please fill in]"],
     ]
   ),
-  tableCaption("Table 17: Personnel Costs"),
+  tableCaption("Table 30: Personnel Costs"),
   makeTable(
     ["Item", "Description", "Cost (N)"],
     [
-      ["Platform Development", "8 modules: VID, Dashboard, App, Monitoring, Comms, VMS, Finance, Security", "\u3010Please fill in\u3011"],
-      ["Cloud Hosting (6mo)", "Servers, databases, Elasticsearch, Redis, CDN, SSL", "\u3010Please fill in\u3011"],
-      ["Office Equipment", "24 workstations, 4 displays, printers, networking", "\u3010Please fill in\u3011"],
-      ["Power Infrastructure", "20KVA generator, 10KVA solar, 3KVA UPS", "\u3010Please fill in\u3011"],
-      ["Mobile Devices", "200 smartphones, 20 tablets, accessories", "\u3010Please fill in\u3011"],
-      ["Connectivity", "Fibre, 4G/5G failover, VSAT satellite", "\u3010Please fill in\u3011"],
-      ["Office Setup", "Furniture, fixtures, security, branding, AC", "\u3010Please fill in\u3011"],
-      ["Software Licenses", "Productivity, CRM, analytics tools", "\u3010Please fill in\u3011"],
-      ["Security Infra", "Firewall, VPN, KMS, pen testing", "\u3010Please fill in\u3011"],
+      ["Platform Development", "8 modules: VID, Dashboard, App, Monitoring, Comms, VMS, Finance, Security", "[Please fill in]"],
+      ["Cloud Hosting (6mo)", "Servers, databases, Elasticsearch, Redis, CDN, SSL", "[Please fill in]"],
+      ["Office Equipment", "24 workstations, 4 displays, printers, networking", "[Please fill in]"],
+      ["Power Infrastructure", "20KVA generator, 10KVA solar, 3KVA UPS", "[Please fill in]"],
+      ["Mobile Devices", "200 smartphones, 20 tablets, accessories", "[Please fill in]"],
+      ["Connectivity", "Fibre, 4G/5G failover, VSAT satellite", "[Please fill in]"],
+      ["Office Setup", "Furniture, fixtures, security, branding, AC", "[Please fill in]"],
+      ["Software Licenses", "Productivity, CRM, analytics tools", "[Please fill in]"],
+      ["Security Infra", "Firewall, VPN, KMS, pen testing", "[Please fill in]"],
     ]
   ),
-  tableCaption("Table 18: Technology Budget"),
+  tableCaption("Table 31: Technology Budget"),
   makeTable(
     ["Category", "Description", "Cost (N)"],
     [
-      ["Transportation", "Fuel, vehicle hire, maintenance", "\u3010Please fill in\u3011"],
-      ["Training and Events", "Venue, catering, materials, meetings", "\u3010Please fill in\u3011"],
-      ["Campaign Materials", "Posters, flyers, banners, merchandise", "\u3010Please fill in\u3011"],
-      ["Utilities", "Power, internet, water, supplies", "\u3010Please fill in\u3011"],
-      ["Security", "Personnel, CCTV, access control", "\u3010Please fill in\u3011"],
-      ["Contingency (15%)", "Unforeseen expenses and opportunities", "\u3010Please fill in\u3011"],
+      ["Transportation", "Fuel, vehicle hire, maintenance", "[Please fill in]"],
+      ["Training and Events", "Venue, catering, materials, meetings", "[Please fill in]"],
+      ["Campaign Materials", "Posters, flyers, banners, merchandise", "[Please fill in]"],
+      ["Utilities", "Power, internet, water, supplies", "[Please fill in]"],
+      ["Security", "Personnel, CCTV, access control", "[Please fill in]"],
+      ["Contingency (15%)", "Unforeseen expenses and opportunities", "[Please fill in]"],
     ]
   ),
-  tableCaption("Table 19: Operational Budget"),
+  tableCaption("Table 32: Operational Budget"),
 
   h1("11. Risk Analysis and Mitigation"),
   makeTable(
@@ -690,7 +927,7 @@ const bodyContent = [
       ["Volunteer Shortfall", "Medium", "Medium", "Early drive, gamification, partnerships"],
     ]
   ),
-  tableCaption("Table 20: Risk Assessment Matrix"),
+  tableCaption("Table 33: Risk Assessment Matrix"),
 
   h1("12. Expected Benefits and Evaluation"),
   makeTable(
@@ -706,7 +943,7 @@ const bodyContent = [
       ["Comms Reach", "Unmeasured", "Trackable delivery", "Hub analytics"],
     ]
   ),
-  tableCaption("Table 21: Projected Improvements"),
+  tableCaption("Table 34: Projected Improvements"),
   makeTable(
     ["Activity", "Frequency", "Participants", "Outputs"],
     [
@@ -719,8 +956,8 @@ const bodyContent = [
       ["Post-Election Review", "Once", "Full team + leadership", "Lessons learned, archive"],
     ]
   ),
-  tableCaption("Table 22: Evaluation Framework"),
-  body("The evaluation framework incorporates a lessons-learned process capturing operational insights throughout the campaign for future planning. This institutional knowledge management approach ensures the party builds cumulative expertise, avoiding the common pattern where valuable field experience is lost when temporary structures are dismantled after each election cycle."),
+  tableCaption("Table 35: Evaluation Framework"),
+  body("The evaluation framework incorporates a lessons-learned process capturing operational insights throughout the campaign for future planning. This institutional knowledge management approach ensures the party builds cumulative expertise, avoiding the common pattern where valuable field experience is lost when temporary campaign structures are dismantled after each election cycle. All platform data, operational logs, and evaluation reports are archived in a structured knowledge base that serves as the foundation for the next campaign cycle, providing a measurable competitive advantage that compounds over time."),
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -778,4 +1015,3 @@ Packer.toBuffer(doc).then(buf => {
   fs.writeFileSync(OUTPUT, buf);
   console.log("Document generated:", OUTPUT);
 }).catch(err => { console.error("Error:", err); process.exit(1); });
-
