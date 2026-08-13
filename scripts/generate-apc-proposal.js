@@ -669,6 +669,18 @@ const bodyContent = [
   h3("5.8.3 Audit Logging and Compliance Monitoring"),
   body("Every user action that reads, creates, modifies, or deletes data is recorded in an immutable audit log. Each audit entry captures: user ID, role, action type, resource affected, timestamp (UTC with millisecond precision), IP address, device fingerprint, and before/after values for modifications. The audit log is stored in a separate database with write-once, read-many (WORM) access controls, preventing even system administrators from tampering with or deleting audit records. Automated compliance monitoring scans audit logs for suspicious patterns such as bulk data exports outside working hours or repeated failed access attempts, triggering real-time alerts."),
   body("Weekly security reports summarise key metrics: total active users, failed login attempts, data access patterns by role, top data consumers, and any flagged anomalies. Quarterly penetration testing by an independent security firm provides external validation of the platform's defences. Mandatory security awareness training must be completed by all staff before receiving system access, with annual refresher courses and simulated phishing exercises to maintain vigilance."),
+  h3("5.8.4 Application Security (OWASP Top 10)"),
+  body("The platform is designed and tested against the OWASP Top 10 application security risks. Injection attacks are prevented through parameterised queries for all database interactions and input sanitisation on all user-facing fields. Broken authentication is mitigated through multi-factor authentication for administrative roles, session tokens with short expiry (15 minutes for web, 24 hours for mobile), and automatic session termination on role changes or password resets. Sensitive data exposure is prevented through field-level encryption, response filtering that strips PII from API responses based on the requester's role, and strict Content Security Policy headers that prevent client-side data leakage."),
+  body("XML External Entity (XXE) attacks are prevented by disabling external entity processing on all XML parsers. Broken access control is addressed through server-side enforcement of RBAC rules on every API endpoint, with no reliance on client-side access control logic. Security misconfiguration is mitigated through automated infrastructure-as-code deployment with hardened baseline configurations, automated scanning for misconfigurations in the CI/CD pipeline, and removal of all default credentials, unnecessary services, and verbose error messages in production. Cross-Site Scripting (XSS) is prevented through output encoding, Content Security Policy headers, and React's built-in XSS protection."),
+  h3("5.8.5 Mobile Application Security"),
+  body("The mobile application implements additional security layers specific to the Android platform. App integrity verification uses Google Play Integrity API (or SafetyNet Attestation for devices without Google Play Services) to detect rooted devices, modified APKs, and unauthorised installations. The app prevents screen capture of sensitive screens (voter details, financial data) through FLAG_SECURE window flags. Biometric authentication (fingerprint) is required for accessing the app, with device PIN as fallback, ensuring that a lost or stolen device cannot be used to access campaign data even if unlocked."),
+  body("All local data stored in the SQLite database is encrypted using SQLCipher with a key derived from the user's authentication credentials combined with a device-specific hardware-backed key from the Android Keystore. The app implements certificate pinning for all API communications, preventing man-in-the-middle attacks even on compromised networks. Debug builds are restricted to internal testing and are never distributed; production builds disable all logging, debugging hooks, and developer tools. The app detects and blocks running on emulators or virtual machines, preventing unauthorised analysis of the application's behaviour and data handling."),
+  h3("5.8.6 Network and Infrastructure Security"),
+  body("All network traffic is routed through a dedicated AWS VPC with private subnets for application servers and database instances. Public-facing load balancers terminate TLS connections and forward traffic to internal services over private IPs. Network ACLs and security groups implement a strict zero-trust model where each service can only communicate with the specific services it depends on, and all inter-service traffic is encrypted with mutual TLS (mTLS). A Web Application Firewall (WAF) sits in front of the API gateway, providing protection against common web attacks including SQL injection, cross-site scripting, and distributed denial-of-service (DDoS) attacks."),
+  body("Distributed Denial of Service (DDoS) protection is provided at multiple levels: AWS Shield Standard for automatic network-layer protection, AWS Shield Advanced for advanced mitigation during the election period, and application-level rate limiting that detects and throttles anomalous request patterns. The platform implements geographic IP restrictions for the admin interface, allowing access only from Nigerian IP ranges and pre-approved VPN endpoints. DNS security is ensured through DNSSEC for all campaign domains, preventing DNS spoofing and cache poisoning attacks."),
+  h3("5.8.7 Social Engineering and Insider Threat Protection"),
+  body("Beyond technical controls, the security framework addresses human-layer vulnerabilities through a comprehensive counter-social-engineering programme. All staff undergo mandatory security awareness training covering phishing identification, social engineering tactics, tailgating prevention, and sensitive conversation protocols. Simulated phishing exercises are conducted monthly, with staff who repeatedly fail receiving targeted remedial training. A confidential reporting channel allows any team member to report suspicious behaviour without fear of retaliation."),
+  body("Insider threat detection uses User and Entity Behaviour Analytics (UEBA) to establish baseline behaviour patterns for each user and flag anomalous activities such as accessing unusually large volumes of voter data, downloading data outside normal working hours, or attempting to access resources outside their assigned geographic area. The principle of least privilege is enforced rigorously: users receive the minimum permissions necessary for their role, with temporary elevation available through a request-and-approval workflow that logs the elevation period and automatically reverts permissions after the specified duration."),
 
   // ═══════════════════════════════════════════════════════════════
   // 6. UI/UX DESIGN FRAMEWORK (DEEPENED)
@@ -796,12 +808,85 @@ const bodyContent = [
     ]
   ),
   tableCaption("Table 25: Performance Budgets"),
+  h2("6.14 Web Application Screen Specifications"),
+  body("The web dashboard comprises fifteen primary screens organised into four navigation groups. Each screen specification below describes the layout structure, interactive elements, data density, and responsive behaviour. The Command Centre group includes the Main Dashboard (configurable widget grid with drag-and-drop, global filter bar at top, and collapsible sidebar), Geospatial Map View (full-width interactive map with layer toggles, LGA/ward/PU drill-down, and side panel for selected area details), and Alert Centre (three-column layout: priority filter rail, scrollable alert list, and detail pane with response actions)."),
+  body("The Operations group includes Voter Search and Explore (split layout: 30% filter panel with collapsible sections, 70% results data table with sortable columns, inline preview, and pagination), Segment Builder (two-panel: rule builder with drag-and-drop condition groups on left, live count preview and distribution chart on right), Voter Profile (tabbed: Overview with summary cards, Interactions timeline, Predictive Scores with gauge visualisations, Map showing PU location and surrounding voters), Field Activity Feed (real-time chronological stream with infinite scroll, filterable by agent, LGA, and activity type, with inline detail expansion), and Incident Management (table view with inline severity badges, expandable rows showing photo evidence and escalation history, and bulk action toolbar)."),
+  body("The Management group includes Communication Composer (three-panel: audience selector on left, message editor with template picker in centre, preview and scheduling on right), Financial Dashboard (hierarchical budget tree with expandable lines, variance indicators, and sparkline trends), Inventory Management (table with barcode scan button, stock level indicators, and automated reorder alerts), and Reports Centre (gallery of report templates with one-click generation, scheduling interface, and distribution history). The Administration group includes User Management (data table with role assignment dropdown, bulk invite, and activity log per user), Role Configuration (visual RBAC matrix editor with checkbox grid), System Settings (categorised settings pages: general, security, notifications, integrations), and Audit Log Viewer (filterable log table with timestamp, user, action, resource columns and detail drawer)."),
+  h2("6.15 Mobile Application Detailed Screen Specifications"),
+  body("Beyond the five-tab main navigation, the mobile app contains twenty-two distinct screens. The Home screen layout from top to bottom: greeting bar with notification bell icon (unread count badge), task progress ring (circular, 64dp, showing completed/total), horizontal scrolling quick-action bar (four rounded-rectangle buttons with icons: Log Visit, Report Incident, Check-In, Survey), 'Today's Tasks' section header with 'See All' link, vertically scrolling task cards (each showing voter name, address preview, task type icon, and due time). The task card supports swipe-right for 'Mark Complete' (green) and swipe-left for 'Reschedule' (amber)."),
+  body("The Voter Profile screen uses a collapsible header card showing name, PVC status badge (green check or red cross), and last contact date. Below, a tab bar switches between Contact Info (phone with tap-to-call, address with tap-to-navigate), Interaction History (chronological list with filter chips for visit, call, message, event), Notes (markdown-enabled text area for coordinator notes with auto-save), and Map (embedded map showing voter PU with 500m radius circle indicating assignment area). The Incident Report screen uses a stepped form with progress indicator at top: Step 1 (Category Selection: 2-column icon grid with colour-coded borders), Step 2 (Severity: five large tappable buttons, colour-coded green to red, each with label and description), Step 3 (Details: multi-field form with description, camera button, and optional voice-to-text input), Step 4 (Review and Submit: summary card with edit buttons per section, prominent 'Submit' button at bottom)."),
+  h2("6.16 Animation and Motion Design System"),
+  body("Animations serve functional purposes: providing feedback, maintaining context during navigation, and directing attention. All animations follow a consistent easing curve (cubic-bezier(0.4, 0, 0.2, 1) for standard transitions, cubic-bezier(0.0, 0, 0.2, 1) for deceleration). Duration standards: 100ms for micro-interactions (button press, toggle), 200-300ms for standard transitions (screen enter/exit, panel slide), 400-500ms for complex sequences (page transitions with shared element transitions). All animations respect the user's 'Reduce Motion' system setting, replacing motion with instant state changes and opacity fades."),
+  body("Screen transitions use a shared-element pattern: when tapping a voter name in a list, the name text morphs into the header of the voter profile screen while the list slides out to the left and the profile slides in from the right. Modal presentations use a bottom-sheet pattern on mobile (content slides up from bottom, backdrop dims with 200ms fade) and a centre-modal pattern on web (content scales from 0.95 to 1.0 with fade). List animations use staggered entry where items appear sequentially with a 30ms delay between each, creating a cascading waterfall effect that communicates hierarchical loading order."),
+  h2("6.17 Error Handling and Recovery Patterns"),
+  body("The platform implements a four-tier error handling strategy. Tier 1 (Validation Errors) are caught at the input level before submission: real-time field validation with debounced checking (300ms after last keystroke), inline error messages below the relevant field with red left border, and a summary banner at the top of long forms listing all errors with jump-to-field links. Tier 2 (Network Errors) occur during API calls: the system displays a non-blocking toast notification ('Unable to save. Retrying...') with an automatic retry mechanism that uses exponential backoff (1s, 2s, 4s, 8s, max 30s). If all retries fail, a persistent inline banner appears with a 'Try Again' button and an option to save locally for later sync."),
+  body("Tier 3 (Server Errors) indicate backend failures: a full-screen error state with an illustration, friendly error message (e.g., 'Something went wrong on our end. Our team has been notified.'), and a 'Reload' button. The error details including request ID, timestamp, and user context are automatically reported to Sentry for developer investigation. Tier 4 (Offline Scenarios) are handled transparently: when the network is unavailable, a subtle yellow banner appears at the top of the screen stating 'You're offline. Changes will sync when connected.' All write operations succeed locally and queue for sync. Read operations return cached data with a timestamp indicator showing data freshness."),
+  body("Data recovery mechanisms include: auto-save for all form inputs every 30 seconds to local storage, a 'Drafts' section in the user's profile listing all unsaved work across devices, and a conflict resolution interface for sync conflicts that presents both versions side-by-side with diff highlighting and merge options. In the event of a corrupted local database, the mobile app includes a 'Recovery Mode' accessible from the login screen that re-downloads the user's assigned data subset from the server, preserving only locally-created records that have not yet synced."),
+  h2("6.18 Dark Mode Design Specifications"),
+  body("The dark mode theme inverts the background and surface colours while maintaining the same semantic colour language. Background changes from white (#FFFFFF) to dark charcoal (#111827), surface cards from white/light gray to dark gray (#1F2937), and the sidebar from white to near-black (#0F172A). Text colours invert proportionally: primary text becomes off-white (#F9FAFB), secondary text becomes medium gray (#9CA3AF), and disabled text becomes dark gray (#4B5563). APC green (#007847) remains the primary accent but is lightened to #10B981 for better contrast against dark backgrounds."),
+  body("All shadows are removed in dark mode, replaced by subtle borders (1px, #374151) to create visual separation between surfaces. Charts use a dark-mode palette: data series maintain their identity colours but at reduced saturation (80%) to prevent eye strain, grid lines use very dark gray (#1F2937) instead of light gray, and chart backgrounds are transparent. Images and photos receive a slight brightness reduction (95%) to prevent them from appearing overly bright against the dark interface. The transition between light and dark modes is animated with a 200ms cross-fade on all colour properties, creating a smooth visual transition that does not disrupt the user's workflow."),
 
   // ═══════════════════════════════════════════════════════════════
-  // 7-12: REMAINING SECTIONS
+  // 7. QUALITY ASSURANCE AND END-TO-END TESTING
   // ═══════════════════════════════════════════════════════════════
-  h1("7. Physical Office Infrastructure"),
-  h2("7.1 Office Layout and Space Requirements"),
+  h1("7. Quality Assurance and End-to-End Testing"),
+  h2("7.1 Testing Philosophy and Strategy"),
+  body("Quality assurance for the campaign platform follows a risk-based testing strategy that concentrates testing effort on the highest-risk and most frequently used pathways. The testing pyramid comprises three layers: a broad base of unit tests covering individual functions and utility modules, a middle layer of integration tests verifying module interactions and API contracts, and a focused apex of end-to-end (E2E) tests that validate complete user workflows across both web and mobile applications. The target code coverage is 80% for unit tests and 60% for integration tests, with E2E tests covering 100% of critical user journeys identified in the user persona analysis."),
+  body("Testing is integrated into the CI/CD pipeline, running automatically on every code commit. The pipeline executes unit tests first (targeting under 5 minutes), then integration tests (under 15 minutes), and finally a smoke-test suite of the most critical E2E scenarios (under 20 minutes). Full E2E test suites run nightly and on pre-release branches. Any test failure blocks the merge to the main branch and the deployment pipeline, ensuring that regressions are caught before they reach any environment."),
+  h2("7.2 End-to-End Testing Framework"),
+  body("E2E tests are implemented using Playwright for the web application and Detox for the mobile application, both chosen for their reliability, speed, and native support for the underlying technologies (React for web, React Native for mobile). Tests are written as declarative specifications that describe what the user does and expects to see, making them readable by non-technical stakeholders and suitable as living documentation of system behaviour."),
+  makeTable(
+    ["Test Category", "Count", "Execution", "Coverage"],
+    [
+      ["Critical Path E2E (web)", "25", "Every commit + nightly", "Login, dashboard, voter search, segment create, broadcast, report gen"],
+      ["Critical Path E2E (mobile)", "30", "Every commit + nightly", "Login, task flow, visit log, incident report, sync, offline submit"],
+      ["Cross-Module Integration", "40", "Nightly", "VID-to-Comms segment export, Field-to-Monitoring incident flow"],
+      ["API Contract Tests", "120", "Every commit", "All endpoints: request/response schema validation"],
+      ["Data Sync E2E", "15", "Nightly", "Offline create, reconnect, verify server state, conflict handling"],
+      ["Security E2E", "20", "Weekly", "RBAC enforcement, session handling, encryption verification"],
+      ["Performance E2E", "10", "Weekly", "Dashboard load, search latency, sync throughput, concurrent users"],
+      ["Accessibility E2E", "15", "Nightly", "Screen reader flow, keyboard nav, colour contrast, focus order"],
+    ]
+  ),
+  tableCaption("Table 26: E2E Test Suite Inventory"),
+  h2("7.3 E2E Test Scenarios: Web Application"),
+  h3("7.3.1 Campaign Director Workflow"),
+  body("Test Scenario CD-001 (Morning Briefing): Navigate to login page, enter credentials, verify MFA challenge, land on dashboard. Verify KPI cards display data matching API response. Click LGA on map, verify cross-filter applies to all widgets. Click 'Share View', enter recipient, verify shared link generates. Acknowledge a critical alert, verify alert moves to 'Acknowledged' section. Export dashboard as PDF, verify file downloads. This test validates the director's primary workflow and confirms that real-time data, cross-widget filtering, and sharing all function correctly in an integrated manner."),
+  body("Test Scenario CD-002 (Incident Oversight): Navigate to incident tracker widget, verify list loads with real-time indicator (green dot). Click a severity-4 incident, verify detail panel opens with photo, description, and escalation status. Click 'Escalate to Level 3', verify confirmation dialog, confirm, verify incident status updates to 'Escalated' and a notification is dispatched to the situation room. Verify the incident no longer appears in the ward coordinator's unresolved list."),
+  h3("7.3.2 Data Analyst Workflow"),
+  body("Test Scenario DA-001 (Segment Creation and Export): Navigate to VID > Segment Builder. Add condition: Age between 18 and 25. Add condition: LGA is selected from dropdown. Add condition: Engagement status is 'New'. Verify live count updates with each condition. Name segment 'First-Time Youth Voters - [LGA Name]'. Save segment. Click 'Export to Comms Hub', verify redirect to Communication Hub with segment pre-selected as audience. Verify segment appears in segment list with correct voter count and last-updated timestamp."),
+  body("Test Scenario DA-002 (Data Import and Deduplication): Navigate to VID > Data Import. Upload CSV test file with 500 records including 20 known duplicates. Verify Step 2 (Field Mapping) auto-detects column mappings. Verify Step 3 (Validation) flags 15 records with format errors. Fix one mapping, verify count updates. Verify Step 4 (Deduplication) identifies 18 of 20 duplicates with confidence scores. Resolve duplicates interactively: merge 10, keep new 5, skip 3. Confirm import. Verify 482 unique records added to database. Verify import history log shows correct counts."),
+  h2("7.4 E2E Test Scenarios: Mobile Application"),
+  h3("7.4.1 Ward Coordinator Daily Workflow"),
+  body("Test Scenario WC-001 (Complete Task Flow): Launch app, verify biometric prompt, authenticate. Verify Home screen loads with personalised greeting, task count (e.g., '8 of 15'), and quick-action bar. Tap first task card, verify voter profile slides in. Tap 'Start Navigation', verify route map opens with turn-by-turn. Return to task, tap 'Log Visit'. Verify form opens with voter name pre-filled. Select sentiment slider to 4 (positive), select issue 'Employment', type notes (150 characters). Tap 'Submit'. Verify success animation plays, task shows green checkmark, task count updates to '9 of 15'. Verify visit appears in voter's interaction history."),
+  body("Test Scenario WC-002 (Offline Incident Report): Enable airplane mode. Navigate to Report tab, tap FAB. Select 'Voter Intimidation' category. Select severity 4. Type description (100 characters). Tap camera button, take photo. Tap 'Submit'. Verify submission queues locally with 'Pending Sync' indicator. Disable airplane mode (restore connectivity). Verify sync initiates automatically. Verify sync progress shows '1 item uploading'. Verify incident appears on web dashboard within 30 seconds. Verify local indicator changes to 'Synced' with green checkmark."),
+  h3("7.4.2 Sync Conflict Resolution"),
+  body("Test Scenario SC-001 (Concurrent Edit Conflict): Device A and Device B both sync the same voter record. Device A modifies voter notes to 'Met at home, very supportive'. Device B modifies same voter's notes to 'Not at home, left message with neighbour'. Both devices sync. Verify conflict resolution interface appears on both devices showing both versions side-by-side with diff highlighting (old text in red strikethrough, new text in green). User on Device A selects 'Keep Mine'. User on Device B selects 'Merge' and selects Device A's notes but keeps Device B's sentiment change. Verify merged result on server contains Device A's notes and Device B's sentiment. Verify audit log records both original changes and the merge resolution."),
+  h2("7.5 Security Testing"),
+  body("Security E2E tests verify that security controls function correctly in realistic usage scenarios rather than in isolation. Test Scenario SEC-001 (RBAC Enforcement): Log in as Zonal Coordinator. Attempt to access /api/v1/voters (all LGAs). Verify 403 Forbidden response. Attempt to access financial endpoints. Verify 403 Forbidden. Access voters in assigned LGA. Verify 200 OK with only assigned LGA data. Attempt to modify role in profile settings. Verify action is not available in UI. This test confirms that server-side RBAC cannot be bypassed through direct API calls even if the UI hides the functionality."),
+  body("Test Scenario SEC-002 (Session Security): Log in on Device A. Log in on Device B with same credentials. Verify Device A session is terminated with a 'Session ended on another device' message. Verify all subsequent API calls from Device A return 401 Unauthorized. Test Scenario SEC-003 (Data Encryption Verification): Intercept API response for voter search (using test proxy). Verify PII fields (phone, address) are encrypted and not readable in the raw response body. Verify that a user with 'Segment (no PII)' role receives only aggregated counts, never individual voter records."),
+  h2("7.6 Performance and Load Testing"),
+  body("Performance E2E tests validate that the platform meets its performance budgets under realistic conditions. The load testing strategy simulates three scenarios: Normal Operations (500 concurrent web users, 200 active mobile users), Peak Election Day (2,000 concurrent web users, 1,500 active mobile users with high incident report volume), and Stress Test (5,000 concurrent users to identify breaking points). Key metrics monitored include: page load times, API response time at 50th/95th/99th percentiles, WebSocket message delivery latency, database query execution times, and error rates."),
+  body("Mobile performance testing uses real-device testing on a representative device farm of five Android devices covering low-end (3GB RAM, Snapdragon 425), mid-range (4GB RAM, Snapdragon 660), and high-end (8GB RAM, Snapdragon 888) specifications. Tests verify: app cold start time under 3 seconds, initial data sync completion within 10 minutes on 4G, form submission latency under 200ms when offline, battery drain under 8% per hour during active field use, and smooth 60fps scrolling on data tables with 1,000+ rows. Devices are connected to a network conditioner that simulates 2G, 3G, 4G, and intermittent connectivity patterns to verify graceful degradation."),
+  h2("7.7 User Acceptance Testing (UAT)"),
+  body("User Acceptance Testing is conducted in three phases with real users from each persona group. Phase 1 (Alpha) involves internal team members acting as proxy users, testing core workflows and identifying obvious usability issues. Phase 2 (Beta) involves 20 actual ward coordinators and 5 data analysts from a single pilot LGA, using the platform for real campaign activities over a two-week period. Phase 3 (Pre-Launch) expands to all zonal coordinators for a final validation week before state-wide deployment."),
+  makeTable(
+    ["UAT Phase", "Participants", "Duration", "Success Criteria"],
+    [
+      ["Alpha", "Internal team (10)", "Week 9", "Zero critical bugs, 90% task completion rate"],
+      ["Beta", "25 real users (1 LGA)", "Weeks 9-10", "95% task completion, SUS score above 75"],
+      ["Pre-Launch", "All zonal coordinators", "Week 11", "100% critical paths, zero P0/P1 bugs"],
+      ["Election Day Sim", "Full team + 500 volunteers", "Week 12", "Full simulation, all systems under load"],
+    ]
+  ),
+  tableCaption("Table 27: User Acceptance Testing Plan"),
+  body("During each UAT phase, users complete structured task scenarios while thinking aloud, and their interactions are recorded (with consent) for later analysis. The System Usability Scale (SUS) questionnaire is administered at the end of each phase, with a target score of 75 or above (indicating good to excellent usability). Critical findings are triaged daily and resolved within 24 hours for P0 issues and 72 hours for P1 issues. A feedback button in both the web and mobile applications allows users to submit issues and suggestions at any time during the testing period."),
+
+  // ═══════════════════════════════════════════════════════════════
+  // 8. PHYSICAL OFFICE INFRASTRUCTURE
+  // ═══════════════════════════════════════════════════════════════
+  h1("8. Physical Office Infrastructure"),
+  h2("8.1 Office Layout and Space Requirements"),
   makeTable(
     ["Area", "Space (sqm)", "Purpose", "Key Equipment"],
     [
@@ -816,12 +901,12 @@ const bodyContent = [
       ["Common Areas", "100", "Circulation, branding, emergency exits", "Party branding, signage"],
     ]
   ),
-  tableCaption("Table 26: Office Space Allocation"),
+  tableCaption("Table 28: Office Space Allocation"),
   body("Power: Three-tier system with 20KVA diesel generator for primary backup, 10KVA solar inverter with battery bank for sustained daytime operation, and 3KVA online UPS for server room and critical workstations. Connectivity: Primary fibre (100Mbps), 4G/5G failover router, VSAT satellite reserved for election day. All connections through enterprise firewall with VPN."),
-  h2("7.2 Situation Room Technology"),
+  h2("8.2 Situation Room Technology"),
   body("The situation room serves as the nerve centre during critical campaign periods and on election day. It features four 55-inch 4K displays in a 2x2 grid: primary display shows real-time geospatial incident map, secondary displays cycle through KPI dashboards and analytics, tertiary display maintains a persistent alert feed, and fourth display is reserved for video conferencing. An integrated audio system provides spoken alerts for critical incidents and hands-free communication with field teams. Dedicated workstations for the Campaign Director, DD Field Operations, legal liaison, and communications lead each have pre-configured dashboard views."),
 
-  h1("8. Organisational Structure and Staffing"),
+  h1("9. Organisational Structure and Staffing"),
   makeTable(
     ["Role", "Reports To", "Responsibilities", "Direct Reports"],
     [
@@ -835,8 +920,8 @@ const bodyContent = [
       ["Ward Coordinator", "Zonal Coord.", "PU operations, volunteer supervision", "Field Volunteers"],
     ]
   ),
-  tableCaption("Table 27: Organisational Structure"),
-  h2("8.2 RACI Matrix"),
+  tableCaption("Table 29: Organisational Structure"),
+  h2("9.2 RACI Matrix"),
   makeTable(
     ["Process", "Director", "DD Data", "DD Field", "DD Comms", "DD Finance"],
     [
@@ -850,9 +935,9 @@ const bodyContent = [
       ["Donor reporting", "A", "I", "I", "I", "R"],
     ]
   ),
-  tableCaption("Table 28: RACI Matrix"),
+  tableCaption("Table 30: RACI Matrix"),
 
-  h1("9. Implementation Roadmap"),
+  h1("10. Implementation Roadmap"),
   makeTable(
     ["Phase", "Timeline", "Modules", "Key Milestones"],
     [
@@ -862,10 +947,10 @@ const bodyContent = [
       ["Excellence", "Wk 11-12", "All modules stress-tested", "Simulations complete, fully ready"],
     ]
   ),
-  tableCaption("Table 29: Implementation Roadmap"),
+  tableCaption("Table 31: Implementation Roadmap"),
   body("Phase 1 (Foundation, Weeks 1-3): Office setup with all infrastructure operational, core platform modules (VID, Dashboard, Security) deployed, voter data consolidation initiated with a target of 50% of the state register digitised. Phase 2 (Activation, Weeks 4-7): Full staff recruitment and intensive hands-on training, mobile application deployment to all ward coordinators, Communication Hub and VMS configuration with template libraries and volunteer recruitment campaigns launched. Phase 3 (Scale-Up, Weeks 8-10): Ward coordinator recruitment and training completion, volunteer mobilisation drive targeting 5,000 active volunteers, election monitoring system configuration and observer training, targeted messaging campaigns based on VID segmentation. Phase 4 (Operational Excellence, Weeks 11-12): Full-scale simulation exercises mimicking election day conditions, stress testing all systems under peak load, contingency plan finalisation."),
 
-  h1("10. Resource Requirements and Budget"),
+  h1("11. Resource Requirements and Budget"),
   makeTable(
     ["Category", "Headcount", "Duration", "Cost (N)"],
     [
@@ -882,7 +967,7 @@ const bodyContent = [
       ["Election Observers", "[Fill]", "1 week", "[Please fill in]"],
     ]
   ),
-  tableCaption("Table 30: Personnel Costs"),
+  tableCaption("Table 32: Personnel Costs"),
   makeTable(
     ["Item", "Description", "Cost (N)"],
     [
@@ -897,7 +982,7 @@ const bodyContent = [
       ["Security Infra", "Firewall, VPN, KMS, pen testing", "[Please fill in]"],
     ]
   ),
-  tableCaption("Table 31: Technology Budget"),
+  tableCaption("Table 33: Technology Budget"),
   makeTable(
     ["Category", "Description", "Cost (N)"],
     [
@@ -909,9 +994,9 @@ const bodyContent = [
       ["Contingency (15%)", "Unforeseen expenses and opportunities", "[Please fill in]"],
     ]
   ),
-  tableCaption("Table 32: Operational Budget"),
+  tableCaption("Table 34: Operational Budget"),
 
-  h1("11. Risk Analysis and Mitigation"),
+  h1("12. Risk Analysis and Mitigation"),
   makeTable(
     ["Risk", "Likelihood", "Impact", "Mitigation"],
     [
@@ -927,9 +1012,9 @@ const bodyContent = [
       ["Volunteer Shortfall", "Medium", "Medium", "Early drive, gamification, partnerships"],
     ]
   ),
-  tableCaption("Table 33: Risk Assessment Matrix"),
+  tableCaption("Table 35: Risk Assessment Matrix"),
 
-  h1("12. Expected Benefits and Evaluation"),
+  h1("13. Expected Benefits and Evaluation"),
   makeTable(
     ["Benefit", "Current State", "Projected", "Measurement"],
     [
@@ -943,7 +1028,7 @@ const bodyContent = [
       ["Comms Reach", "Unmeasured", "Trackable delivery", "Hub analytics"],
     ]
   ),
-  tableCaption("Table 34: Projected Improvements"),
+  tableCaption("Table 36: Projected Improvements"),
   makeTable(
     ["Activity", "Frequency", "Participants", "Outputs"],
     [
@@ -956,7 +1041,7 @@ const bodyContent = [
       ["Post-Election Review", "Once", "Full team + leadership", "Lessons learned, archive"],
     ]
   ),
-  tableCaption("Table 35: Evaluation Framework"),
+  tableCaption("Table 37: Evaluation Framework"),
   body("The evaluation framework incorporates a lessons-learned process capturing operational insights throughout the campaign for future planning. This institutional knowledge management approach ensures the party builds cumulative expertise, avoiding the common pattern where valuable field experience is lost when temporary campaign structures are dismantled after each election cycle. All platform data, operational logs, and evaluation reports are archived in a structured knowledge base that serves as the foundation for the next campaign cycle, providing a measurable competitive advantage that compounds over time."),
 ];
 
