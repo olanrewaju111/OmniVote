@@ -667,10 +667,11 @@ export function TenantManagement() {
               <AlertTriangle className="h-5 w-5" />
               Confirm Deletion
             </DialogTitle>
-            <DialogDescription>
-              {deleteConfirm?.type === 'tenant'
+            <DialogDescription>              {deleteConfirm?.type === 'tenant'
                 ? <>Are you sure you want to delete tenant <span className="font-medium text-foreground">&quot;{deleteConfirm.item.name}&quot;</span>? This will permanently remove all data including elections, incidents, and users.</>
-                : <>Are you sure you want to remove user <span className="font-medium text-foreground">&quot;{deleteConfirm.item.name}&quot;</span>?</>
+                : deleteConfirm?.type === 'user'
+                  ? <>Are you sure you want to remove user <span className="font-medium text-foreground">&quot;{deleteConfirm.item.name}&quot;</span>?</>
+                  : null
               }
             </DialogDescription>
           </DialogHeader>
