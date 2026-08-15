@@ -536,6 +536,13 @@ export function EvidenceDossier() {
 
         {/* ── Tab 2: Stego Analysis ──────────────────────────────── */}
         <TabsContent value="stego" className="flex-1 min-h-0 flex flex-col px-4 pb-4">
+          {/* Simulation disclaimer */
+          <div className="rounded-lg border border-amber/25 bg-amber/5 p-2.5 mb-3 flex items-start gap-2 shrink-0">
+            <AlertTriangle className="h-4 w-4 text-amber shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="text-[11px] text-amber/80">
+              <span className="font-medium">Simulated Analysis</span> — Steganography results are generated using a deterministic hash simulation, not actual pixel-level ELA or steganalysis. Do not rely on these results for forensic evidence. Integrate a real steganography engine (e.g., OpenCV, Pillow) for production use.
+            </div>
+          </div>
           {/* Stats row */}
           <div className="grid grid-cols-4 gap-2 mb-3 shrink-0">
             <StatCard

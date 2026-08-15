@@ -121,14 +121,14 @@ export async function GET(req: NextRequest) {
       case 'agents': {
         const agents = await db.user.findMany({
           where: { tenantId, role: 'FIELD_AGENT' },
-          select: { id: true, name: true, phone: true, isActive: true, lastSeen: true, createdAt: true },
+          select: { id: true, name: true, phone: true, isActive: true, lastSeenAt: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
         });
         const headers = ['ID', 'Name', 'Phone', 'Active', 'Last Seen', 'Created At'];
         const rows = agents.map(a => [
           a.id, a.name, a.phone || '',
           a.isActive ? 'Active' : 'Inactive',
-          a.lastSeen?.toISOString() || 'Never',
+          a.lastSeenAt?.toISOString() || 'Never',
           a.createdAt.toISOString(),
         ]);
         csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');

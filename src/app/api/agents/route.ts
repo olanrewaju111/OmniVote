@@ -112,6 +112,16 @@ export async function POST(req: NextRequest) {
 // PATCH /api/agents — toggle agent status, remote wipe, etc.
 export async function PATCH(req: NextRequest) {
   try {
+    const { id: tenantId, error } = await resolveTenant(req);
+    if (error) return error;
+
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    const tenantErr = requireTenantMatch(authUser, tenantId);
+    if (tenantErr) return tenantErr;
+
     const body = await req.json();
     const { userId, action } = body;
 
@@ -119,7 +129,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'userId and action are required' }, { status: 400 });
     }
 
-    const user = await db.user.findUnique({ where: { id: userId } });
+    // Find user scoped to tenant
+    const user = await db.user.findFirst({ where: { id: userId, tenantId } });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
     let updated;
@@ -179,7 +190,15 @@ export async function PATCH(req: NextRequest) {
         });
         break;
 
-      case 'DELETE':
+      case 'DELETE': {
+        // Prevent self-deletion
+        if (userId === authUser.userId) {
+          return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
+        }
+        // Prevent deleting SUPER_ADMIN accounts (only another SUPER_ADMIN can, via tenant mgmt)
+        if (user.role === 'SUPER_ADMIN' && authUser.role !== 'SUPER_ADMIN') {
+          return NextResponse.json({ error: 'Cannot delete a SUPER_ADMIN' }, { status: 403 });
+        }
         // Check for related incidents - can't delete users with reports
         const incidentCount = await db.incident.count({ where: { reportedById: userId } });
         if (incidentCount > 0) {
@@ -191,6 +210,7 @@ export async function PATCH(req: NextRequest) {
         await db.auditLog.deleteMany({ where: { userId } });
         await db.user.delete({ where: { id: userId } });
         return NextResponse.json({ success: true, message: `Agent "${user.name}" has been removed` });
+      }
 
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });

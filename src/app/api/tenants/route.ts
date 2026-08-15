@@ -12,12 +12,27 @@ export async function GET(req: NextRequest) {
     if (slug) {
       const tenant = await db.tenant.findFirst({
         where: { slug, isActive: true },
-        select: { id: true, name: true, slug: true, primaryColor: true },
+        select: {
+          id: true, name: true, slug: true, primaryColor: true,
+          _count: { select: { users: true, elections: true, incidents: true } },
+        },
       });
       if (!tenant) {
         return NextResponse.json({ tenant: null }, { status: 200 });
       }
-      return NextResponse.json({ tenant });
+      // Get polling unit count via elections
+      let pollingUnitCount = 0;
+      const elections = await db.election.findMany({
+        where: { tenantId: tenant.id },
+        include: { _count: { select: { pollingUnits: true } } },
+      });
+      pollingUnitCount = elections.reduce((sum, e) => sum + e._count.pollingUnits, 0);
+      return NextResponse.json({
+        tenant: {
+          ...tenant,
+          pollingUnitCount,
+        },
+      });
     }
 
     const authUser = await getAuthUser(new Request(''));

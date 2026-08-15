@@ -38,32 +38,32 @@ export async function GET(req: NextRequest) {
 
       // Poll for new data every 5 seconds
       const { db } = await import('@/lib/db');
-      let lastAlertId = '';
-      let lastIncidentId = '';
+      let lastPollTimestamp = new Date();
 
       const poll = async () => {
         try {
+          const now = new Date();
           const where: Record<string, unknown> = payload.role === 'SUPER_ADMIN' ? {} : { tenantId };
 
-          // Check for new alerts
+          // Check for new alerts (cursor by createdAt, not CUID)
           const newAlerts = await db.alert.findMany({
-            where: { ...where, id: { gt: lastAlertId || undefined } },
-            orderBy: { createdAt: 'desc' },
-            take: 10,
+            where: { ...where, createdAt: { gt: lastPollTimestamp } },
+            orderBy: { createdAt: 'asc' },
+            take: 20,
           });
           if (newAlerts.length > 0) {
-            lastAlertId = newAlerts[0].id;
+            lastPollTimestamp = newAlerts[newAlerts.length - 1].createdAt;
             send('alerts', { alerts: newAlerts, count: newAlerts.length });
           }
 
-          // Check for new incidents
+          // Check for new incidents (cursor by submittedAt, not CUID)
           const newIncidents = await db.incident.findMany({
-            where: { ...where, id: { gt: lastIncidentId || undefined } },
-            orderBy: { submittedAt: 'desc' },
-            take: 10,
+            where: { ...where, submittedAt: { gt: lastPollTimestamp } },
+            orderBy: { submittedAt: 'asc' },
+            take: 20,
           });
           if (newIncidents.length > 0) {
-            lastIncidentId = newIncidents[0].id;
+            lastPollTimestamp = newIncidents[newIncidents.length - 1].submittedAt;
             send('incidents', { incidents: newIncidents, count: newIncidents.length });
           }
         } catch {

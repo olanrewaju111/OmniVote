@@ -38,7 +38,7 @@ export function TenantLogin() {
   useEffect(() => { setMounted(true); }, []);
 
   const { data: tenantData, isLoading: tenantLoading } = useQuery<{
-    tenant: { id: string; name: string; slug: string; primaryColor: string } | null;
+    tenant: { id: string; name: string; slug: string; primaryColor: string; pollingUnitCount?: number; _count?: { users: number; elections: number; incidents: number } } | null;
   }>({
     queryKey: ['tenant-by-slug', slug],
     queryFn: () => fetchJson(`/api/tenants?slug=${slug}`),
@@ -156,12 +156,20 @@ export function TenantLogin() {
         </div>
         <div className="relative z-10 space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Active Agents', value: '25+' },
-              { label: 'Polling Units', value: '381+' },
-              { label: 'AI Models', value: '7' },
-              { label: 'Uptime', value: '99.9%' },
-            ].map(s => (
+            {(tenant._count
+              ? [
+                  { label: 'Agents', value: String(tenant._count.users) },
+                  { label: 'Polling Units', value: String(tenant.pollingUnitCount || 0) },
+                  { label: 'Incidents', value: String(tenant._count.incidents) },
+                  { label: 'Elections', value: String(tenant._count.elections) },
+                ]
+              : [
+                  { label: 'Agents', value: '—' },
+                  { label: 'Polling Units', value: '—' },
+                  { label: 'Incidents', value: '—' },
+                  { label: 'Elections', value: '—' },
+                ]
+            ).map(s => (
               <div key={s.label} className="rounded-lg border border-border bg-card/40 px-3 py-2.5">
                 <p className="text-lg font-bold tabular-nums" style={{ color: accentColor }}>{s.value}</p>
                 <p className="text-[11px] text-muted-foreground">{s.label}</p>

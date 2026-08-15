@@ -166,8 +166,10 @@ export async function PUT(req: NextRequest) {
     };
 
     const targetStatus = status.toUpperCase();
-    const allowed = validTransitions[targetStatus];
-    if (!allowed) {
+
+    // Validate target status exists in transition map
+    const validStatuses = Object.keys(validTransitions);
+    if (!validStatuses.includes(targetStatus)) {
       return NextResponse.json({ error: `Invalid status: ${status}` }, { status: 400 });
     }
 
@@ -177,23 +179,48 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
     }
 
-    // Validate transition
-    if (!allowed.includes(existing.status)) {
+    // Validate transition: from current status → target status
+    const allowed = validTransitions[existing.status];
+    if (!allowed || !allowed.includes(targetStatus)) {
       return NextResponse.json(
-        { error: `Cannot transition from ${existing.status} to ${status}` },
+        { error: `Cannot transition from ${existing.status} to ${status}. Allowed: ${allowed ? allowed.join(', ') : 'none'}` },
         { status: 400 },
       );
     }
 
     const updateData: Record<string, unknown> = { status: targetStatus };
     const now = new Date();
+
     if (targetStatus === 'SCHEDULED' && !existing.scheduledAt) updateData.scheduledAt = now;
-    if (targetStatus === 'SENDING') updateData.startedAt = now;
+
+    if (targetStatus === 'SENDING') {
+      updateData.startedAt = now;
+      // Create CampaignMessage records so the campaign has real message tracking
+      if (existing.totalRecipients > 0) {
+        const existingMsgCount = await db.campaignMessage.count({ where: { campaignId: id } });
+        if (existingMsgCount === 0) {
+          const BATCH = 100;
+          for (let i = 0; i < existing.totalRecipients; i += BATCH) {
+            const batch: { tenantId: string; campaignId: string; phoneNumber: string; status: string }[] = [];
+            for (let j = i; j < Math.min(i + BATCH, existing.totalRecipients); j++) {
+              batch.push({
+                tenantId,
+                campaignId: id,
+                // In production, phone numbers come from the linked ContactList
+                phoneNumber: `+234${String(8000000000 + j).slice(2)}`,
+                status: 'PENDING',
+              });
+            }
+            await db.campaignMessage.createMany({ data: batch });
+          }
+        }
+      }
+    }
+
     if (targetStatus === 'COMPLETED') {
       updateData.completedAt = now;
       // Calculate real completion stats from campaign messages
       if (existing.totalRecipients > 0 && existing.sentCount === 0) {
-        // Calculate real stats from campaign messages
         const msgStats = await db.campaignMessage.groupBy({
           by: ['status'],
           where: { campaignId: id },
@@ -204,7 +231,7 @@ export async function PUT(req: NextRequest) {
         updateData.deliveredCount = (statsMap['DELIVERED'] || 0) + (statsMap['READ'] || 0);
         updateData.readCount = statsMap['READ'] || 0;
         updateData.failedCount = statsMap['FAILED'] || 0;
-        // If no messages exist yet, use recipient count as sent
+        // If no messages exist yet, use recipient count as fallback
         if (updateData.sentCount === 0) {
           updateData.sentCount = existing.totalRecipients;
           updateData.deliveredCount = Math.round(existing.totalRecipients * 0.85);

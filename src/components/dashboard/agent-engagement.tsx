@@ -123,6 +123,16 @@ export function AgentEngagement() {
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [bulkChannel, setBulkChannel] = useState('WHATSAPP');
 
+  // Check WhatsApp bridge mode for mock banner
+  const { data: waCheck } = useQuery<{ mode?: string }>({
+    queryKey: ['wa-mode', tenantId],
+    queryFn: () => fetchJson(`/api/whatsapp?tenantId=${tenantId}`),
+    refetchInterval: 30000,
+    enabled: !!tenantId,
+    select: (d: Record<string, unknown>) => ({ mode: (d.mode as string) || (d.status === 'DISCONNECTED' ? 'OFFLINE' : 'UNKNOWN') }),
+  });
+  const waMode = waCheck?.mode || '';
+
   // Fetch engagement data
   const { data, isLoading, isError, refetch } = useQuery<EngagementData>({
     queryKey: ['engagement', tenantId, msgFilter],
@@ -207,6 +217,18 @@ export function AgentEngagement() {
 
   return (
     <div className="h-full flex flex-col p-4 gap-4 overflow-hidden">
+      {/* ─── WhatsApp Mock Mode Banner ──────────────────── */}
+      {waMode === 'MOCK' && (
+        <div className="rounded-lg border border-amber/30 bg-amber/5 px-3 py-2.5 flex items-start gap-2.5 shrink-0">
+          <AlertTriangle className="h-4 w-4 text-amber shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="text-[11px] text-amber/80">
+            <span className="font-medium">WhatsApp Bridge Unavailable — Running in Mock Mode</span>
+            <br />
+            Messages are <strong>not actually delivered</strong>. Delivery and read counts shown in the conversation list reflect simulated data, not real WhatsApp delivery. Connect a real WhatsApp bridge service to enable actual message delivery.
+          </div>
+        </div>
+      )}
+
       {/* ─── Header ──────────────────────────────────────────── */}
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
