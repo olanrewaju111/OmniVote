@@ -167,7 +167,7 @@ export function AgentEngagement() {
   // Bulk engage mutation
   const bulkMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetchJson('/api/engagement', {
+      fetchJson<{ engaged: number; channel: string }>('/api/engagement', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...body, tenantId }),
@@ -811,7 +811,10 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
 
   const { data: waStatus, isLoading: waLoading, refetch: waRefetch } = useQuery({
     queryKey: ['whatsapp-status', tenantId],
-    queryFn: () => fetchJson(`/api/whatsapp?tenantId=${tenantId}`),
+    queryFn: () => fetchJson<{
+      status: string; phone?: string; whatsappPhone?: string;
+      jid?: string; whatsappJid?: string; qrCode?: string; mode?: string;
+    }>(`/api/whatsapp?tenantId=${tenantId}`),
     refetchInterval: 5000,
     enabled: !!tenantId,
   });

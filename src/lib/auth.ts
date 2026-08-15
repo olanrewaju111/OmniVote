@@ -14,7 +14,10 @@ import { cookies } from 'next/headers';
 
 // ─── Configuration ─────────────────────────────────────────────────────────
 
-const JWT_SECRET = process.env.JWT_SECRET || 'omnivote-dev-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required. Set it in .env or your deployment config.');
+}
 const TOKEN_EXPIRY = '24h'; // matches tenant.sessionTimeoutMin default
 const COOKIE_NAME = 'omnivote-session';
 

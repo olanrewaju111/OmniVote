@@ -72,7 +72,7 @@ export function TenantManagement() {
   const { data: allTenants, isLoading: tenantsLoading, isError: tenantsIsError } = useQuery({
     queryKey: ['all-tenants'],
     queryFn: async () => {
-      const d = await fetchJson<{ tenants?: unknown[] }>('/api/tenants');
+      const d = await fetchJson<{ tenants?: TenantItem[] }>('/api/tenants');
       return d.tenants || [];
     },
     enabled: isSuperAdmin,
@@ -82,7 +82,9 @@ export function TenantManagement() {
   const { data: settings, isLoading: settingsLoading, isError: settingsIsError } = useQuery({
     queryKey: ['tenant-settings', tenantId],
     queryFn: async () => {
-      return fetchJson(`/api/tenant-settings?tenantId=${tenantId}`);
+      return fetchJson<{
+        mapBounds?: MapBoundsData; id?: string; name?: string; slug?: string; primaryColor?: string;
+      }>(`/api/tenant-settings?tenantId=${tenantId}`);
     },
     enabled: !!tenantId && isAdmin,
   });
@@ -91,7 +93,7 @@ export function TenantManagement() {
   const { data: tenantUsersData, isLoading: usersLoading, isError: usersIsError } = useQuery({
     queryKey: ['tenant-users', tenantId],
     queryFn: async () => {
-      const d = await fetchJson<{ users?: unknown[] }>(`/api/tenants/users?tenantId=${tenantId}`);
+      const d = await fetchJson<{ users?: { id: string; email: string; name: string; role: string; phone?: string; isOnline: boolean; lastSeenAt?: string; createdAt: string }[] }>(`/api/tenants/users?tenantId=${tenantId}`);
       return d.users || [];
     },
     enabled: !!tenantId && isAdmin,
@@ -177,7 +179,7 @@ export function TenantManagement() {
   // Create tenant
   const createTenantMutation = useMutation({
     mutationFn: (data: { name: string; slug: string; primaryColor: string; adminName: string; adminEmail: string }) =>
-      fetchJson('/api/tenants', {
+      fetchJson<{ tenant?: { name: string }; admin?: { email: string } }>('/api/tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -187,7 +189,7 @@ export function TenantManagement() {
       setCreateTenantOpen(false);
       setNewTenantName(''); setNewTenantSlug(''); setNewTenantColor('#10b981');
       setNewAdminName(''); setNewAdminEmail('');
-      toast.success(`Tenant "${data.tenant.name}" created. Admin: ${data.admin.email}`);
+      toast.success(`Tenant "${data.tenant?.name}" created. Admin: ${data.admin?.email}`);
     },
     onError: (err) => toast.error(err?.message || 'Failed to create tenant'),
   });

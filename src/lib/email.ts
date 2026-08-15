@@ -1,4 +1,5 @@
 import * as nodemailer from 'nodemailer';
+import { logger } from './logger';
 
 /**
  * Create a pre-configured SMTP transporter from env vars.
@@ -13,7 +14,7 @@ function createTransporter() {
   const secure = process.env.SMTP_SECURE === 'true';
 
   if (!host || !user || !pass) {
-    console.warn('[EMAIL] SMTP not configured — emails will be logged only');
+    logger.warn({ message: 'SMTP not configured — emails will be logged only', module: 'EMAIL' });
     return null;
   }
 
@@ -49,8 +50,7 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
 
   // No SMTP configured — log and pretend success
   if (!transporter) {
-    console.log(`[EMAIL] (dry-run) To: ${to}, Subject: ${subject}`);
-    console.log(`[EMAIL] (dry-run) Body (first 300 chars): ${html.substring(0, 300)}`);
+    logger.info({ message: 'Dry-run email', module: 'EMAIL', to, subject, bodyPreview: html.substring(0, 300) });
     return true;
   }
 
@@ -62,10 +62,10 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions): 
       html,
       text: text || html.replace(/<[^>]+>/g, ' '),
     });
-    console.log(`[EMAIL] Sent to ${to} — MessageId: ${info.messageId}`);
+    logger.info({ message: 'Email sent', module: 'EMAIL', to, messageId: info.messageId });
     return true;
   } catch (err) {
-    console.error(`[EMAIL] Failed to send to ${to}:`, err);
+    logger.error({ message: 'Failed to send email', module: 'EMAIL', to, error: err });
     return false;
   }
 }

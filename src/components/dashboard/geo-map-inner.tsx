@@ -1,9 +1,18 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+/* react-leaflet derives most props from leaflet types (MapOptions, CircleMarkerOptions, etc.).
+   The project has no @types/leaflet and leaflet v1.9.4 ships no declarations, so the custom
+   declare module 'leaflet' in src/types/leaflet.d.ts is the sole type and makes all
+   leaflet-originated props invisible. Wrap the three components to bypass the mismatch. */
+const LooseMapContainer = MapContainer as unknown as React.ComponentType<React.PropsWithChildren<Record<string, unknown>>>;
+const LooseTileLayer = TileLayer as unknown as React.ComponentType<Record<string, unknown>>;
+const LooseCircleMarker = CircleMarker as unknown as React.ComponentType<React.PropsWithChildren<Record<string, unknown>>>;
+
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, MapPin } from 'lucide-react';
 
@@ -75,12 +84,14 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
 
   // Fix Leaflet default icon
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    // Leaflet's bundled icon URL resolver doesn't work with Next.js bundler.
+    // Override it so markers don't break.
+    const iconProto = L.Icon.Default.prototype as Record<string, unknown>;
+    delete iconProto._getIconUrl;
   }, []);
 
   return (
-    <MapContainer
+    <LooseMapContainer
       center={mapCenter}
       zoom={6}
       className="absolute inset-0 w-full h-full z-0"
@@ -88,7 +99,7 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
       attributionControl={false}
       style={{ background: '#09090b' }}
     >
-      <TileLayer
+      <LooseTileLayer
         url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>'
       />
@@ -104,9 +115,9 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
         const color = getStatusColor(p.status);
 
         return (
-          <CircleMarker
+          <LooseCircleMarker
             key={p.id}
-            center={[p.lat, p.lng]}
+            center={[p.lat, p.lng] as [number, number]}
             radius={radius}
             pathOptions={{
               fillColor: getTurnoutColor(p.turnout),
@@ -117,8 +128,8 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
             }}
             eventHandlers={{
               click: (e) => {
-                L.DomEvent.stopPropagation(e);
-                onSelectPoint(prev => prev === p.id ? null : p.id);
+                e.originalEvent?.stopPropagation();
+                onSelectPoint(selectedId === p.id ? null : p.id);
               },
             }}
           >
@@ -147,7 +158,7 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
                 <p className="text-[10px] text-muted-foreground">Code: {p.code}</p>
               </div>
             </Popup>
-          </CircleMarker>
+          </LooseCircleMarker>
         );
       })}
 
@@ -189,6 +200,6 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
           {area.label} · OpenStreetMap
         </div>
       </div>
-    </MapContainer>
+    </LooseMapContainer>
   );
 }

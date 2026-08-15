@@ -78,7 +78,7 @@ interface DashboardState {
   setGlobalSearch: (q: string) => void;
 }
 
-export const useDashboardStore = create<DashboardState>((set) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   // Auth defaults
   user: null,
   isAuthenticated: false,

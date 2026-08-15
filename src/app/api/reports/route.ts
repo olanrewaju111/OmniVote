@@ -156,8 +156,8 @@ interface ResultRow {
   violenceOccurred: boolean;
   notes: string;
   verified: boolean;
-  submittedAt: string;
-  updatedAt: string;
+  submittedAt: Date;
+  updatedAt: Date;
   pollingUnit: { id: string; name: string; code: string; state: string; lga: string; ward: string; registeredVoters: number };
 }
 
@@ -194,8 +194,8 @@ interface IncidentRow {
   aiSummary: string | null;
   isQuarantined: boolean;
   c2paVerified: boolean;
-  submittedAt: string;
-  reviewedAt: string | null;
+  submittedAt: Date;
+  reviewedAt: Date | null;
   pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
 }
 

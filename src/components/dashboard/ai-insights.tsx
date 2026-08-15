@@ -70,7 +70,7 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
     const statuses: Record<string, 'active' | 'degraded' | 'error'> = {};
     const hasDeepfake = incidents.some(i => i.type === 'DEEPFAKE_SUSPECT' && i.isQuarantined);
     const hasCib = incidents.some(i => i.type === 'CIB_DETECTED');
-    const hasGpsAnomaly = incidents.some((i: any) => i.gpsAnomaly || i.isQuarantined);
+    const hasGpsAnomaly = incidents.some(i => 'gpsAnomaly' in i && (i.gpsAnomaly || i.isQuarantined));
     const highQuarantineCount = incidents.filter(i => i.isQuarantined).length;
 
     if (hasDeepfake) statuses['deepfake'] = 'degraded';
@@ -223,7 +223,7 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
           {stateData.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stateData} margin={{ left: 0, right: 10, top: 0, bottom: 20 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'oklch(0.65 0 0)', angle: -35, textAnchor: 'end' }} interval={0} height={50} />
+                <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'oklch(0.65 0 0)', textAnchor: 'end' }} angle={-35} interval={0} height={50} />
                 <YAxis tick={{ fontSize: 10, fill: 'oklch(0.65 0 0)' }} unit="%" domain={[0, 100]} />
                 <Tooltip
                   contentStyle={{ background: 'oklch(0.18 0.006 260)', border: '1px solid oklch(0.28 0.01 260)', borderRadius: 8, fontSize: 12 }}

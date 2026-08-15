@@ -107,7 +107,7 @@ export function SystemHealth() {
   // Only show real, measurable services — no fabricated microservice rows
   const SERVICES = healthData ? [
     { name: 'Dashboard API', status: 'healthy' as const, latency: `${healthData.responseTimeMs}ms`, detail: 'Next.js API Routes' },
-    { name: `${healthData.database.engine} Database`, status: (dbStatus === 'ok' ? 'healthy' : 'degraded') as const, latency: `${dbLatency}ms`, detail: dbStatus === 'ok' ? 'Connected' : 'Slow/Disconnected' },
+    { name: `${healthData.database.engine} Database`, status: (dbStatus === 'ok' ? 'healthy' : 'degraded') as 'healthy' | 'degraded', latency: `${dbLatency}ms`, detail: dbStatus === 'ok' ? 'Connected' : 'Slow/Disconnected' },
     { name: 'Auth Service (JWT)', status: 'healthy' as const, latency: healthData.responseTimeMs > 0 ? `${Math.round(healthData.responseTimeMs * 0.5)}ms` : '—', detail: 'jose + bcryptjs' },
     { name: 'SSE Real-time Feed', status: 'healthy' as const, latency: '~5s poll', detail: 'Server-Sent Events' },
   ] : [

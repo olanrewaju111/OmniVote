@@ -133,7 +133,7 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
       <MapHeader
         area={area}
         pointCount={points.length}
-        selectedPoint={selectedPoint}
+        selectedPoint={selectedPoint ?? null}
         onDeselect={() => setSelectedId(null)}
       />
       <div className="flex-1 relative overflow-hidden">

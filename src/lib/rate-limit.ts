@@ -215,7 +215,7 @@ export async function rateLimitByUser(
     const user = await getAuthUser(req);
     if (user) {
       const headers = new Headers(req.headers);
-      headers.set('x-ratelimit-userid', user.sub);
+      headers.set('x-ratelimit-userid', user.userId);
       const reqWithUser = new NextRequest(req.url, { headers, method: req.method });
       return rateLimit(reqWithUser, configOrCategory);
     }

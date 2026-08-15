@@ -99,13 +99,13 @@ export function SubmitReport() {
   // Fetch polling units for the agent (show first 10 as options)
   const { data: puData } = useQuery({
     queryKey: ['my-polling-units'],
-    queryFn: () => fetchJson(`/api/dashboard?tenantId=${tenantId}`).then(d => d.pollingUnits?.slice(0, 15) || []),
+    queryFn: () => fetchJson<{ pollingUnits?: { id: string; code: string; name: string; state: string; lga: string; status: string; registered: number }[] }>(`/api/dashboard?tenantId=${tenantId}`).then(d => d.pollingUnits?.slice(0, 15) || []),
   });
 
   // Fetch agent's report counts for live stats
   const { data: reportCounts } = useQuery({
     queryKey: ['my-report-counts', user?.id],
-    queryFn: () => fetchJson(`/api/reports?reporterId=${user!.id}`).then(d => d.counts),
+    queryFn: () => fetchJson<{ counts: { totalResults: number; totalIncidents: number; resultsToday: number; incidentsToday: number } }>(`/api/reports?reporterId=${user!.id}`).then(d => d.counts),
     enabled: !!user?.id,
     refetchInterval: 10000,
   });
@@ -144,7 +144,7 @@ export function SubmitReport() {
 
   const resultMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetchJson('/api/results', {
+      fetchJson<{ error?: string }>('/api/results', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       }),
     onSuccess: (data) => {
@@ -162,7 +162,7 @@ export function SubmitReport() {
 
   const incidentMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      fetchJson('/api/incidents', {
+      fetchJson<{ error?: string; incident?: { gpsAnomaly?: boolean } }>('/api/incidents', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       }),
     onSuccess: (data) => {

@@ -652,7 +652,7 @@ function EventLogTab({ data, resolveMutation }: {
 
 function UsersTab({ data, userMutation }: {
   data: SecurityData;
-  userMutation: { mutate: (vars: { action: string; userId: string; reason?: string }) => void; isPending: boolean };
+  userMutation: { mutate: (vars: { action: string; userId: string; reason?: string }, options?: { onSuccess?: () => void }) => void; isPending: boolean };
 }) {
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;

@@ -67,8 +67,12 @@ func main() {
         bridge := &Bridge{db: db, clients: make(map[string]*MockClient)}
 
         r := chi.NewRouter()
+        allowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+        if allowedOrigins == "" {
+                allowedOrigins = "http://localhost:3000"
+        }
         r.Use(cors.Handler(cors.Options{
-                AllowedOrigins:   []string{"*"},
+                AllowedOrigins:   strings.Split(allowedOrigins, ","),
                 AllowedMethods:   []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
                 AllowedHeaders:   []string{"Content-Type", "Authorization"},
                 AllowCredentials: true,

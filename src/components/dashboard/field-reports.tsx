@@ -263,7 +263,7 @@ function StatPill({ label, value, icon, color }: { label: string; value: number;
 
 // ---- Report List ----
 function ReportList({ reports, expandedResult, setExpandedResult, showReporter }: {
-  reports: Array<{ id: string; type: string; [key: string]: unknown }>;
+  reports: ((ReportResult & { _type: 'result' }) | (ReportIncident & { _type: 'incident' }))[];
   expandedResult: string | null;
   setExpandedResult: (id: string | null) => void;
   showReporter: boolean;
@@ -307,7 +307,7 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
             const isResult = report._type === 'result';
 
             if (isResult) {
-              const r = report as ReportResult & { _type: 'result' };
+              const r = report;
               const isExpanded = expandedResult === r.id;
               const turnout = r.accreditedVoters > 0 ? Math.round((r.totalVotesCast / r.accreditedVoters) * 10000) / 100 : 0;
               const winner = r.partyResults?.length > 0 ? [...r.partyResults].sort((a, b) => b.votes - a.votes)[0] : null;
@@ -455,7 +455,7 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
             }
 
             // Incident card
-            const inc = report as ReportIncident & { _type: 'incident' };
+            const inc = report;
             return (
               <motion.div
                 key={inc.id}

@@ -307,16 +307,16 @@ export function CampaignMonitor() {
 
   useEffect(() => {
     if (!tenantId) return;
-    fetchJson(`/api/campaign-events?tenantId=${tenantId}&limit=20`)
-      .then((data: any) => {
+    fetchJson<{ events: Array<Record<string, unknown>> }>(`/api/campaign-events?tenantId=${tenantId}&limit=20`)
+      .then((data) => {
         if (Array.isArray(data.events) && data.events.length > 0) {
-          setBillboards(data.events.map((e: any) => ({
-            id: e.id,
-            party: e.party || 'N/A',
-            location: e.venue || e.location || e.description?.substring(0, 50) || 'Unknown',
-            extractedText: e.title || e.description?.substring(0, 60) || 'N/A',
-            photoCount: e.mediaUrls?.length || 0,
-            dominance: e.estimatedCrowd ? Math.min(99, Math.max(10, Math.round((e.estimatedCrowd || 50) / 10))) : 50,
+          setBillboards(data.events.map((e) => ({
+            id: String(e.id),
+            party: String(e.party || 'N/A'),
+            location: String(e.venue || e.location || (typeof e.description === 'string' ? e.description.substring(0, 50) : 'Unknown')),
+            extractedText: String(e.title || (typeof e.description === 'string' ? e.description.substring(0, 60) : 'N/A')),
+            photoCount: Array.isArray(e.mediaUrls) ? e.mediaUrls.length : 0,
+            dominance: e.estimatedCrowd ? Math.min(99, Math.max(10, Math.round((Number(e.estimatedCrowd) || 50) / 10))) : 50,
           })));
         } else {
           setBillboards([]);

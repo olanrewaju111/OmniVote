@@ -1,8 +1,14 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+
+/* Bypass missing leaflet type declarations (no @types/leaflet, leaflet v1.9.4 has no .d.ts).
+   react-leaflet props that originate from leaflet types (MapOptions, CircleMarkerOptions)
+   are invisible without proper leaflet types. */
+const LooseMapContainer = MapContainer as unknown as React.ComponentType<React.PropsWithChildren<Record<string, unknown>>>;
+const LooseCircleMarker = CircleMarker as unknown as React.ComponentType<React.PropsWithChildren<Record<string, unknown>>>;
 
 interface GeofenceZone {
   id: string;
@@ -136,7 +142,7 @@ export function AgentMiniMap({ data }: { data: GeofenceData }) {
   }
 
   return (
-    <MapContainer
+    <LooseMapContainer
       center={center}
       zoom={8}
       className="w-full h-56"
@@ -153,9 +159,9 @@ export function AgentMiniMap({ data }: { data: GeofenceData }) {
         if (!status || !zone.centerLat || !zone.centerLng) return null;
         const isSOS = status.label === 'SOS';
         return (
-          <CircleMarker
+          <LooseCircleMarker
             key={zone.id}
-            center={[zone.centerLat, zone.centerLng]}
+            center={[zone.centerLat, zone.centerLng] as [number, number]}
             radius={isSOS ? 10 : 7}
             pathOptions={{
               fillColor: status.color,
@@ -173,9 +179,9 @@ export function AgentMiniMap({ data }: { data: GeofenceData }) {
                 <p className="text-muted-foreground">Agents: {zone.assignedAgentIds.length}</p>
               </div>
             </Popup>
-          </CircleMarker>
+          </LooseCircleMarker>
         );
       })}
-    </MapContainer>
+    </LooseMapContainer>
   );
 }

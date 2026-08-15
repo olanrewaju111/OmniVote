@@ -18,7 +18,7 @@ export async function fetchJson<T = unknown>(
     headers: {
       ...init?.headers,
       // Don't override Content-Type if already set (e.g., for FormData)
-      ...(init?.body && !init?.headers?.has?.('Content-Type')
+      ...(init?.body && !(init?.headers instanceof Headers) && !Object(init?.headers as Record<string, unknown>).has?.('Content-Type')
         ? { 'Content-Type': 'application/json' }
         : {}),
     },

@@ -227,7 +227,7 @@ export function MediaViewer({ files, initialIndex = 0, open, onClose, title }: M
                       onError={(e) => {
                         // Hide broken thumbnail images, show placeholder
                         (e.target as HTMLImageElement).style.display = 'none';
-                        (e.currentTarget as HTMLButtonElement).classList.add('bg-muted');
+                        (e.currentTarget.parentElement as HTMLButtonElement).classList.add('bg-muted');
                       }}
                     />
                   ) : t === 'video' ? (
@@ -291,7 +291,7 @@ export function MediaThumbnailStrip({ mediaUrls, onOpen, maxShow = 4, size = 'sm
                 loading="lazy"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
-                  (e.currentTarget as HTMLButtonElement).innerHTML =
+                  (e.currentTarget.parentElement as HTMLButtonElement).innerHTML =
                     '<span class="flex items-center justify-center w-full h-full text-muted-foreground/40 text-[9px]">IMG</span>';
                 }}
               />

@@ -1,23 +1,20 @@
 import { NextRequest } from 'next/server';
+import { getSession } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tenantId = searchParams.get('tenantId');
-  const token = searchParams.get('token');
 
-  if (!tenantId || !token) {
-    return new Response('tenantId and token required', { status: 400 });
+  if (!tenantId) {
+    return new Response('tenantId required', { status: 400 });
   }
 
-  // Verify token is valid JWT (basic check)
-  const { jwtVerify } = await import('@/lib/auth');
-  let payload;
-  try {
-    payload = await jwtVerify(token);
-  } catch {
-    return new Response('Invalid token', { status: 401 });
+  // Authenticate via httpOnly cookie (no token in query string)
+  const payload = await getSession();
+  if (!payload) {
+    return new Response('Authentication required', { status: 401 });
   }
 
   if (payload.tenantId !== tenantId && payload.role !== 'SUPER_ADMIN') {
@@ -45,7 +42,7 @@ export async function GET(req: NextRequest) {
           const now = new Date();
           const where: Record<string, unknown> = payload.role === 'SUPER_ADMIN' ? {} : { tenantId };
 
-          // Check for new alerts (cursor by createdAt, not CUID)
+          // Check for new alerts
           const newAlerts = await db.alert.findMany({
             where: { ...where, createdAt: { gt: lastPollTimestamp } },
             orderBy: { createdAt: 'asc' },
@@ -56,7 +53,7 @@ export async function GET(req: NextRequest) {
             send('alerts', { alerts: newAlerts, count: newAlerts.length });
           }
 
-          // Check for new incidents (cursor by submittedAt, not CUID)
+          // Check for new incidents
           const newIncidents = await db.incident.findMany({
             where: { ...where, submittedAt: { gt: lastPollTimestamp } },
             orderBy: { submittedAt: 'asc' },

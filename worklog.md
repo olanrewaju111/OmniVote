@@ -427,3 +427,40 @@ Stage Summary:
 - Tables grew from 37 to 40 (3 new: Feature Parity, WCAG Testing, Device Testing)
 - New sections: 5 security subsections, 4 UI/UX subsections, 5 E2E testing subsections, 3 module business rule subsections
 - Output: /home/z/my-project/download/APC-State-Campaign-Office-Proposal.docx
+
+---
+Task ID: 2
+Agent: Main
+Task: Production readiness hardening — security fixes, type safety, build config
+
+Work Log:
+- Restored `output: "standalone"` in next.config.ts (Docker builds were broken without it)
+- Enabled `reactStrictMode: true` and set `ignoreBuildErrors: false`
+- Generated cryptographically random JWT_SECRET (64 chars) and OMNIVOTE_ENCRYPTION_KEY in .env
+- Removed hardcoded JWT fallback `'omnivote-dev-secret-change-in-production'` from auth.ts and middleware.ts — now throws if JWT_SECRET env var is missing
+- Fixed rateLimitByUser bug: `user.sub` (non-existent) → `user.userId` in rate-limit.ts
+- Fixed SSE token leak: moved JWT from query param (`?token=JWT`) to httpOnly cookie auth via `getSession()`
+- Fixed resolveTenant silent fallback that could leak cross-tenant data — now requires `tenantId` query param, returns 400 if missing
+- Fixed Nginx X-Frame-Options mismatch (SAMEORIGIN → DENY) to match middleware
+- Fixed WhatsApp bridge CORS wildcard (`*` → configurable via CORS_ALLOWED_ORIGINS env var, defaults to localhost:3000)
+- Removed unused `next-intl` dependency
+- Eliminated all `any` types in dashboard components (geo-map-inner, campaign-monitor, ai-insights)
+- Fixed malformed JSX comment in evidence-dossier.tsx (missing closing `}`) that caused TS1005 parse error
+- Fixed all 62 TypeScript errors across 18 files in src/ (previously hidden by ignoreBuildErrors)
+  - Fixed Prisma select/include mismatches (export/route.ts, reports/route.ts)
+  - Added type parameters to 20+ fetchJson calls (agent-engagement, agent-roster, tenant-mgmt, field-submit)
+  - Created loosely-typed Leaflet wrappers for react-leaflet components (geo-map-inner, field-safety-map)
+  - Fixed StegoScan interface, media-viewer casts, field-reports union types, ai-insights Recharts props, security-center mutate signature, system-health const assertion, error-boundary null coalescing, api.ts Headers type, store dashboard.ts missing `get` parameter
+- Created structured logger utility (src/lib/logger.ts) and migrated email.ts from console.log to logger
+- Dev server starts cleanly with zero compile errors
+- tsc --noEmit reports zero errors in src/
+
+Stage Summary:
+- 10 files modified for security fixes (auth.ts, middleware.ts, rate-limit.ts, tenant.ts, .env, next.config.ts, nginx.conf, mock_server.go, sse/route.ts, api.ts)
+- 18 component files fixed for type safety (62 errors → 0)
+- 1 new utility file: src/lib/logger.ts
+- 1 dependency removed: next-intl
+- Docker builds now work (output: standalone restored)
+- JWT auth is now cryptographically secure (no hardcoded fallback)
+- SSE no longer leaks tokens in URLs/server logs
+- Tenant isolation no longer has a silent fallback data leak vector

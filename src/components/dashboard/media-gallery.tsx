@@ -49,6 +49,7 @@ interface StegoScan {
   confidence: number;
   elaScore: number;
   scannedAt: string;
+  evidenceDossierId?: string;
 }
 
 interface MediaGalleryData {

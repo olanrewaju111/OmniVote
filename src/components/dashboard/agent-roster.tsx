@@ -81,7 +81,7 @@ export function AgentRoster() {
   // Add agent mutation
   const addMutation = useMutation({
     mutationFn: (body: { name: string; email: string; role: string }) =>
-      fetchJson(`/api/agents?tenantId=${tenantId}`, {
+      fetchJson<{ error?: string; user?: { name: string } }>(`/api/agents?tenantId=${tenantId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -91,7 +91,7 @@ export function AgentRoster() {
         toast.error(data.error);
         return;
       }
-      toast.success(`Agent "${data.user.name}" added successfully`);
+      toast.success(`Agent "${data.user?.name}" added successfully`);
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setAddOpen(false);
       setNewName(''); setNewEmail(''); setNewRole('FIELD_AGENT');
@@ -102,7 +102,7 @@ export function AgentRoster() {
   // Action mutation (toggle online, remote wipe, change role, delete)
   const actionMutation = useMutation({
     mutationFn: (body: { userId: string; action: string; newRole?: string }) =>
-      fetchJson(`/api/agents?tenantId=${tenantId}`, {
+      fetchJson<{ error?: string; message?: string }>(`/api/agents?tenantId=${tenantId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
