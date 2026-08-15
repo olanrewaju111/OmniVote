@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
+import { MobileOnly, DesktopOnly, DataCard } from './mobile-card';
 
 interface AgentUser {
   id: string;
@@ -334,97 +335,185 @@ export function AgentRoster() {
                 <p className="text-sm">No users found</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-[11px] h-9">User</TableHead>
-                    <TableHead className="text-[11px] h-9">Role</TableHead>
-                    <TableHead className="text-[11px] h-9">Status</TableHead>
-                    <TableHead className="text-[11px] h-9 hidden sm:table-cell">Email</TableHead>
-                    <TableHead className="text-[11px] h-9 hidden md:table-cell">Reports</TableHead>
-                    <TableHead className="text-[11px] h-9 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <AnimatePresence>
-                    {users.map(agent => (
-                      <motion.tr
-                        key={agent.id}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="border-border hover:bg-card/60 transition-colors"
-                      >
-                        <TableCell className="py-2.5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="relative">
-                              <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
-                                {agent.name.split(' ').map(n => n[0]).join('')}
+              <>
+                <DesktopOnly>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-border hover:bg-transparent">
+                        <TableHead className="text-[11px] h-9">User</TableHead>
+                        <TableHead className="text-[11px] h-9">Role</TableHead>
+                        <TableHead className="text-[11px] h-9">Status</TableHead>
+                        <TableHead className="text-[11px] h-9 hidden sm:table-cell">Email</TableHead>
+                        <TableHead className="text-[11px] h-9 hidden md:table-cell">Reports</TableHead>
+                        <TableHead className="text-[11px] h-9 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <AnimatePresence>
+                        {users.map(agent => (
+                          <motion.tr
+                            key={agent.id}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            className="border-border hover:bg-card/60 transition-colors"
+                          >
+                            <TableCell className="py-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <div className="relative">
+                                  <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-[10px] font-bold">
+                                    {agent.name.split(' ').map(n => n[0]).join('')}
+                                  </div>
+                                  <span className={cn(
+                                    'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card',
+                                    agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30'
+                                  )} />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-xs font-medium block truncate max-w-[140px]">{agent.name}</span>
+                                  {agent.lastSeenAt && (
+                                    <span className="text-[10px] text-muted-foreground/60">
+                                      Last: {new Date(agent.lastSeenAt).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <span className={cn(
-                                'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card',
-                                agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30'
-                              )} />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-xs font-medium block truncate max-w-[140px]">{agent.name}</span>
-                              {agent.lastSeenAt && (
-                                <span className="text-[10px] text-muted-foreground/60">
-                                  Last: {new Date(agent.lastSeenAt).toLocaleDateString()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-2.5">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'text-[10px] h-5',
-                              agent.role === 'SUPER_ADMIN' ? 'border-emerald/30 text-emerald' :
-                              agent.role === 'TENANT_ADMIN' ? 'border-cyan/30 text-cyan' :
-                              agent.role === 'ANALYST' ? 'border-amber/30 text-amber' :
-                              agent.role === 'TRUST_SAFETY' ? 'border-rose/30 text-rose' :
-                              'border-border text-muted-foreground'
-                            )}
-                          >
-                            {agent.role.replace(/_/g, ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-2.5">
-                          <button
-                            onClick={() => actionMutation.mutate({ userId: agent.id, action: 'TOGGLE_ONLINE' })}
-                            className="cursor-pointer"
-                            disabled={actionMutation.isPending}
-                          >
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'text-[10px] h-5 transition-colors cursor-pointer',
-                                agent.isOnline
-                                  ? 'border-emerald/30 text-emerald bg-emerald/10 hover:bg-emerald/20'
-                                  : 'border-border text-muted-foreground hover:bg-card'
-                              )}
-                            >
-                              <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/40')} />
-                              {agent.isOnline ? 'Online' : 'Offline'}
-                            </Badge>
-                          </button>
-                        </TableCell>
-                        <TableCell className="py-2.5 text-[11px] text-muted-foreground hidden sm:table-cell truncate max-w-[180px]">{agent.email}</TableCell>
-                        <TableCell className="py-2.5 hidden md:table-cell">
-                          <span className="text-[11px] text-muted-foreground tabular-nums">
-                            {agent._count?.incidents ?? 0}
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'text-[10px] h-5',
+                                  agent.role === 'SUPER_ADMIN' ? 'border-emerald/30 text-emerald' :
+                                  agent.role === 'TENANT_ADMIN' ? 'border-cyan/30 text-cyan' :
+                                  agent.role === 'ANALYST' ? 'border-amber/30 text-amber' :
+                                  agent.role === 'TRUST_SAFETY' ? 'border-rose/30 text-rose' :
+                                  'border-border text-muted-foreground'
+                                )}
+                              >
+                                {agent.role.replace(/_/g, ' ')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-2.5">
+                              <button
+                                onClick={() => actionMutation.mutate({ userId: agent.id, action: 'TOGGLE_ONLINE' })}
+                                className="cursor-pointer"
+                                disabled={actionMutation.isPending}
+                              >
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[10px] h-5 transition-colors cursor-pointer',
+                                    agent.isOnline
+                                      ? 'border-emerald/30 text-emerald bg-emerald/10 hover:bg-emerald/20'
+                                      : 'border-border text-muted-foreground hover:bg-card'
+                                  )}
+                                >
+                                  <span className={cn('w-1.5 h-1.5 rounded-full mr-1.5', agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/40')} />
+                                  {agent.isOnline ? 'Online' : 'Offline'}
+                                </Badge>
+                              </button>
+                            </TableCell>
+                            <TableCell className="py-2.5 text-[11px] text-muted-foreground hidden sm:table-cell truncate max-w-[180px]">{agent.email}</TableCell>
+                            <TableCell className="py-2.5 hidden md:table-cell">
+                              <span className="text-[11px] text-muted-foreground tabular-nums">
+                                {agent._count?.incidents ?? 0}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-2.5 text-right">
+                              <div className="flex items-center justify-end gap-0.5">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-cyan"
+                                  title="Edit Details"
+                                  aria-label={`Edit details for ${agent.name}`}
+                                  onClick={() => openEditDialog(agent)}
+                                  disabled={agent.role === 'SUPER_ADMIN'}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                  title="View Reports"
+                                  aria-label={`View reports for ${agent.name}`}
+                                  onClick={() => setReportsPanel({ agent, open: true })}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-amber"
+                                  title="Remote Wipe Device"
+                                  aria-label={`Remote wipe device for ${agent.name}`}
+                                  onClick={() => setConfirmAction({ type: 'REMOTE_WIPE', agent })}
+                                  disabled={actionMutation.isPending}
+                                >
+                                  <Wrench className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-rose"
+                                  title="Remove Agent"
+                                  aria-label={`Remove agent ${agent.name}`}
+                                  onClick={() => setConfirmAction({ type: 'DELETE', agent })}
+                                  disabled={actionMutation.isPending || agent.role === 'SUPER_ADMIN'}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
+                    </TableBody>
+                  </Table>
+                </DesktopOnly>
+                <MobileOnly>
+                  <div className="px-4 pb-4 space-y-2">
+                    {users.map(agent => (
+                      <DataCard
+                        key={agent.id}
+                        fields={[
+                          {
+                            label: agent.isOnline ? 'Online' : 'Offline',
+                            value: (
+                              <div className="flex items-center gap-2">
+                                <div className="relative">
+                                  <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-[9px] font-bold">
+                                    {agent.name.split(' ').map(n => n[0]).join('')}
+                                  </div>
+                                  <span className={cn(
+                                    'absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-card',
+                                    agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30'
+                                  )} />
+                                </div>
+                                <span>{agent.name}</span>
+                              </div>
+                            ),
+                            bold: true,
+                            color: agent.isOnline
+                              ? 'bg-emerald/10 text-emerald border border-emerald/30'
+                              : 'bg-muted text-muted-foreground border border-border',
+                          },
+                          { label: 'Role', value: agent.role.replace(/_/g, ' ') },
+                          { label: 'Email', value: agent.email },
+                          { label: 'Last Seen', value: agent.lastSeenAt ? new Date(agent.lastSeenAt).toLocaleDateString() : 'Never' },
+                        ]}
+                      >
+                        <div className="flex items-center justify-between pt-1 border-t border-border mt-1">
+                          <span className="text-[10px] text-muted-foreground">
+                            {agent._count?.incidents ?? 0} reports
                           </span>
-                        </TableCell>
-                        <TableCell className="py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-0.5">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-cyan"
-                              title="Edit Details"
-                              aria-label={`Edit details for ${agent.name}`}
                               onClick={() => openEditDialog(agent)}
                               disabled={agent.role === 'SUPER_ADMIN'}
                             >
@@ -434,8 +523,6 @@ export function AgentRoster() {
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                              title="View Reports"
-                              aria-label={`View reports for ${agent.name}`}
                               onClick={() => setReportsPanel({ agent, open: true })}
                             >
                               <Eye className="h-3.5 w-3.5" />
@@ -444,8 +531,6 @@ export function AgentRoster() {
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-amber"
-                              title="Remote Wipe Device"
-                              aria-label={`Remote wipe device for ${agent.name}`}
                               onClick={() => setConfirmAction({ type: 'REMOTE_WIPE', agent })}
                               disabled={actionMutation.isPending}
                             >
@@ -455,20 +540,18 @@ export function AgentRoster() {
                               variant="ghost"
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-rose"
-                              title="Remove Agent"
-                              aria-label={`Remove agent ${agent.name}`}
                               onClick={() => setConfirmAction({ type: 'DELETE', agent })}
                               disabled={actionMutation.isPending || agent.role === 'SUPER_ADMIN'}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
-                        </TableCell>
-                      </motion.tr>
+                        </div>
+                      </DataCard>
                     ))}
-                  </AnimatePresence>
-                </TableBody>
-              </Table>
+                  </div>
+                </MobileOnly>
+              </>
             )}
           </div>
         </CardContent>

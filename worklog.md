@@ -464,3 +464,50 @@ Stage Summary:
 - JWT auth is now cryptographically secure (no hardcoded fallback)
 - SSE no longer leaks tokens in URLs/server logs
 - Tenant isolation no longer has a silent fallback data leak vector
+
+---
+Task ID: 3
+Agent: Main
+Task: Mobile UX adversarial audit and comprehensive mobile improvements
+
+Work Log:
+- Conducted full adversarial audit of mobile experience across 30+ files
+- **P0 Critical Fixes:**
+  - Added `viewport` export to layout.tsx (Next.js 16 requires separate viewport export) — without this, mobile browsers rendered at 980px desktop width
+  - Converted persistent sidebar to Sheet/drawer on mobile using shadcn Sheet component
+  - Added hamburger menu button (Menu icon) to header, visible only on mobile (md:hidden)
+  - Created `mobile-bottom-nav.tsx` — fixed bottom tab bar for FIELD_AGENT role (3 tabs: Submit, Reports, Feed)
+  - FIELD_AGENT header hidden on mobile, bottom nav shown instead with pb-14 content padding
+- **P1 Field Agent Mobile Fixes (field-submit.tsx):**
+  - Sticky submit buttons on mobile (floats above keyboard with backdrop blur)
+  - Abbreviated tab labels on mobile (Vote/Stats/Report instead of icons-only)
+  - Stats grid changed from grid-cols-4 to grid-cols-2 sm:grid-cols-4
+  - Added inputMode="numeric" + enterKeyHint to all vote count inputs
+  - Polling unit dropdown text truncation (max-w-[200px] on mobile)
+- **P1 Camera Integration:**
+  - Replaced stub Photo button with real `<input type="file" accept="image/*" capture="environment">`
+  - Added captured photos state with base64 data URL storage
+  - Photo thumbnail previews with individual remove buttons
+  - Photos included in incident submission payload, cleared on success
+  - Photo count badge on camera button
+- **P2 Offline Queue:**
+  - Created `src/lib/offline-queue.ts` — IndexedDB-based submission queue with enqueue/dequeue/processQueue
+  - Auto-processes queue on mount when online (5-second polling)
+  - Network errors on result/incident submission trigger queue instead of error toast
+  - Visible "N pending reports" indicator with "Retry pending" button
+  - Offline badge on Reports tab in mobile bottom nav
+- **P2 Map Improvements (geo-map-inner.tsx):**
+  - Added invisible 20px radius touch targets behind each CircleMarker (40px diameter hit area)
+  - Replaced non-functional zoom buttons with working ZoomControls using useMap() hook
+  - Increased zoom button touch targets: h-10 w-10 on mobile, h-8 w-8 on desktop
+- **P2 Mobile Card View:**
+  - Created `src/components/dashboard/mobile-card.tsx` — MobileOnly, DesktopOnly, DataCard components
+  - Applied to agent-roster.tsx: table wrapped in DesktopOnly, mobile cards in MobileOnly
+  - DataCard shows first field as header, remaining fields in 2-column grid
+
+Stage Summary:
+- 6 files modified: layout.tsx, sidebar.tsx, header.tsx, page.tsx, field-submit.tsx, geo-map-inner.tsx, agent-roster.tsx, mobile-bottom-nav.tsx
+- 3 files created: mobile-bottom-nav.tsx, offline-queue.ts, mobile-card.tsx
+- The app was completely unusable on mobile (sidebar ate 60% of screen, no viewport meta)
+- Now: responsive sidebar drawer, field agent bottom nav, camera capture, offline queue, touch-friendly maps
+- Zero TypeScript errors maintained throughout

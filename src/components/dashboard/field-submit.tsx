@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,13 @@ import { useDashboardStore } from '@/store/dashboard';
 import {
   Send, MapPin, Camera, Mic, AlertTriangle, CheckCircle2,
   Radio, Loader2, ShieldCheck, Vote, FileWarning, Plus, X,
-  TrendingUp, BarChart3, Users,
+  TrendingUp, BarChart3, Users, RefreshCw, CloudOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
+import { enqueue, getQueueSize, processQueue } from '@/lib/offline-queue';
 
 // Nigerian political parties for different election tiers
 const PARTIES_BY_TIER: Record<string, { code: string; name: string; color: string }[]> = {
@@ -95,6 +96,48 @@ export function SubmitReport() {
   const [incType, setIncType] = useState('');
   const [incSeverity, setIncSeverity] = useState('MEDIUM');
   const [incDescription, setIncDescription] = useState('');
+  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
+
+  // ---- OFFLINE QUEUE STATE ----
+  const [pendingCount, setPendingCount] = useState(0);
+  const [processingQueue, setProcessingQueue] = useState(false);
+
+  // ---- OFFLINE QUEUE EFFECTS ----
+  const queuePollRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  const refreshQueueCount = useCallback(async () => {
+    try {
+      const size = await getQueueSize();
+      setPendingCount(size);
+    } catch {
+      // IndexedDB may not be available (e.g. SSR)
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshQueueCount();
+    queuePollRef.current = setInterval(refreshQueueCount, 5000);
+    return () => clearInterval(queuePollRef.current);
+  }, [refreshQueueCount]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.onLine && pendingCount > 0) {
+      setProcessingQueue(true);
+      processQueue().then(({ processed }) => {
+        if (processed > 0) {
+          toast.success(`${processed} offline submission(s) synced!`);
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+          queryClient.invalidateQueries({ queryKey: ['my-reports'] });
+          queryClient.invalidateQueries({ queryKey: ['my-report-counts'] });
+        }
+      }).finally(() => {
+        setProcessingQueue(false);
+        refreshQueueCount();
+      });
+    }
+  // Only run on mount when online
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch polling units for the agent (show first 10 as options)
   const { data: puData } = useQuery({
@@ -157,7 +200,25 @@ export function SubmitReport() {
       setSubmitted(true); setSubmittedType('results');
       setTimeout(() => setSubmitted(false), 4000);
     },
-    onError: () => toast.error('Failed to submit results'),
+    onError: async (error) => {
+      // If it looks like a network error, enqueue for later
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        try {
+          await enqueue({
+            url: '/api/results',
+            method: 'POST',
+            body: JSON.stringify(error),
+            contentType: 'application/json',
+          });
+          toast.warning('No network — result queued for offline sync');
+          refreshQueueCount();
+        } catch {
+          toast.error('Failed to submit results');
+        }
+      } else {
+        toast.error('Failed to submit results');
+      }
+    },
   });
 
   const incidentMutation = useMutation({
@@ -177,9 +238,30 @@ export function SubmitReport() {
       queryClient.invalidateQueries({ queryKey: ['my-report-counts'] });
       setSubmitted(true); setSubmittedType('incident');
       setIncDescription(''); setIncType('');
+      setCapturedPhotos([]);
       setTimeout(() => setSubmitted(false), 4000);
     },
-    onError: () => toast.error('Failed to submit incident'),
+    onError: async (error, variables) => {
+      // If it looks like a network error, enqueue for later
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        try {
+          await enqueue({
+            url: '/api/incidents',
+            method: 'POST',
+            body: JSON.stringify(variables),
+            contentType: 'application/json',
+          });
+          toast.warning('No network — incident queued for offline sync');
+          setIncDescription(''); setIncType('');
+          setCapturedPhotos([]);
+          refreshQueueCount();
+        } catch {
+          toast.error('Failed to submit incident');
+        }
+      } else {
+        toast.error('Failed to submit incident');
+      }
+    },
   });
 
   const handleSubmitResults = () => {
@@ -226,6 +308,7 @@ export function SubmitReport() {
       type: incType,
       severity: typeConfig?.severity || incSeverity,
       description: incDescription.trim(),
+      photos: capturedPhotos,
     }, { onSettled: () => setSubmitting(false) });
   };
 
@@ -276,7 +359,7 @@ export function SubmitReport() {
                 <SelectItem key={pu.id} value={pu.id}>
                   <span className="flex items-center gap-2">
                     <span className="text-muted-foreground text-[10px]">{pu.code}</span>
-                    <span>{pu.name}</span>
+                    <span className="text-ellipsis overflow-hidden whitespace-nowrap max-w-[200px] sm:max-w-none">{pu.name}</span>
                     <span className="text-muted-foreground text-[10px]">{pu.state}/{pu.lga}</span>
                     {pu.status === 'FLAGGED' && <Badge variant="outline" className="text-[9px] h-4 border-amber/30 text-amber ml-1">FLAGGED</Badge>}
                   </span>
@@ -298,9 +381,9 @@ export function SubmitReport() {
         {/* Tab selector */}
         <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-card/60 border border-border">
           {[
-            { id: 'results' as Tab, label: 'Election Results', icon: <Vote className="h-4 w-4" /> },
-            { id: 'statistics' as Tab, label: 'Statistics', icon: <BarChart3 className="h-4 w-4" /> },
-            { id: 'incident' as Tab, label: 'Incident / Infraction', icon: <FileWarning className="h-4 w-4" /> },
+            { id: 'results' as Tab, label: 'Election Results', mobileLabel: 'Vote', icon: <Vote className="h-4 w-4" /> },
+            { id: 'statistics' as Tab, label: 'Statistics', mobileLabel: 'Stats', icon: <BarChart3 className="h-4 w-4" /> },
+            { id: 'incident' as Tab, label: 'Incident / Infraction', mobileLabel: 'Report', icon: <FileWarning className="h-4 w-4" /> },
           ].map(tab => (
             <button
               key={tab.id}
@@ -313,6 +396,7 @@ export function SubmitReport() {
               )}
             >
               {tab.icon}
+              <span className="sm:hidden text-[10px]">{tab.mobileLabel}</span>
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
@@ -347,6 +431,8 @@ export function SubmitReport() {
                       <label className="text-[11px] font-medium text-muted-foreground">Accredited Voters</label>
                       <Input
                         type="number" min="0"
+                        inputMode="numeric"
+                        enterKeyHint="next"
                         placeholder="0"
                         value={accredited}
                         onChange={(e) => setAccredited(e.target.value)}
@@ -357,6 +443,8 @@ export function SubmitReport() {
                       <label className="text-[11px] font-medium text-muted-foreground">Rejected Ballots</label>
                       <Input
                         type="number" min="0"
+                        inputMode="numeric"
+                        enterKeyHint="next"
                         placeholder="0"
                         value={rejectedBallots}
                         onChange={(e) => setRejectedBallots(e.target.value)}
@@ -405,6 +493,8 @@ export function SubmitReport() {
                             </div>
                             <Input
                               type="number" min="0" placeholder="0"
+                              inputMode="numeric"
+                              enterKeyHint={idx === partyVotes.length - 1 ? 'done' : 'next'}
                               value={pv.votes}
                               onChange={(e) => updatePartyVote(idx, 'votes', e.target.value)}
                               className="w-28 h-8 text-sm tabular-nums text-right"
@@ -459,6 +549,7 @@ export function SubmitReport() {
                     )}
                   </div>
 
+                  <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border p-3 sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:p-0">
                   <Button
                     onClick={handleSubmitResults}
                     disabled={submitting || !selectedPU || partyVotes.every(p => !p.votes)}
@@ -472,6 +563,7 @@ export function SubmitReport() {
                       <><Send className="h-4 w-4" /> Submit Election Results</>
                     )}
                   </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -625,10 +717,37 @@ export function SubmitReport() {
                   {/* Media capture */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Attach Evidence</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      id="photo-capture"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === 'string') {
+                            setCapturedPhotos(prev => [...prev, reader.result as string]);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                        e.target.value = ''; // reset for same file
+                      }}
+                    />
                     <div className="grid grid-cols-3 gap-2">
-                      <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-14 flex-col gap-1.5 border-border hover:bg-card/60"
+                        onClick={() => document.getElementById('photo-capture')?.click()}
+                      >
                         <Camera className="h-5 w-5 text-emerald" />
                         <span className="text-[10px]">Photo</span>
+                        {capturedPhotos.length > 0 && (
+                          <Badge className="ml-1 h-4 min-w-4 px-1 text-[9px]">{capturedPhotos.length}</Badge>
+                        )}
                       </Button>
                       <Button variant="outline" className="h-14 flex-col gap-1.5 border-border hover:bg-card/60">
                         <Mic className="h-5 w-5 text-cyan" />
@@ -639,6 +758,23 @@ export function SubmitReport() {
                         <span className="text-[10px]">Video</span>
                       </Button>
                     </div>
+                    {capturedPhotos.length > 0 && (
+                      <div className="flex gap-2 flex-wrap mt-2">
+                        {capturedPhotos.map((photo, i) => (
+                          <div key={i} className="relative w-16 h-16 rounded-md overflow-hidden border border-border">
+                            <img src={photo} alt={`Captured evidence ${i + 1}`} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setCapturedPhotos(prev => prev.filter((_, j) => j !== i))}
+                              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white flex items-center justify-center text-[8px] leading-none"
+                              aria-label={`Remove photo ${i + 1}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <p className="text-[10px] text-muted-foreground">
                       All media captured in-app with C2PA provenance. Camera roll disabled.
                     </p>
@@ -657,6 +793,7 @@ export function SubmitReport() {
                     </div>
                   </Button>
 
+                  <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border p-3 sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:p-0">
                   <Button
                     onClick={handleSubmitIncident}
                     disabled={submitting || !incType || !incDescription.trim()}
@@ -670,14 +807,46 @@ export function SubmitReport() {
                       <><Send className="h-4 w-4" /> Submit Incident Report</>
                     )}
                   </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
           </motion.div>
         </AnimatePresence>
 
+        {/* Offline queue indicator */}
+        {pendingCount > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber/30 bg-amber/5 p-3">
+            <CloudOff className="h-4 w-4 text-amber shrink-0" />
+            <span className="text-xs text-amber flex-1">{pendingCount} pending report{pendingCount > 1 ? 's' : ''}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 border-amber/30 text-amber hover:bg-amber/10"
+              disabled={processingQueue}
+              onClick={() => {
+                setProcessingQueue(true);
+                processQueue().then(({ processed }) => {
+                  if (processed > 0) {
+                    toast.success(`${processed} offline submission(s) synced!`);
+                    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+                    queryClient.invalidateQueries({ queryKey: ['my-reports'] });
+                    queryClient.invalidateQueries({ queryKey: ['my-report-counts'] });
+                  }
+                }).finally(() => {
+                  setProcessingQueue(false);
+                  refreshQueueCount();
+                });
+              }}
+            >
+              {processingQueue ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              Retry pending
+            </Button>
+          </div>
+        )}
+
         {/* Submission stats — live from API */}
-        <div className="grid grid-cols-4 gap-3 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           <Card className="border-border bg-card/40">
             <CardContent className="p-3">
               <p className="text-lg font-bold text-emerald tabular-nums">{counts.resultsToday}</p>

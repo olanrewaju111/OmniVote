@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useDashboardStore, TIER_SHORT, ROLE_TABS, type ViewTab } from '@/store/dashboard';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { MobileMenuTrigger } from '@/components/dashboard/sidebar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
   DropdownMenuLabel,
@@ -172,6 +173,8 @@ export function AppHeader({ kpis }: HeaderProps) {
     <>
       <OfflineBanner />
       <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
+        <MobileMenuTrigger />
+
         {/* Search */}
         <div className="relative flex-1 max-w-md">
           <label htmlFor="global-search" className="sr-only">Search polling units, incidents, agents</label>

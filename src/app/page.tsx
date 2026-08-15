@@ -9,11 +9,13 @@ import dynamic from 'next/dynamic';
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
+import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type ElectionInfo } from '@/store/dashboard';
 import { KpiGrid } from '@/components/dashboard/kpi-grid';
 import { PwaRegistration } from '@/components/pwa-registration';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { fetchJson } from '@/lib/api';
+import { cn } from '@/lib/utils';
 
 // ---- Code-split heavy tab components ----
 const createDynamic = <T extends React.ComponentType<any>>(
@@ -228,19 +230,23 @@ export default function Home() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
-      <AppSidebar />
+      <div className="hidden md:block">
+        <AppSidebar />
+      </div>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <AppHeader
-          kpis={dashData?.kpis ? {
-            onlineAgents: dashData.kpis.onlineAgents,
-            totalAgents: dashData.kpis.totalAgents,
-            unreadAlerts: dashData.kpis.unreadAlerts,
-            securityAlerts: dashData.kpis.securityAlerts,
-          } : undefined}
-        />
+        <div className={user?.role === 'FIELD_AGENT' ? 'md:block hidden' : ''}>
+          <AppHeader
+            kpis={dashData?.kpis ? {
+              onlineAgents: dashData.kpis.onlineAgents,
+              totalAgents: dashData.kpis.totalAgents,
+              unreadAlerts: dashData.kpis.unreadAlerts,
+              securityAlerts: dashData.kpis.securityAlerts,
+            } : undefined}
+          />
+        </div>
 
-        <main id="main-content" className="flex-1 overflow-hidden" role="main">
+        <main id="main-content" className={cn('flex-1 overflow-hidden', user?.role === 'FIELD_AGENT' && 'pb-14 md:pb-0')} role="main">
           {/* Screen reader announcement for tab changes */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             Switched to {activeTab.replace(/-/g, ' ')} view
@@ -416,6 +422,7 @@ export default function Home() {
             </motion.div>
           </AnimatePresence>
         </main>
+        <MobileBottomNav />
       </div>
       <PwaRegistration />
     </div>

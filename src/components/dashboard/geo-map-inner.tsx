@@ -15,6 +15,7 @@ const LooseCircleMarker = CircleMarker as unknown as React.ComponentType<React.P
 
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface MapPoint {
   id: string;
@@ -76,6 +77,45 @@ function ClickAway({ onDeselect }: { onDeselect: () => void }) {
   return null;
 }
 
+function ZoomControls({ bounds }: { bounds: MapBounds }) {
+  const map = useMap();
+  return (
+    <>
+      <Button
+        variant="outline" size="icon"
+        className="h-10 w-10 md:h-8 md:w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
+        onClick={() => map.zoomIn()}
+        title="Zoom in"
+        aria-label="Zoom in"
+      >
+        <ZoomIn className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="outline" size="icon"
+        className="h-10 w-10 md:h-8 md:w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
+        onClick={() => map.zoomOut()}
+        title="Zoom out"
+        aria-label="Zoom out"
+      >
+        <ZoomOut className="h-4 w-4" />
+      </Button>
+      <div className="h-px bg-border" />
+      <Button
+        variant="outline" size="icon"
+        className="h-10 w-10 md:h-8 md:w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
+        onClick={() => map.fitBounds(
+          [[bounds.minLat, bounds.minLng], [bounds.maxLat, bounds.maxLng]],
+          { padding: [20, 20], maxZoom: 12 },
+        )}
+        title="Fit all"
+        aria-label="Fit all markers"
+      >
+        <Maximize2 className="h-4 w-4" />
+      </Button>
+    </>
+  );
+}
+
 export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Props) {
   const mapCenter: [number, number] = useMemo(() => [
     (area.minLat + area.maxLat) / 2,
@@ -114,84 +154,68 @@ export function LeafletMapInner({ points, area, selectedId, onSelectPoint }: Pro
         const weight = isSelected ? 3 : 1.5;
         const color = getStatusColor(p.status);
 
+        const markerEventHandlers = {
+          click: (e: unknown) => {
+            (e as { originalEvent?: { stopPropagation: () => void } }).originalEvent?.stopPropagation();
+            onSelectPoint(selectedId === p.id ? null : p.id);
+          },
+        };
+
         return (
-          <LooseCircleMarker
-            key={p.id}
-            center={[p.lat, p.lng] as [number, number]}
-            radius={radius}
-            pathOptions={{
-              fillColor: getTurnoutColor(p.turnout),
-              fillOpacity,
-              color,
-              weight,
-              opacity: 1,
-            }}
-            eventHandlers={{
-              click: (e) => {
-                e.originalEvent?.stopPropagation();
-                onSelectPoint(selectedId === p.id ? null : p.id);
-              },
-            }}
-          >
-            <Popup>
-              <div className="space-y-2 min-w-[180px]">
-                <p className="font-semibold text-sm text-foreground">{p.name}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {p.state} / {p.lga}
-                </p>
-                <div className="flex items-center gap-2 text-xs">
-                  <span className={p.turnout >= 0.5 ? 'text-emerald font-bold' : 'text-amber font-bold'}>
-                    {Math.round(p.turnout * 100)}% turnout
-                  </span>
-                  <span className="text-muted-foreground">{p.registered.toLocaleString()} reg</span>
+          <React.Fragment key={p.id}>
+            {/* Invisible larger touch target behind the visible marker */}
+            <LooseCircleMarker
+              center={[p.lat, p.lng] as [number, number]}
+              radius={20}
+              pathOptions={{ fillOpacity: 0, stroke: false, opacity: 0 }}
+              eventHandlers={markerEventHandlers}
+              interactive={true}
+            />
+            <LooseCircleMarker
+              center={[p.lat, p.lng] as [number, number]}
+              radius={radius}
+              pathOptions={{
+                fillColor: getTurnoutColor(p.turnout),
+                fillOpacity,
+                color,
+                weight,
+                opacity: 1,
+              }}
+              eventHandlers={markerEventHandlers}
+            >
+              <Popup>
+                <div className="space-y-2 min-w-[180px]">
+                  <p className="font-semibold text-sm text-foreground">{p.name}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {p.state} / {p.lga}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={p.turnout >= 0.5 ? 'text-emerald font-bold' : 'text-amber font-bold'}>
+                      {Math.round(p.turnout * 100)}% turnout
+                    </span>
+                    <span className="text-muted-foreground">{p.registered.toLocaleString()} reg</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{p.votes.toLocaleString()} votes</span>
+                    <span className={
+                      p.status === 'OPEN' ? 'text-emerald' :
+                      p.status === 'FLAGGED' ? 'text-rose' :
+                      'text-muted-foreground'
+                    }>
+                      {p.status}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Code: {p.code}</p>
                 </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">{p.votes.toLocaleString()} votes</span>
-                  <span className={
-                    p.status === 'OPEN' ? 'text-emerald' :
-                    p.status === 'FLAGGED' ? 'text-rose' :
-                    'text-muted-foreground'
-                  }>
-                    {p.status}
-                  </span>
-                </div>
-                <p className="text-[10px] text-muted-foreground">Code: {p.code}</p>
-              </div>
-            </Popup>
-          </LooseCircleMarker>
+              </Popup>
+            </LooseCircleMarker>
+          </React.Fragment>
         );
       })}
 
       {/* Overlay controls */}
       <div className="absolute top-3 right-3 flex flex-col gap-1.5 z-[1000]">
-        <Button
-          variant="outline" size="icon"
-          className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-          onClick={(e) => { e.stopPropagation(); }}
-          title="Zoom in"
-          aria-label="Zoom in"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline" size="icon"
-          className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-          onClick={(e) => { e.stopPropagation(); }}
-          title="Zoom out"
-          aria-label="Zoom out"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <div className="h-px bg-border" />
-        <Button
-          variant="outline" size="icon"
-          className="h-8 w-8 bg-card/90 backdrop-blur-sm border-border shadow-sm"
-          onClick={(e) => { e.stopPropagation(); }}
-          title="Fit all"
-          aria-label="Fit all markers"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </Button>
+        <ZoomControls bounds={area} />
       </div>
 
       <div className="absolute top-3 left-3 z-[1000] pointer-events-none">
