@@ -143,7 +143,7 @@ export function AgentEngagement() {
       if (msgFilter.status !== 'ALL') p.set('status', msgFilter.status);
       return fetchJson(`/api/engagement?${p}`);
     },
-    refetchInterval: 15000,
+    refetchInterval: 30000,
     enabled: !!tenantId,
   });
 
@@ -815,7 +815,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
       status: string; phone?: string; whatsappPhone?: string;
       jid?: string; whatsappJid?: string; qrCode?: string; mode?: string;
     }>(`/api/whatsapp?tenantId=${tenantId}`),
-    refetchInterval: 5000,
+    refetchInterval: 15000,
     enabled: !!tenantId,
   });
 

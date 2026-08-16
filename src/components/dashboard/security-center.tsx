@@ -1184,7 +1184,7 @@ export function SecurityCenter() {
     queryFn: async () => {
       return fetchJson(`/api/security?tenantId=${tenantId}`);
     },
-    refetchInterval: 15000,
+    refetchInterval: 30000,
     enabled: !!tenantId,
   });
 

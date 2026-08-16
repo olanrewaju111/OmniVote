@@ -229,7 +229,7 @@ export function HoneypotBiometrics() {
     queryKey: ['honeypot', tenantId],
     queryFn: () =>
       fetchJson(`/api/honeypot?tenantId=${tenantId}`),
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   // ── Mutation ──

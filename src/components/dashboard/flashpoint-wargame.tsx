@@ -228,7 +228,7 @@ export function FlashpointWargame() {
     queryKey: ['flashpoint', tenantId],
     queryFn: () =>
       fetchJson(`/api/flashpoint?tenantId=${tenantId}`),
-    refetchInterval: 20000,
+    refetchInterval: 30000,
   });
 
   const mutation = useMutation({

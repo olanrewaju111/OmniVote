@@ -35,33 +35,45 @@ export async function GET(req: NextRequest) {
 
       // Poll for new data every 5 seconds
       const { db } = await import('@/lib/db');
-      let lastPollTimestamp = new Date();
+      let lastAlertTs = new Date();
+      let lastIncidentTs = new Date();
+      let lastPvtTs = new Date();
 
       const poll = async () => {
         try {
-          const now = new Date();
           const where: Record<string, unknown> = payload.role === 'SUPER_ADMIN' ? {} : { tenantId };
 
           // Check for new alerts
           const newAlerts = await db.alert.findMany({
-            where: { ...where, createdAt: { gt: lastPollTimestamp } },
+            where: { ...where, createdAt: { gt: lastAlertTs } },
             orderBy: { createdAt: 'asc' },
             take: 20,
           });
           if (newAlerts.length > 0) {
-            lastPollTimestamp = newAlerts[newAlerts.length - 1].createdAt;
+            lastAlertTs = newAlerts[newAlerts.length - 1].createdAt;
             send('alerts', { alerts: newAlerts, count: newAlerts.length });
           }
 
-          // Check for new incidents
+          // Check for new incidents (independent cursor)
           const newIncidents = await db.incident.findMany({
-            where: { ...where, submittedAt: { gt: lastPollTimestamp } },
+            where: { ...where, submittedAt: { gt: lastIncidentTs } },
             orderBy: { submittedAt: 'asc' },
             take: 20,
           });
           if (newIncidents.length > 0) {
-            lastPollTimestamp = newIncidents[newIncidents.length - 1].submittedAt;
+            lastIncidentTs = newIncidents[newIncidents.length - 1].submittedAt;
             send('incidents', { incidents: newIncidents, count: newIncidents.length });
+          }
+
+          // Check for new PVT submissions
+          const newPvt = await db.pvtSubmission.findMany({
+            where: { ...where, submittedAt: { gt: lastPvtTs } },
+            orderBy: { submittedAt: 'asc' },
+            take: 10,
+          });
+          if (newPvt.length > 0) {
+            lastPvtTs = newPvt[newPvt.length - 1].submittedAt;
+            send('pvt', { results: newPvt, count: newPvt.length });
           }
         } catch {
           // Continue polling on error

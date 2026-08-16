@@ -137,7 +137,7 @@ export function MyReports() {
     queryKey: ['reports', isAdmin ? 'all' : user?.id, selectedAgent, tenantId],
     queryFn: () => fetchJson(`/api/reports?${queryParams}`),
     enabled: !!user?.id && !!tenantId,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const results = data?.results || [];

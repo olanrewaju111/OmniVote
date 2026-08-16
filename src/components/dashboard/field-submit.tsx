@@ -150,7 +150,7 @@ export function SubmitReport() {
     queryKey: ['my-report-counts', user?.id],
     queryFn: () => fetchJson<{ counts: { totalResults: number; totalIncidents: number; resultsToday: number; incidentsToday: number } }>(`/api/reports?reporterId=${user!.id}`).then(d => d.counts),
     enabled: !!user?.id,
-    refetchInterval: 10000,
+    refetchInterval: 30000,
   });
 
   const pollingUnits = puData || [];

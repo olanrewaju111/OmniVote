@@ -205,7 +205,7 @@ export function FieldSafety() {
   const { data, isLoading, isError } = useQuery<GeofenceData>({
     queryKey: ['geofence', tenantId],
     queryFn: () => fetchJson(`/api/geofence?tenantId=${tenantId}`),
-    refetchInterval: 10000,
+    refetchInterval: 30000,
     enabled: !!tenantId,
   });
 

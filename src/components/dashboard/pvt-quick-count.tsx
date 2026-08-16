@@ -489,7 +489,7 @@ export function PvtQuickCount() {
   const { data, isLoading, isError } = useQuery<PvtData>({
     queryKey: ['pvt', tenantId],
     queryFn: () => fetchJson(`/api/pvt?tenantId=${tenantId}`),
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   // Loading state

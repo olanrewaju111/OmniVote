@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Map, BarChart3, ShieldAlert, Lock } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
+import { useSSE } from '@/hooks/use-sse';
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
@@ -19,6 +21,31 @@ import { PwaRegistration } from '@/components/pwa-registration';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
+
+// Tab display labels for breadcrumbs & toasts
+const TAB_LABELS: Record<string, string> = {
+  'overview': 'Overview', 'situation': 'Situation Room', 'map': 'Geo Map',
+  'feed': 'Live Feed', 'alerts': 'Alert Triage', 'osint': 'OSINT Monitor',
+  'ai': 'AI Insights', 'media': 'Media Gallery', 'mobilization': 'Mobilization',
+  'campaigns': 'Campaign Monitor', 'security': 'Security Center',
+  'field-safety': 'Field Safety', 'pvt': 'PVT Quick Count',
+  'evidence': 'Evidence Dossier', 'flashpoint': 'Flashpoint & Wargame',
+  'honeypot': 'Honeypot Biometrics', 'audit-logs': 'Audit Logs',
+  'submit': 'Submit Report', 'my-reports': 'My Reports',
+  'agents': 'Agent Roster', 'engagement': 'Agent Engagement',
+  'system': 'System Health', 'tenants': 'Tenant Management',
+};
+
+// Section grouping for breadcrumbs
+const TAB_SECTION: Record<string, string> = {
+  'overview': 'Command', 'situation': 'Command', 'map': 'Command', 'feed': 'Command',
+  'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
+  'mobilization': 'Operations', 'campaigns': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
+  'pvt': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
+  'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team',
+  'submit': 'Field Ops', 'my-reports': 'Field Ops',
+  'system': 'Admin', 'tenants': 'Admin',
+};
 
 // ---- Code-split heavy tab components ----
 
@@ -147,7 +174,10 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId, setSelectedTab } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId, setSelectedTab, setSseConnected } = useDashboardStore();
+  const queryClient = useQueryClient();
+  // Track last toast time per severity to avoid toast spam
+  const lastToastRef = useRef<Record<string, number>>({});
 
   // Sync URL hash with active tab on mount
   useEffect(() => {
@@ -196,11 +226,68 @@ export default function Home() {
   // Build URL with tenantId for all API calls
   const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
 
+  // ── SSE Real-Time Connection ──
+  const sseHandlers = useRef({
+    incidents: (data: Record<string, unknown>) => {
+      const { incidents, count } = data as { incidents: unknown[]; count: number };
+      if (incidents && incidents.length > 0) {
+        // Invalidate incidents query to trigger refetch
+        queryClient.invalidateQueries({ queryKey: ['incidents'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        // Show toast for CRITICAL/HIGH severity incidents (max 1 per 5s per severity)
+        const now = Date.now();
+        for (const inc of incidents as Array<{ severity?: string; type?: string; description?: string }>) {
+          if (inc.severity === 'CRITICAL' || inc.severity === 'HIGH') {
+            const key = `${inc.severity}-${inc.type}`;
+            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 5000) {
+              lastToastRef.current[key] = now;
+              toast.warning(`${inc.severity}: ${inc.type?.replace(/_/g, ' ') || 'Incident'}`, {
+                description: inc.description?.slice(0, 120) || 'New incident reported',
+                duration: 6000,
+              });
+            }
+          }
+        }
+      }
+    },
+    alerts: (data: Record<string, unknown>) => {
+      const { alerts, count } = data as { alerts: unknown[]; count: number };
+      if (alerts && alerts.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['alerts'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        // Toast for CRITICAL alerts
+        const now = Date.now();
+        for (const alert of alerts as Array<{ category?: string; title?: string; type?: string }>) {
+          if (alert.category === 'CRITICAL') {
+            const key = `alert-${alert.type}`;
+            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 8000) {
+              lastToastRef.current[key] = now;
+              toast.error(`Critical ${alert.type?.replace(/_/g, ' ') || 'Alert'}`, {
+                description: alert.title?.slice(0, 120) || 'New critical alert',
+                duration: 8000,
+              });
+            }
+          }
+        }
+      }
+    },
+    pvt: () => {
+      queryClient.invalidateQueries({ queryKey: ['pvt'] });
+    },
+  });
+
+  useSSE(tenantId || null, {
+    handlers: sseHandlers.current,
+    enabled: isAuthenticated && !!tenantId,
+    onConnectionChange: setSseConnected,
+  });
+
   // Fetch dashboard data (only when authenticated)
+  // Reduced to 30s since SSE handles incremental updates
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard', tenantId],
     queryFn: () => fetchJson(`/api/dashboard${tenantParam}`),
-    refetchInterval: 15000,
+    refetchInterval: 30_000,
     enabled: isAuthenticated,
   });
 
@@ -211,17 +298,18 @@ export default function Home() {
     }
   }, [dashData?.electionInfo, setElectionInfo]);
 
+  // Reduced to 30s — SSE handles real-time increments
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
     queryKey: ['incidents', 'all', tenantId],
     queryFn: () => fetchJson(`/api/incidents?limit=50&tenantId=${tenantId}`),
-    refetchInterval: 10000,
+    refetchInterval: 30_000,
     enabled: isAuthenticated,
   });
 
   const { data: alertsData, isLoading: alertsLoading } = useQuery<AlertsData>({
     queryKey: ['alerts', 'all', tenantId],
     queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
-    refetchInterval: 10000,
+    refetchInterval: 30_000,
     enabled: isAuthenticated,
   });
 
@@ -280,6 +368,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col min-w-0">
         <div className={user?.role === 'FIELD_AGENT' ? 'md:block hidden' : ''}>
           <AppHeader
+            breadcrumb={{ section: TAB_SECTION[activeTab] || '', current: TAB_LABELS[activeTab] || activeTab }}
             kpis={dashData?.kpis ? {
               onlineAgents: dashData.kpis.onlineAgents,
               totalAgents: dashData.kpis.totalAgents,
@@ -513,8 +602,8 @@ function OverviewTab({
         />
       </div>
 
-      {/* Quick action cards */}
-      <div className="shrink-0 grid grid-cols-3 gap-2">
+      {/* Quick action cards — stack on small screens */}
+      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-2">
         {quickActions.map((action) => (
           <button
             key={action.tab}

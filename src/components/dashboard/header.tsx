@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,13 @@ import { fetchJson } from '@/lib/api';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+interface BreadcrumbData {
+  section: string;
+  current: string;
+}
+
 interface HeaderProps {
+  breadcrumb?: BreadcrumbData;
   kpis?: {
     onlineAgents: number;
     totalAgents: number;
@@ -222,8 +228,8 @@ function getPasswordStrength(pw: string) {
   return { score, label: labels[score], color: colors[score] };
 }
 
-export function AppHeader({ kpis }: HeaderProps) {
-  const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch } = useDashboardStore();
+export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
+  const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch, sseConnected } = useDashboardStore();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -254,10 +260,11 @@ export function AppHeader({ kpis }: HeaderProps) {
     searchRef.current?.focus();
   }, [setGlobalSearch]);
 
+  // Reduced to 60s — SSE handles real-time alert updates
   const { data: alertsRes } = useQuery<{ alerts: AlertItem[] }>({
     queryKey: ['alerts-header', tenantId],
     queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
   const unreadAlerts = (alertsRes?.alerts || []).filter(a => !a.isRead);
@@ -288,6 +295,15 @@ export function AppHeader({ kpis }: HeaderProps) {
       <OfflineBanner />
       <header className="h-14 border-b border-border bg-card/70 backdrop-blur-md flex items-center px-3 sm:px-4 gap-3 shrink-0 z-10">
         <MobileMenuTrigger />
+
+        {/* Breadcrumb — visible on lg+ screens */}
+        {breadcrumb?.section && (
+          <nav className="hidden lg:flex items-center gap-1.5 text-[11px] min-w-0" aria-label="Breadcrumb">
+            <span className="text-muted-foreground/50 font-medium">{breadcrumb.section}</span>
+            <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" aria-hidden="true" />
+            <span className="font-medium text-foreground/80 truncate max-w-[140px]">{breadcrumb.current}</span>
+          </nav>
+        )}
 
         {/* Search — shows on sm+ or hidden on mobile (command palette used instead) */}
         <div className="relative flex-1 max-w-xs hidden sm:block">
@@ -343,6 +359,20 @@ export function AppHeader({ kpis }: HeaderProps) {
 
           {/* Connection quality */}
           <ConnectionIndicator />
+
+          {/* SSE live indicator */}
+          <div
+            className={cn(
+              'hidden md:flex items-center gap-1.5 px-2 h-7 rounded-md border transition-colors duration-500',
+              sseConnected
+                ? 'bg-emerald/5 border-emerald/20 text-emerald'
+                : 'bg-muted/30 border-border/40 text-muted-foreground/50'
+            )}
+            title={sseConnected ? 'Live connected via SSE' : 'Reconnecting...'}
+          >
+            <Zap className={cn('h-3 w-3', sseConnected && 'animate-pulse')} aria-hidden="true" />
+            <span className="text-[10px] font-medium">{sseConnected ? 'LIVE' : '...'}</span>
+          </div>
 
           {/* Election Type Badge */}
           <Badge

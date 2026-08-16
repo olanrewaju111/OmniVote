@@ -226,7 +226,7 @@ export function EvidenceDossier() {
     queryKey: ['evidence', tenantId],
     queryFn: () =>
       fetchJson(`/api/evidence?tenantId=${tenantId}`),
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   // Mutation

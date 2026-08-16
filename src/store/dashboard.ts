@@ -76,6 +76,10 @@ interface DashboardState {
   toggleLiveFeed: () => void;
   setUnreadAlerts: (n: number) => void;
   setGlobalSearch: (q: string) => void;
+
+  // SSE connection state
+  sseConnected: boolean;
+  setSseConnected: (v: boolean) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
@@ -121,4 +125,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   toggleLiveFeed: () => set((s) => ({ liveFeedPaused: !s.liveFeedPaused })),
   setUnreadAlerts: (n) => set({ unreadAlerts: n }),
   setGlobalSearch: (q) => set({ globalSearch: q }),
+
+  // SSE connection state
+  sseConnected: false,
+  setSseConnected: (v) => set({ sseConnected: v }),
 }));

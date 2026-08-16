@@ -41,19 +41,23 @@ interface UseSSEOptions {
   fallbackInterval?: number;
   /** Enable/disable SSE (default: true) */
   enabled?: boolean;
+  /** Called when SSE connection state changes */
+  onConnectionChange?: (connected: boolean) => void;
 }
 
-export function useSSE(tenantId: string | null, { handlers, fallbackInterval = 30000, enabled = true }: UseSSEOptions) {
+export function useSSE(tenantId: string | null, { handlers, fallbackInterval = 30000, enabled = true, onConnectionChange }: UseSSEOptions) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handlersRef = useRef(handlers);
+  const onConnectionChangeRef = useRef(onConnectionChange);
 
   // Keep handlers ref current without re-creating the SSE connection
   useEffect(() => {
     handlersRef.current = handlers;
-  }, [handlers]);
+    onConnectionChangeRef.current = onConnectionChange;
+  }, [handlers, onConnectionChange]);
 
   const connect = useCallback(() => {
     if (!tenantId || !enabled) return;
@@ -85,6 +89,7 @@ export function useSSE(tenantId: string | null, { handlers, fallbackInterval = 3
     es.onerror = () => {
       es.close();
       eventSourceRef.current = null;
+      onConnectionChangeRef.current?.(false);
 
       // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
       const backoff = Math.min(1000 * Math.pow(2, reconnectAttemptRef.current), 30000);
@@ -98,6 +103,7 @@ export function useSSE(tenantId: string | null, { handlers, fallbackInterval = 3
     es.onopen = () => {
       // Reset backoff on successful connection
       reconnectAttemptRef.current = 0;
+      onConnectionChangeRef.current?.(true);
 
       // Clear fallback polling since SSE is working
       if (fallbackTimerRef.current) {

@@ -65,3 +65,30 @@ Complete file inventory:
 - src/components/dashboard/pvt-quick-count.tsx — Export button
 - src/components/dashboard/audit-log-viewer.tsx — Export button
 - src/app/api/auth/route.ts — deleteMany fix
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Phase 3 — SSE real-time wiring, breadcrumbs, toast notifications, polling optimization, enhanced shortcuts
+
+Work Log:
+- Discovered useSSE hook and /api/sse endpoint were fully built but never wired (dead code)
+- Fixed SSE endpoint bug: shared lastPollTimestamp between alerts/incidents (could miss events), split into independent cursors
+- Added PVT submission streaming to SSE endpoint (uses submittedAt, not createdAt)
+- Added onConnectionChange callback to useSSE hook for live/disconnected indicator
+- Wired useSSE into page.tsx with incident, alert, and PVT handlers
+- SSE handlers invalidate React Query caches on new data + show sonner toasts for CRITICAL/HIGH incidents
+- Added sseConnected state to Zustand store for global connection awareness
+- Reduced polling intervals across 10 components: 155 req/min → ~46 req/min (70% reduction)
+- Added breadcrumb navigation to header (Section > Current Tab, visible on lg+)
+- Added SSE LIVE indicator (Zap icon, pulsing green when connected)
+- Added TAB_LABELS and TAB_SECTION mappings for all 22 dashboard tabs
+- Enhanced keyboard shortcuts: ⌘B (sidebar toggle), ⌘T (theme cycle), ⌘. (live feed pause), Escape (clear search)
+- Organized shortcuts dialog by category (Navigation, Layout, Actions, General)
+- Made overview quick action cards responsive (stack on mobile)
+
+Stage Summary:
+- 0 TypeScript errors after all changes
+- 5 files modified, 10 files had polling interval reductions
+- SSE transforms the app from pure polling (15+ concurrent intervals) to event-driven with SSE + 30s fallback polling
+- Real-time toasts provide instant visibility for critical events without needing to check the alerts tab
