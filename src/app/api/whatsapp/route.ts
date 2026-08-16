@@ -54,7 +54,7 @@ function phoneToJid(phone: string): string {
 // ─── GET: Status ────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const tenantId = searchParams.get('tenantId');
 
     if (!tenantId) {
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
 // ─── PUT: Disconnect / Send ─────────────────────────────────────────────
 export async function PUT(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const action = searchParams.get('action');
 
     if (action === 'disconnect') {

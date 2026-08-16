@@ -94,7 +94,7 @@ export async function DELETE(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
-    const url = new URL(req.url);
+    const url = new URL(req.url || "", "http://localhost");
     const id = url.searchParams.get('id');
 
     if (!id) {

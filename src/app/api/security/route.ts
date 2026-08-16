@@ -18,7 +18,13 @@ export async function GET(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
-    const url = new URL(req.url);
+    // RBAC: only SUPER_ADMIN, TENANT_ADMIN, TRUST_SAFETY can access security events
+    const ALLOWED_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'];
+    if (!ALLOWED_ROLES.includes(authUser.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
+    const url = new URL(req.url || "", "http://localhost");
     const severity = url.searchParams.get('severity');
     const eventType = url.searchParams.get('eventType');
     const limit = parseInt(url.searchParams.get('limit') || '100', 10);

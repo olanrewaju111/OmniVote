@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
  * silently falls back to a different tenant (prevents cross-tenant data leaks).
  */
 export async function resolveTenant(req: Request): Promise<{ id: string; error?: NextResponse }> {
-  const url = new URL(req.url);
+  const url = new URL(req.url || "", "http://localhost");
   const tenantId = url.searchParams.get('tenantId');
 
   if (!tenantId) {

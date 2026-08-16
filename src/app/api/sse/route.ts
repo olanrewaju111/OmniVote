@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
+  const { searchParams } = new URL(req.url || "", "http://localhost");
   const tenantId = searchParams.get('tenantId');
 
   if (!tenantId) {

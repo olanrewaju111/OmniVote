@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const view = searchParams.get('view') || 'dashboard';
     const agentId = searchParams.get('agentId');
 

@@ -7,7 +7,7 @@ import { getAuthUser } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     // Public slug lookup (no auth required) — used by /t/[slug] login pages
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const slug = searchParams.get('slug');
     if (slug) {
       const tenant = await db.tenant.findFirst({
@@ -172,7 +172,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Tenant id is required' }, { status: 400 });
 

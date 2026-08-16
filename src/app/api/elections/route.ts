@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     if (tenantErr) return tenantErr;
 
     const where: Record<string, unknown> = authUser.role === 'SUPER_ADMIN' ? {} : { tenantId };
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const status = searchParams.get('status');
     const tier = searchParams.get('tier');
     if (status) where.status = status;

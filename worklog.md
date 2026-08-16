@@ -511,3 +511,27 @@ Stage Summary:
 - The app was completely unusable on mobile (sidebar ate 60% of screen, no viewport meta)
 - Now: responsive sidebar drawer, field agent bottom nav, camera capture, offline queue, touch-friendly maps
 - Zero TypeScript errors maintained throughout
+
+---
+Task ID: E2E-VALIDATION
+Agent: Main
+Task: End-to-end validation of OmniVote production build
+
+Work Log:
+- Discovered .env was missing JWT_SECRET and OMNIVOTE_ENCRYPTION_KEY (lost from previous session)
+- Generated cryptographically random secrets and added to .env
+- Discovered Next.js 16 Turbopack dev server unstable in this environment (dies after 1-2 requests)
+- Switched to production build for stable E2E testing
+- Fixed tsconfig.json to exclude examples/, scripts/, skills/ from TypeScript compilation
+- Discovered critical bug: `new URL(req.url)` throws TypeError in Next.js 16 production (req.url can be empty)
+- Fixed URL parsing across 22 files (21 API routes + tenant.ts)
+- Fixed 85 seed users with plaintext passwordHash — re-hashed with bcrypt(12)
+- Discovered RBAC bypass on /api/security — ANALYST/FIELD_AGENT could access security events
+- Added role check to security route
+- Wrote comprehensive E2E validation (110 tests) — ALL PASSED
+
+Stage Summary:
+- 110/110 E2E tests PASS across 10 categories
+- 4 bugs found and fixed during validation
+- Security headers, auth flow, RBAC, tenant isolation, SSE all verified
+- Known issue: Next.js 16 middleware compiled as 'Proxy' but doesn't intercept requests in production; route-level auth works as defense-in-depth

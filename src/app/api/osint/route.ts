@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
-    const url = new URL(req.url);
+    const url = new URL(req.url || "", "http://localhost");
     const platform = url.searchParams.get('platform');
     const category = url.searchParams.get('category');
     const limit = parseInt(url.searchParams.get('limit') || '50', 10);

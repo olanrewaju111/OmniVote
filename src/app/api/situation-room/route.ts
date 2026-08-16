@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     const tier = election?.tier || 'PRESIDENTIAL';
     const levels = TIER_LEVELS[tier] || TIER_LEVELS.PRESIDENTIAL;
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     let level = searchParams.get('level') || levels[0];
     const filter = searchParams.get('filter') || ''; // state/lga/zone name for drill-down
 

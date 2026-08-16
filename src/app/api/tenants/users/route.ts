@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const tenantId = searchParams.get('tenantId');
     if (!tenantId) return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
 
@@ -120,7 +120,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url || "", "http://localhost");
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'User id is required' }, { status: 400 });
 
