@@ -92,3 +92,29 @@ Stage Summary:
 - 5 files modified, 10 files had polling interval reductions
 - SSE transforms the app from pure polling (15+ concurrent intervals) to event-driven with SSE + 30s fallback polling
 - Real-time toasts provide instant visibility for critical events without needing to check the alerts tab
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Phase 4 — Command palette, sidebar polish, navigation history, provider tuning, sonner toasts
+
+Work Log:
+- Enhanced Command Palette: added theme toggle action, sidebar toggle action, live feed pause action with keyboard shortcut hints
+- Added localStorage-persisted recent tabs (max 5) to command palette, replacing the naive neighbor-based "recent" calculation
+- Added keyboard nav hints in command palette footer (↑↓ navigate, ↵ select)
+- Improved sidebar: collapsed mode now shows user avatar with tooltip (name + role) instead of nothing
+- Added logout button with tooltip in collapsed sidebar mode
+- Added navigation history to Zustand store (navHistory[], navHistoryIndex, goBack(), goForward())
+- Implemented Alt+← / Alt+→ keyboard shortcuts for back/forward navigation
+- setSelectedTab() now maintains proper history with forward-truncation on new navigation
+- Tuned React Query staleTime from 5s to 15s (matches SSE-driven approach)
+- Added refetchOnWindowFocus: true for data freshness when user returns to tab
+- Added Sonner Toaster to layout (top-right, rich colors, close button, 6s duration) for SSE real-time notifications
+- 0 TypeScript errors throughout all Phase 4 changes
+
+Stage Summary:
+- 7 files modified: command-palette, sidebar, keyboard-shortcuts, store/dashboard, providers, layout
+- Navigation history enables browser-like back/forward for tab navigation
+- Command palette is now the single entry point for all quick actions (navigate, toggle theme, toggle sidebar, pause feed)
+- Collapsed sidebar is fully functional (avatar, logout, tooltips for everything)
+- Sonner toasts now properly render for real-time SSE notifications

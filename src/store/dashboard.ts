@@ -69,7 +69,11 @@ interface DashboardState {
   sidebarCollapsed: boolean;
   liveFeedPaused: boolean;
   globalSearch: string;
+  navHistory: ViewTab[];
+  navHistoryIndex: number;
   setSelectedTab: (tab: ViewTab) => void;
+  goBack: () => void;
+  goForward: () => void;
   setAlertFilter: (filter: 'ALL' | 'OPERATIONAL' | 'SECURITY') => void;
   setIncidentFilter: (filter: { type: string; severity: string; status: string }) => void;
   toggleSidebar: () => void;
@@ -118,7 +122,31 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   sidebarCollapsed: false,
   liveFeedPaused: false,
   globalSearch: '',
-  setSelectedTab: (tab) => set({ activeTab: tab }),
+  navHistory: ['overview'],
+  navHistoryIndex: 0,
+  setSelectedTab: (tab) => {
+    const { navHistory, navHistoryIndex, activeTab } = get();
+    // Don't push duplicates of the current position
+    if (tab === activeTab) return;
+    // If we navigated back and then pick a new tab, truncate forward history
+    const newHistory = navHistory.slice(0, navHistoryIndex + 1);
+    newHistory.push(tab);
+    set({ activeTab: tab, navHistory: newHistory, navHistoryIndex: newHistory.length - 1 });
+  },
+  goBack: () => {
+    const { navHistory, navHistoryIndex } = get();
+    if (navHistoryIndex > 0) {
+      const newIndex = navHistoryIndex - 1;
+      set({ activeTab: navHistory[newIndex], navHistoryIndex: newIndex });
+    }
+  },
+  goForward: () => {
+    const { navHistory, navHistoryIndex } = get();
+    if (navHistoryIndex < navHistory.length - 1) {
+      const newIndex = navHistoryIndex + 1;
+      set({ activeTab: navHistory[newIndex], navHistoryIndex: newIndex });
+    }
+  },
   setAlertFilter: (filter) => set({ alertFilter: filter }),
   setIncidentFilter: (filter) => set({ incidentFilter: filter }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

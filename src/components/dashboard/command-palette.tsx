@@ -9,6 +9,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   Activity, Zap, Users, Send, FileText, Server, Building2, Globe, Megaphone, CalendarDays,
   Shield, MapPin, Eye, Flame, Search, ArrowRight, LogOut, Settings,
+  Moon, Sun, Monitor, PanelLeftClose, PanelLeft, Pause, Play,
 } from 'lucide-react';
 
 const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; keywords: string[] }[] = [
@@ -37,17 +38,58 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; keywords: st
   { id: 'my-reports', label: 'My Reports', icon: <FileText className="h-4 w-4" />, keywords: ['my', 'reports', 'submissions', 'history'] },
 ];
 
+// Persisted recent tabs (max 5)
+const STORAGE_KEY = 'omnivote-recent-tabs';
+
+function getRecentTabs(): ViewTab[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+function addRecentTab(tabId: ViewTab) {
+  try {
+    const recent = getRecentTabs().filter(t => t !== tabId);
+    recent.unshift(tabId);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.slice(0, 5)));
+  } catch { /* storage unavailable */ }
+}
+
+function getThemeIcon() {
+  if (typeof document === 'undefined') return <Monitor className="h-4 w-4" />;
+  const isDark = document.documentElement.classList.contains('dark');
+  const isLight = document.documentElement.classList.contains('light');
+  if (isDark) return <Moon className="h-4 w-4" />;
+  if (isLight) return <Sun className="h-4 w-4" />;
+  return <Monitor className="h-4 w-4" />;
+}
+
+function getThemeLabel() {
+  if (typeof document === 'undefined') return 'Cycle theme';
+  const isDark = document.documentElement.classList.contains('dark');
+  const isLight = document.documentElement.classList.contains('light');
+  if (isDark) return 'Switch to light mode';
+  if (isLight) return 'Switch to system theme';
+  return 'Switch to dark mode';
+}
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
-  const { user, activeTab, setSelectedTab, logout } = useDashboardStore();
+  const { user, activeTab, setSelectedTab, logout, toggleSidebar, toggleLiveFeed, liveFeedPaused, sidebarCollapsed } = useDashboardStore();
+  const [recentTabs, setRecentTabs] = useState<ViewTab[]>([]);
 
-   useEffect(() => {
+  // Load recent tabs when palette opens
+  useEffect(() => {
+    if (open) setRecentTabs(getRecentTabs());
+  }, [open]);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setOpen(prev => !prev);
       }
-      // Escape to close
       if (e.key === 'Escape' && open) {
         setOpen(false);
       }
@@ -58,6 +100,7 @@ export function CommandPalette() {
 
   const handleSelect = useCallback((tabId: string) => {
     setSelectedTab(tabId as ViewTab);
+    addRecentTab(tabId as ViewTab);
     setOpen(false);
   }, [setSelectedTab]);
 
@@ -66,19 +109,45 @@ export function CommandPalette() {
     setOpen(false);
   }, [logout]);
 
+  const handleThemeToggle = useCallback(() => {
+    const root = document.documentElement;
+    const isDark = root.classList.contains('dark');
+    const isLight = root.classList.contains('light');
+    if (isDark) {
+      root.classList.remove('dark');
+      root.classList.add('light');
+      try { localStorage.setItem('theme', 'light'); } catch { /* */ }
+    } else if (isLight) {
+      root.classList.remove('light');
+      try { localStorage.removeItem('theme'); } catch { /* */ }
+    } else {
+      root.classList.add('dark');
+      try { localStorage.setItem('theme', 'dark'); } catch { /* */ }
+    }
+    setOpen(false);
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    toggleSidebar();
+    setOpen(false);
+  }, [toggleSidebar]);
+
+  const handleToggleLiveFeed = useCallback(() => {
+    toggleLiveFeed();
+    setOpen(false);
+  }, [toggleLiveFeed]);
+
   if (!user) return null;
 
   const allowedTabs = ROLE_TABS[user.role] || [];
   const navItems = ALL_NAV.filter(item => allowedTabs.includes(item.id));
 
-  // Group: recently used (current tab first, then neighbors)
-  const currentIdx = navItems.findIndex(n => n.id === activeTab);
-  const recentTabs = currentIdx >= 0
-    ? [navItems[currentIdx], ...navItems.slice(Math.max(0, currentIdx - 2), currentIdx), ...navItems.slice(currentIdx + 1, currentIdx + 3)].filter(Boolean)
-    : navItems.slice(0, 5);
-  // Deduplicate
-  const seen = new Set<string>();
-  const uniqueRecent = recentTabs.filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true; });
+  // Build recent items from persisted storage
+  const recentItems = recentTabs
+    .filter(tabId => allowedTabs.includes(tabId) && tabId !== activeTab)
+    .slice(0, 4)
+    .map(tabId => ALL_NAV.find(n => n.id === tabId))
+    .filter(Boolean) as typeof navItems;
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -94,28 +163,28 @@ export function CommandPalette() {
 
         {/* Quick Actions */}
         <CommandGroup heading="Quick Actions">
-          <CommandItem onSelect={() => setOpen(false)} className="gap-3">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <span>Search incidents...</span>
-            <span className="ml-auto text-[10px] text-muted-foreground/50">then Enter</span>
-          </CommandItem>
           <CommandItem onSelect={() => { setSelectedTab('submit'); setOpen(false); }} className="gap-3">
             <Send className="h-4 w-4 text-emerald" />
             <span>Submit new report</span>
-            <span className="ml-auto text-[10px] text-muted-foreground/50">quick action</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:inline">quick action</span>
           </CommandItem>
           <CommandItem onSelect={() => { setSelectedTab('alerts'); setOpen(false); }} className="gap-3">
             <ShieldAlert className="h-4 w-4 text-amber" />
             <span>View critical alerts</span>
           </CommandItem>
+          <CommandItem onSelect={handleToggleLiveFeed} className="gap-3">
+            {liveFeedPaused ? <Play className="h-4 w-4 text-cyan" /> : <Pause className="h-4 w-4 text-cyan" />}
+            <span>{liveFeedPaused ? 'Resume live feed' : 'Pause live feed'}</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:inline">⌘.</span>
+          </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
 
-        {/* Recently Visited */}
-        {uniqueRecent.length > 0 && (
+        {/* Recently Visited (persisted) */}
+        {recentItems.length > 0 && (
           <CommandGroup heading="Recent">
-            {uniqueRecent.slice(0, 4).map((item) => (
+            {recentItems.map((item) => (
               <CommandItem
                 key={`recent-${item.id}`}
                 onSelect={() => handleSelect(item.id)}
@@ -123,9 +192,6 @@ export function CommandPalette() {
               >
                 <span className="text-muted-foreground">{item.icon}</span>
                 <span>{item.label}</span>
-                {item.id === activeTab && (
-                  <span className="ml-auto text-[10px] text-emerald">current</span>
-                )}
               </CommandItem>
             ))}
           </CommandGroup>
@@ -154,21 +220,46 @@ export function CommandPalette() {
 
         <CommandSeparator />
 
+        {/* Settings & Actions */}
+        <CommandGroup heading="Settings">
+          <CommandItem onSelect={handleThemeToggle} className="gap-3">
+            {getThemeIcon()}
+            <span>{getThemeLabel()}</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:inline">⌘T</span>
+          </CommandItem>
+          <CommandItem onSelect={handleToggleSidebar} className="gap-3">
+            {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            <span>{sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:inline">⌘B</span>
+          </CommandItem>
+        </CommandGroup>
+
+        <CommandSeparator />
+
         {/* Account */}
         <CommandGroup heading="Account">
           <CommandItem onSelect={handleLogout} className="gap-3 text-rose focus:text-rose">
             <LogOut className="h-4 w-4" />
             <span>Sign out</span>
-            <span className="ml-auto text-[10px] text-muted-foreground/50">{user.name}</span>
+            <span className="ml-auto text-[10px] text-muted-foreground/50 hidden sm:inline">{user.name}</span>
           </CommandItem>
         </CommandGroup>
 
         {/* Footer hint */}
         <div className="border-t border-border px-3 py-2 flex items-center justify-between text-[10px] text-muted-foreground/50">
-          <span>Navigate with arrows</span>
-          <span className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <kbd className="h-4 px-1 rounded bg-muted text-[9px]">↑↓</kbd>
+              navigate
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="h-4 px-1 rounded bg-muted text-[9px]">↵</kbd>
+              select
+            </span>
+          </div>
+          <span className="flex items-center gap-1">
             <kbd className="h-4 px-1 rounded bg-muted text-[9px]">esc</kbd>
-            <span>to close</span>
+            close
           </span>
         </div>
       </CommandList>

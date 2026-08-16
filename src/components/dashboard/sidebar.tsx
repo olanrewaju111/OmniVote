@@ -317,7 +317,35 @@ function renderNavContent({
       <Separator className="bg-sidebar-border" />
 
       {/* ── User info + logout ── */}
-      {(!collapsed || isMobile) && (
+      {collapsed && !isMobile ? (
+        <div className="shrink-0 space-y-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="px-2 py-3 flex justify-center">
+                <Avatar className="h-8 w-8 ring-1 ring-sidebar-border cursor-default">
+                  <AvatarFallback className="bg-emerald/15 text-emerald text-xs font-bold">{initials}</AvatarFallback>
+                </Avatar>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="flex flex-col items-start gap-0.5">
+              <p className="font-medium text-xs">{user.name}</p>
+              <p className="text-[10px] text-muted-foreground">{user.role.replace(/_/g, ' ')}</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onLogout}
+                className="w-full flex justify-center py-1.5 text-sidebar-foreground/30 hover:text-rose transition-colors"
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Sign out</TooltipContent>
+          </Tooltip>
+        </div>
+      ) : (
         <div className="px-3 py-3 shrink-0 space-y-2.5">
           <div className="flex items-center gap-2.5">
             <Avatar className="h-8 w-8 ring-1 ring-sidebar-border">

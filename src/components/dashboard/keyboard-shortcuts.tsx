@@ -20,8 +20,10 @@ const SHORTCUTS: ShortcutItem[] = [
   { keys: '⌘/Ctrl + K', description: 'Command Palette', category: 'Navigation' },
   { keys: '⌘/Ctrl + 1-9', description: 'Switch to tab 1-9', category: 'Navigation' },
   { keys: '⌘/Ctrl + 0', description: 'Switch to last tab', category: 'Navigation' },
+  { keys: 'Alt + ←', description: 'Go back', category: 'Navigation' },
+  { keys: 'Alt + →', description: 'Go forward', category: 'Navigation' },
   { keys: '⌘/Ctrl + B', description: 'Toggle sidebar', category: 'Layout' },
-  { keys: '⌘/Ctrl + T', description: 'Cycle light/dark theme', category: 'Layout' },
+  { keys: '⌘/Ctrl + T', description: 'Cycle theme', category: 'Layout' },
   { keys: '⌘/Ctrl + .', description: 'Toggle live feed pause', category: 'Actions' },
   { keys: 'Escape', description: 'Clear search / Close dialog', category: 'General' },
   { keys: '?', description: 'Show this help', category: 'General' },
@@ -36,7 +38,7 @@ const SHORTCUTS: ShortcutItem[] = [
 // Cmd/Ctrl + .: Toggle live feed pause
 // ?: Toggle shortcuts help dialog
 export function KeyboardShortcuts() {
-  const { user, setSelectedTab, setGlobalSearch, toggleSidebar, toggleLiveFeed } = useDashboardStore();
+  const { user, setSelectedTab, setGlobalSearch, toggleSidebar, toggleLiveFeed, goBack, goForward } = useDashboardStore();
   const [helpOpen, setHelpOpen] = useState(false);
 
   const cycleTheme = useCallback(() => {
@@ -132,6 +134,20 @@ export function KeyboardShortcuts() {
         }
       }
 
+      // Alt + Left/Right: back/forward navigation history
+      if (e.altKey && !e.metaKey && !e.ctrlKey) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          goBack();
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          goForward();
+          return;
+        }
+      }
+
       // Escape: clear search when not in a dialog
       if (e.key === 'Escape' && !inInput) {
         setGlobalSearch('');
@@ -140,7 +156,7 @@ export function KeyboardShortcuts() {
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [user, setSelectedTab, setGlobalSearch, toggleSidebar, toggleLiveFeed, cycleTheme]);
+  }, [user, setSelectedTab, setGlobalSearch, toggleSidebar, toggleLiveFeed, goBack, goForward, cycleTheme]);
 
   // Group shortcuts by category
   const categories = SHORTCUTS.reduce<Record<string, ShortcutItem[]>>((acc, s) => {
