@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, Globe, Megaphone, CalendarDays,
-  Shield, MapPin, Eye, Flame, Menu, Settings,
+  Shield, MapPin, Eye, Flame, Menu, Settings, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -137,6 +137,7 @@ export function AppSidebar() {
     onLogout: handleLogout,
     onToggleSidebar: toggleSidebar,
     isMobile,
+    onClose: () => setMobileOpenState(false),
   });
 
   if (isMobile) {
@@ -188,6 +189,7 @@ function renderNavContent({
   onLogout,
   onToggleSidebar,
   isMobile = false,
+  onClose,
 }: {
   allowedTabs: string[];
   activeTab: ViewTab;
@@ -198,6 +200,7 @@ function renderNavContent({
   onLogout: () => void;
   onToggleSidebar: () => void;
   isMobile?: boolean;
+  onClose?: () => void;
 }) {
   const collapsed = isMobile ? false : sidebarCollapsed;
   const isFieldAgent = user.role === 'FIELD_AGENT';
@@ -245,11 +248,11 @@ function renderNavContent({
       <Separator className="bg-sidebar-border" />
 
       {/* ── Navigation items ── */}
-      <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden" aria-label="Dashboard navigation">
+      <nav className={cn('flex-1 overflow-y-auto overflow-x-hidden', isMobile ? 'py-4' : 'py-2')} aria-label="Dashboard navigation">
         <TooltipProvider delayDuration={0}>
           {isFieldAgent ? (
             // Flat list for field agents
-            <div className="px-2 space-y-1">
+            <div className={cn('space-y-1', isMobile ? 'px-3 py-4' : 'px-2')}>
               {filteredFieldItems.map((item) => (
                 <NavButton
                   key={item.id}
@@ -258,6 +261,7 @@ function renderNavContent({
                   collapsed={collapsed}
                   unreadAlerts={item.id === 'alerts' ? unreadAlerts : 0}
                   onSelect={onTabSelect}
+                  isMobile={isMobile}
                 />
               ))}
             </div>
@@ -273,7 +277,7 @@ function renderNavContent({
                     </p>
                   )}
                   {collapsed && <div className="my-1 mx-3 border-t border-sidebar-border/50" />}
-                  <div className="px-2 space-y-0.5">
+                  <div className={cn('space-y-0.5', isMobile ? 'px-3' : 'px-2')}>
                     {section.items.map((item) => (
                       <NavButton
                         key={item.id}
@@ -282,6 +286,7 @@ function renderNavContent({
                         collapsed={collapsed}
                         unreadAlerts={item.id === 'alerts' ? unreadAlerts : 0}
                         onSelect={onTabSelect}
+                        isMobile={isMobile}
                       />
                     ))}
                   </div>
@@ -292,13 +297,14 @@ function renderNavContent({
               {allowedTabs.includes('my-reports') && (
                 <>
                   <div className="my-1 mx-3 border-t border-sidebar-border/50" />
-                  <div className="px-2 space-y-0.5">
+                  <div className={cn('space-y-0.5', isMobile ? 'px-3' : 'px-2')}>
                     <NavButton
                       item={{ id: 'my-reports' as ViewTab, label: 'My Reports', icon: <FileText className="h-4.5 w-4.5" /> }}
                       activeTab={activeTab}
                       collapsed={collapsed}
                       unreadAlerts={0}
                       onSelect={onTabSelect}
+                      isMobile={isMobile}
                     />
                   </div>
                 </>
@@ -322,6 +328,18 @@ function renderNavContent({
               <p className="text-[10px] text-sidebar-foreground/40 truncate mt-0.5">{user.role.replace(/_/g, ' ')}</p>
             </div>
           </div>
+          {isMobile && onClose && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onClose}
+              className="w-full justify-center gap-2 min-h-[44px] text-xs"
+              aria-label="Close navigation menu"
+            >
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+              Close Menu
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -361,12 +379,14 @@ function NavButton({
   collapsed,
   unreadAlerts,
   onSelect,
+  isMobile = false,
 }: {
   item: { id: ViewTab; label: string; icon: React.ReactNode };
   activeTab: ViewTab;
   collapsed: boolean;
   unreadAlerts: number;
   onSelect: (id: ViewTab) => void;
+  isMobile?: boolean;
 }) {
   const isActive = activeTab === item.id;
 
@@ -378,7 +398,7 @@ function NavButton({
           className={cn(
             'w-full flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150 outline-none',
             'focus-visible:ring-2 focus-visible:ring-ring',
-            collapsed ? 'justify-center px-0 h-9' : 'px-3 h-9',
+            isMobile ? 'px-3 min-h-[44px]' : (collapsed ? 'justify-center px-0 h-9' : 'px-3 h-9'),
             isActive
               ? 'bg-emerald/12 text-emerald sidebar-active-bar'
               : 'text-sidebar-foreground/50 hover:text-sidebar-foreground/85 hover:bg-sidebar-accent/60'

@@ -3,27 +3,65 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Comprehensive UI/UX deepening — theme toggle, forgot password, loading skeletons, 404 page, profile edit, export buttons, dashboard footer
+Task: Phase 1 — Theme toggle, forgot password, 404, loading skeletons, profile edit, export buttons, footer
 
 Work Log:
-- Verified codebase integrity: 0 TypeScript errors, all 12 lib files clean, app compiles and runs
-- Conducted full UI/UX audit: 34 dashboard components, 48 shadcn/ui primitives, ~19,500 lines of UI code
-- Identified 10+ UX gaps: no theme toggle, no forgot password UI, no 404 page, no loading skeletons, read-only profile, no export buttons, no footer, SSE hook unwired
+- Verified codebase integrity: 0 TypeScript errors, all lib files clean
+- Conducted full UI/UX audit: 34 dashboard components, 48 shadcn/ui primitives, ~19,500 lines
 - Fixed JWT_SECRET missing from .env and Prisma deleteMany bug in auth rate limiter
+- Created theme toggle, forgot password flow, 404 page, dashboard skeletons, profile edit, export buttons, footer
 
 Stage Summary:
-- Created `src/components/ui/theme-toggle.tsx` — dark/light/system theme dropdown using next-themes
-- Added light theme CSS variables to `src/app/globals.css` (full oklch light palette)
-- Updated `src/components/providers.tsx` to wrap app in ThemeProvider
-- Added theme toggle button to header between separator and user menu
-- Added forgot password flow to `src/components/dashboard/tenant-login.tsx` (animated view switching, email input, API integration)
-- Created `src/app/not-found.tsx` — premium 404 page with framer-motion animations
-- Created `src/components/dashboard/dashboard-skeleton.tsx` — KPI, action card, feed, and table skeletons
-- Updated `src/app/page.tsx` to use DashboardSkeleton instead of centered spinner during loading
-- Enhanced profile dialog in `src/components/dashboard/header.tsx` with change password form (strength meter, validation, API call)
-- Added dashboard footer to `src/app/page.tsx` (version + encryption badge)
-- Created `src/components/dashboard/export-button.tsx` — reusable CSV/JSON export dropdown
-- Added export buttons to audit-log-viewer, pvt-quick-count, and live-feed
-- Fixed skeleton CSS to use CSS variables for theme compatibility
-- Fixed auth route rate limiter delete → deleteMany to prevent Prisma errors
-- All changes: 0 TypeScript errors, all endpoints verified (200/404/login/forgot-password)
+- 6 new files created, 9 files modified
+- All changes: 0 TypeScript errors, all endpoints verified
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Phase 2 — Per-tab skeletons, empty states, confirmation dialogs, mobile polish, keyboard accessibility, light theme
+
+Work Log:
+- Added 5 tab-specific skeleton types (CardGrid, Map, Form, Chart, ListDetail)
+- Created TAB_SKELETONS mapping for all 21 tabs, updated createDynamic to use them
+- Created reusable EmptyState component, added to Agent Roster, Field Reports, Evidence Dossier
+- Created reusable ConfirmDialog component, added dismiss confirmation to Alert Triage
+- Added 'LastSync' timestamp to header (refreshes every 15s)
+- Improved mobile touch targets in sidebar Sheet (44px min-height, close button, proper padding)
+- Added keyboard shortcuts help dialog (press ? to open)
+- Fixed sidebar onClose destructuring bug
+- Added comprehensive light theme CSS overrides (glass, glow, card-lift, map-grid, selection, progress-bar)
+
+Stage Summary:
+- 0 new TypeScript errors
+- 6 new files total across both phases
+- 15+ modified files across both phases
+- All APIs verified: 200 (home, auth, login, forgot-password), 404 (not-found page)
+- Full dark/light theme support with proper oklch color adaptation
+
+---
+Complete file inventory:
+
+**New files (6):**
+- src/app/not-found.tsx — Custom 404 page
+- src/components/ui/theme-toggle.tsx — Dark/Light/System theme picker
+- src/components/dashboard/dashboard-skeleton.tsx — 7 skeleton variants
+- src/components/dashboard/export-button.tsx — CSV/JSON export dropdown
+- src/components/dashboard/empty-state.tsx — Reusable empty state with CTA
+- src/components/dashboard/confirm-dialog.tsx — Reusable confirmation dialog
+
+**Modified files (15):**
+- src/app/globals.css — Light theme vars, light overrides, skeleton CSS fix
+- src/app/page.tsx — Per-tab skeletons, footer, skeleton loading
+- src/components/providers.tsx — ThemeProvider wrapper
+- src/components/dashboard/header.tsx — Theme toggle, LastSync, password change
+- src/components/dashboard/tenant-login.tsx — Forgot password flow
+- src/components/dashboard/sidebar.tsx — Mobile touch targets, close button
+- src/components/dashboard/alert-triage.tsx — Dismiss confirmation dialog
+- src/components/dashboard/agent-roster.tsx — Empty state with CTA
+- src/components/dashboard/field-reports.tsx — Empty state
+- src/components/dashboard/evidence-dossier.tsx — Empty state with CTA
+- src/components/dashboard/keyboard-shortcuts.tsx — Help dialog (? key)
+- src/components/dashboard/live-feed.tsx — Export button
+- src/components/dashboard/pvt-quick-count.tsx — Export button
+- src/components/dashboard/audit-log-viewer.tsx — Export button
+- src/app/api/auth/route.ts — deleteMany fix

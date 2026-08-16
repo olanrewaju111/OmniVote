@@ -10,11 +10,12 @@ import { useDashboardStore } from '@/store/dashboard';
 import {
   Clock, MapPin, ShieldCheck, CheckCircle2, AlertTriangle, Eye,
   Vote, FileWarning, BarChart3, TrendingUp, Users, Loader2,
-  ChevronDown, ChevronUp, CircleDot, UserCircle,
+  ChevronDown, ChevronUp, CircleDot, UserCircle, FileText,
 } from 'lucide-react';
 import { MediaViewer, MediaThumbnailStrip, type MediaFile } from '@/components/dashboard/media-viewer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { EmptyState } from './empty-state';
 import { fetchJson } from '@/lib/api';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -286,15 +287,12 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
 
   if (reports.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <FileWarning className="h-8 w-8 text-muted-foreground/30 mx-auto" />
-          <p className="text-sm text-muted-foreground">No reports found</p>
-          <p className="text-[11px] text-muted-foreground/60">
-            {showReporter ? 'No reports match the current filter' : 'Submit your first report from the Submit tab'}
-          </p>
-        </div>
-      </div>
+      <EmptyState
+        icon={FileText}
+        title="No reports yet"
+        description="Your submitted incident and result reports will appear here."
+        className="h-full"
+      />
     );
   }
 

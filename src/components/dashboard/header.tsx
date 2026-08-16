@@ -111,6 +111,29 @@ function LiveClock() {
   );
 }
 
+// Last data sync indicator
+function LastSync() {
+  const [lastSync, setLastSync] = useState<string>('');
+
+  useEffect(() => {
+    const update = () => {
+      setLastSync(new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+    };
+    update();
+    const id = setInterval(update, 15000); // matches dashboard poll interval
+    return () => clearInterval(id);
+  }, []);
+
+  if (!lastSync) return null;
+
+  return (
+    <div className="hidden xl:flex items-center gap-1.5 text-[10px] text-muted-foreground/40">
+      <span>Updated</span>
+      <span className="tabular-nums font-medium text-muted-foreground/60">{lastSync}</span>
+    </div>
+  );
+}
+
 // Connection quality indicator
 function ConnectionIndicator() {
   const [quality, setQuality] = useState<'good' | 'degraded' | 'offline'>('good');
@@ -316,6 +339,7 @@ export function AppHeader({ kpis }: HeaderProps) {
         <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
           {/* Live Clock */}
           <LiveClock />
+          <LastSync />
 
           {/* Connection quality */}
           <ConnectionIndicator />

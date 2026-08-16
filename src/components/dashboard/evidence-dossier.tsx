@@ -39,6 +39,7 @@ import { useDashboardStore } from '@/store/dashboard';
 import { toast } from 'sonner';
 import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { EmptyState } from './empty-state';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -524,10 +525,13 @@ export function EvidenceDossier() {
               })}
 
               {dossiers.length === 0 && (
-                <div className="col-span-2 text-center py-16 text-muted-foreground">
-                  <FolderOpen className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No dossiers yet</p>
-                  <p className="text-xs mt-1">Create your first evidence dossier to get started.</p>
+                <div className="col-span-2">
+                  <EmptyState
+                    icon={FolderOpen}
+                    title="No evidence dossiers"
+                    description="Create a dossier to compile verified evidence for legal proceedings."
+                    action={{ label: 'Create Dossier', onClick: () => setCreateOpen(true) }}
+                  />
                 </div>
               )}
             </div>

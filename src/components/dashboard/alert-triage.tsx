@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import {
 import { motion } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
+import { ConfirmDialog } from './confirm-dialog';
 
 interface Alert {
   id: string;
@@ -60,6 +62,7 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
   const { alertFilter, setAlertFilter, tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
   const unreadCount = alerts.filter(a => !a.isRead).length;
+  const [dismissConfirm, setDismissConfirm] = useState<{id: string; title: string} | null>(null);
 
   const markReadMutation = useMutation({
     mutationFn: (alertId: string) =>
@@ -253,7 +256,7 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
                       {alert.incident.status !== 'DISMISSED' && (
                         <Button
                           size="sm" variant="outline" className="h-6 text-[10px] px-2 border-slate/30 text-slate hover:bg-slate/10"
-                          onClick={(e) => { e.stopPropagation(); updateIncident.mutate({ id: alert.id, status: 'DISMISSED' }); }}
+                          onClick={(e) => { e.stopPropagation(); setDismissConfirm({ id: alert.id, title: alert.title }); }}
                           disabled={updateIncident.isPending}
                         >
                           <ShieldOff className="h-3 w-3 mr-1" /> Dismiss
@@ -274,6 +277,22 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
           )}
         </div>
       </ScrollArea>
+
+      <ConfirmDialog
+        open={!!dismissConfirm}
+        onOpenChange={() => setDismissConfirm(null)}
+        title="Dismiss Alert?"
+        description={`Are you sure you want to dismiss "${dismissConfirm?.title}"? This action cannot be undone.`}
+        confirmLabel="Dismiss"
+        variant="destructive"
+        loading={updateIncident.isPending}
+        onConfirm={() => {
+          if (dismissConfirm) {
+            updateIncident.mutate({ id: dismissConfirm.id, status: 'DISMISSED' });
+            setDismissConfirm(null);
+          }
+        }}
+      />
     </div>
   );
 }

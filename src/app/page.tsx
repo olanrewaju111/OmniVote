@@ -10,7 +10,7 @@ import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
-import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
+import { DashboardSkeleton, TableSkeleton, FeedSkeleton, CardGridSkeleton, MapSkeleton, FormSkeleton, ChartSkeleton, ListDetailSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import { CommandPalette } from '@/components/dashboard/command-palette';
 import { KeyboardShortcuts } from '@/components/dashboard/keyboard-shortcuts';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type ElectionInfo } from '@/store/dashboard';
@@ -21,39 +21,71 @@ import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 // ---- Code-split heavy tab components ----
+
+// Tab-specific loading skeletons for code-split components
+const TAB_SKELETONS: Record<string, React.ComponentType> = {
+  'situation': () => <div className="h-full p-4"><TableSkeleton rows={6} cols={5} /></div>,
+  'map': MapSkeleton,
+  'feed': () => <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden"><FeedSkeleton /></div>,
+  'alerts': () => <div className="h-full p-4"><TableSkeleton rows={5} cols={4} /></div>,
+  'osint': () => <CardGridSkeleton cols={2} rows={3} />,
+  'ai': ChartSkeleton,
+  'media': () => <CardGridSkeleton cols={3} rows={2} />,
+  'mobilization': () => <CardGridSkeleton cols={2} rows={3} />,
+  'campaigns': () => <CardGridSkeleton cols={2} rows={3} />,
+  'security': ChartSkeleton,
+  'field-safety': () => <CardGridSkeleton cols={2} rows={3} />,
+  'pvt': ChartSkeleton,
+  'evidence': ListDetailSkeleton,
+  'flashpoint': () => <CardGridSkeleton cols={2} rows={3} />,
+  'honeypot': () => <CardGridSkeleton cols={2} rows={3} />,
+  'audit-logs': () => <div className="h-full p-4"><TableSkeleton rows={8} cols={5} /></div>,
+  'submit': FormSkeleton,
+  'my-reports': () => <div className="h-full p-4"><TableSkeleton rows={5} cols={4} /></div>,
+  'agents': () => <div className="h-full p-4"><TableSkeleton rows={6} cols={5} /></div>,
+  'engagement': ListDetailSkeleton,
+  'system': () => <CardGridSkeleton cols={3} rows={2} />,
+  'tenants': () => <div className="h-full p-4"><TableSkeleton rows={4} cols={4} /></div>,
+};
+
 const createDynamic = <T extends React.ComponentType<any>>(
   loader: () => Promise<{ default: T }>,
+  tabKey?: string,
 ) =>
   dynamic(loader, {
-    loading: () => (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    ),
+    loading: () => {
+      const Skeleton = tabKey ? TAB_SKELETONS[tabKey] : null;
+      if (Skeleton) return <div className="h-full p-4"><Skeleton /></div>;
+      return (
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      );
+    },
   });
 
-const GeoMapView = createDynamic(() => import('@/components/dashboard/geo-map').then(m => ({ default: m.GeoMapView })));
-const LiveFeed = createDynamic(() => import('@/components/dashboard/live-feed').then(m => ({ default: m.LiveFeed })));
-const AlertTriage = createDynamic(() => import('@/components/dashboard/alert-triage').then(m => ({ default: m.AlertTriage })));
-const AiInsights = createDynamic(() => import('@/components/dashboard/ai-insights').then(m => ({ default: m.AiInsights })));
-const MediaGallery = createDynamic(() => import('@/components/dashboard/media-gallery').then(m => ({ default: m.MediaGallery })));
-const SubmitReport = createDynamic(() => import('@/components/dashboard/field-submit').then(m => ({ default: m.SubmitReport })));
-const MyReports = createDynamic(() => import('@/components/dashboard/field-reports').then(m => ({ default: m.MyReports })));
-const AgentRoster = createDynamic(() => import('@/components/dashboard/agent-roster').then(m => ({ default: m.AgentRoster })));
-const SystemHealth = createDynamic(() => import('@/components/dashboard/system-health').then(m => ({ default: m.SystemHealth })));
-const TenantManagement = createDynamic(() => import('@/components/dashboard/tenant-mgmt').then(m => ({ default: m.TenantManagement })));
-const SituationRoom = createDynamic(() => import('@/components/dashboard/situation-room').then(m => ({ default: m.SituationRoom })));
-const AgentEngagement = createDynamic(() => import('@/components/dashboard/agent-engagement').then(m => ({ default: m.AgentEngagement })));
-const OsintMonitor = createDynamic(() => import('@/components/dashboard/osint-monitor').then(m => ({ default: m.OsintMonitor })));
-const MobilizationEngine = createDynamic(() => import('@/components/dashboard/mobilization').then(m => ({ default: m.MobilizationEngine })));
-const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campaign-monitor').then(m => ({ default: m.CampaignMonitor })));
-const SecurityCenter = createDynamic(() => import('@/components/dashboard/security-center').then(m => ({ default: m.SecurityCenter })));
-const FieldSafety = createDynamic(() => import('@/components/dashboard/field-safety').then(m => ({ default: m.FieldSafety })));
-const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-quick-count').then(m => ({ default: m.PvtQuickCount })));
-const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evidence-dossier').then(m => ({ default: m.EvidenceDossier })));
-const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })));
-const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })));
-const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-log-viewer').then(m => ({ default: m.AuditLogViewer })));
+const GeoMapView = createDynamic(() => import('@/components/dashboard/geo-map').then(m => ({ default: m.GeoMapView })), 'map');
+const LiveFeed = createDynamic(() => import('@/components/dashboard/live-feed').then(m => ({ default: m.LiveFeed })), 'feed');
+const AlertTriage = createDynamic(() => import('@/components/dashboard/alert-triage').then(m => ({ default: m.AlertTriage })), 'alerts');
+const AiInsights = createDynamic(() => import('@/components/dashboard/ai-insights').then(m => ({ default: m.AiInsights })), 'ai');
+const MediaGallery = createDynamic(() => import('@/components/dashboard/media-gallery').then(m => ({ default: m.MediaGallery })), 'media');
+const SubmitReport = createDynamic(() => import('@/components/dashboard/field-submit').then(m => ({ default: m.SubmitReport })), 'submit');
+const MyReports = createDynamic(() => import('@/components/dashboard/field-reports').then(m => ({ default: m.MyReports })), 'my-reports');
+const AgentRoster = createDynamic(() => import('@/components/dashboard/agent-roster').then(m => ({ default: m.AgentRoster })), 'agents');
+const SystemHealth = createDynamic(() => import('@/components/dashboard/system-health').then(m => ({ default: m.SystemHealth })), 'system');
+const TenantManagement = createDynamic(() => import('@/components/dashboard/tenant-mgmt').then(m => ({ default: m.TenantManagement })), 'tenants');
+const SituationRoom = createDynamic(() => import('@/components/dashboard/situation-room').then(m => ({ default: m.SituationRoom })), 'situation');
+const AgentEngagement = createDynamic(() => import('@/components/dashboard/agent-engagement').then(m => ({ default: m.AgentEngagement })), 'engagement');
+const OsintMonitor = createDynamic(() => import('@/components/dashboard/osint-monitor').then(m => ({ default: m.OsintMonitor })), 'osint');
+const MobilizationEngine = createDynamic(() => import('@/components/dashboard/mobilization').then(m => ({ default: m.MobilizationEngine })), 'mobilization');
+const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campaign-monitor').then(m => ({ default: m.CampaignMonitor })), 'campaigns');
+const SecurityCenter = createDynamic(() => import('@/components/dashboard/security-center').then(m => ({ default: m.SecurityCenter })), 'security');
+const FieldSafety = createDynamic(() => import('@/components/dashboard/field-safety').then(m => ({ default: m.FieldSafety })), 'field-safety');
+const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-quick-count').then(m => ({ default: m.PvtQuickCount })), 'pvt');
+const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evidence-dossier').then(m => ({ default: m.EvidenceDossier })), 'evidence');
+const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })), 'flashpoint');
+const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })), 'honeypot');
+const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-log-viewer').then(m => ({ default: m.AuditLogViewer })), 'audit-logs');
 
 // ---- Types ----
 export interface Incident {

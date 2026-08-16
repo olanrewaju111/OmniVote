@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 import { MobileOnly, DesktopOnly, DataCard } from './mobile-card';
+import { EmptyState } from './empty-state';
 
 interface AgentUser {
   id: string;
@@ -49,7 +50,7 @@ interface ReportsSlideOver {
 
 export function AgentRoster() {
   const queryClient = useQueryClient();
-  const { tenantId } = useDashboardStore();
+  const { tenantId, user } = useDashboardStore();
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -330,10 +331,12 @@ export function AgentRoster() {
                 <Loader2 className="h-5 w-5 animate-spin text-emerald" />
               </div>
             ) : users.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Users className="h-8 w-8 mb-2 opacity-40" />
-                <p className="text-sm">No users found</p>
-              </div>
+              <EmptyState
+                icon={Users}
+                title="No agents found"
+                description="Add field agents to your organization to start monitoring polling units."
+                action={user?.role === 'SUPER_ADMIN' || user?.role === 'TENANT_ADMIN' ? { label: 'Add Agent', onClick: () => setAddOpen(true) } : undefined}
+              />
             ) : (
               <>
                 <DesktopOnly>
