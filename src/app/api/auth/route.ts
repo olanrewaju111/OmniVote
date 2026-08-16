@@ -24,7 +24,7 @@ async function isRateLimited(email: string): Promise<{ limited: boolean; retryAf
       return { limited: true, retryAfterMs: record.lockedUntil.getTime() - now };
     }
     if (now - record.firstAttempt.getTime() > ATTEMPT_WINDOW_MS) {
-      await db.rateLimitRecord.delete({ where: { email: email.toLowerCase() } });
+      await db.rateLimitRecord.deleteMany({ where: { email: email.toLowerCase() } });
       return { limited: false };
     }
     return { limited: false };
@@ -59,7 +59,7 @@ async function recordFailedAttempt(email: string): Promise<void> {
 
 async function clearAttempts(email: string): Promise<void> {
   try {
-    await db.rateLimitRecord.delete({ where: { email: email.toLowerCase() } });
+    await db.rateLimitRecord.deleteMany({ where: { email: email.toLowerCase() } });
   } catch {
     // Non-fatal
   }

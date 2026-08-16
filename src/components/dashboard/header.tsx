@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface HeaderProps {
@@ -188,11 +190,32 @@ function OfflineBanner() {
   );
 }
 
+function getPasswordStrength(pw: string) {
+  if (!pw) return { score: 0, label: '', color: '' };
+  const checks = [pw.length >= 8, /[A-Z]/.test(pw), /[0-9]/.test(pw), /[^A-Za-z0-9]/.test(pw)];
+  const score = checks.filter(Boolean).length;
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  const colors = ['', 'text-rose', 'text-amber', 'text-cyan', 'text-emerald'];
+  return { score, label: labels[score], color: colors[score] };
+}
+
 export function AppHeader({ kpis }: HeaderProps) {
   const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch } = useDashboardStore();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Password change states
+  const [showPwChange, setShowPwChange] = useState(false);
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwChanging, setPwChanging] = useState(false);
+  const [pwError, setPwError] = useState('');
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   // Cmd/Ctrl+K shortcut opens command palette (handled by CommandPalette component)
   // This search is for inline header search
@@ -441,6 +464,9 @@ export function AppHeader({ kpis }: HeaderProps) {
 
           <Separator orientation="vertical" className="h-6 bg-border/60" />
 
+          {/* Theme toggle */}
+          <ThemeToggle />
+
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -468,8 +494,18 @@ export function AppHeader({ kpis }: HeaderProps) {
       </header>
 
       {/* Profile Dialog */}
-      <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent className="sm:max-w-md glass-strong">
+      <Dialog open={profileOpen} onOpenChange={(open) => {
+        setProfileOpen(open);
+        if (!open) {
+          setShowPwChange(false);
+          setCurrentPw('');
+          setNewPw('');
+          setConfirmPw('');
+          setPwError('');
+          setPwSuccess('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-lg glass-strong">
           <DialogHeader>
             <DialogTitle>User Profile</DialogTitle>
             <DialogDescription>Your account information and role details.</DialogDescription>
@@ -503,6 +539,194 @@ export function AppHeader({ kpis }: HeaderProps) {
                   </div>
                 </div>
               </div>
+
+              <Separator />
+
+              {/* Change Password Toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 text-xs"
+                onClick={() => { setShowPwChange(!showPwChange); setPwError(''); setPwSuccess(''); }}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                {showPwChange ? 'Hide Password Form' : 'Change Password'}
+              </Button>
+
+              {/* Password Change Form */}
+              <AnimatePresence>
+                {showPwChange && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-3 pt-1">
+                      {/* Success message */}
+                      {pwSuccess && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald/10 border border-emerald/20 text-xs text-emerald">
+                          <Check className="h-3.5 w-3.5 shrink-0" />
+                          {pwSuccess}
+                        </div>
+                      )}
+
+                      {/* Error message */}
+                      {pwError && (
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-rose/10 border border-rose/20 text-xs text-rose">
+                          <X className="h-3.5 w-3.5 shrink-0" />
+                          {pwError}
+                        </div>
+                      )}
+
+                      {/* Current Password */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="profile-current-pw" className="text-xs font-medium text-muted-foreground/60">
+                          Current Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                          <Input
+                            id="profile-current-pw"
+                            type={showCurrentPw ? 'text' : 'password'}
+                            placeholder="Enter current password"
+                            value={currentPw}
+                            onChange={(e) => { setCurrentPw(e.target.value); setPwError(''); }}
+                            className="pl-9 pr-10 h-10 bg-card/40 border-border/60 text-sm focus-visible:border-emerald/40"
+                            autoComplete="current-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowCurrentPw(!showCurrentPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"
+                            aria-label={showCurrentPw ? 'Hide password' : 'Show password'}
+                          >
+                            {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* New Password */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="profile-new-pw" className="text-xs font-medium text-muted-foreground/60">
+                          New Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                          <Input
+                            id="profile-new-pw"
+                            type={showNewPw ? 'text' : 'password'}
+                            placeholder="Enter new password"
+                            value={newPw}
+                            onChange={(e) => { setNewPw(e.target.value); setPwError(''); }}
+                            className="pl-9 pr-10 h-10 bg-card/40 border-border/60 text-sm focus-visible:border-emerald/40"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPw(!showNewPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"
+                            aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                          >
+                            {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+
+                        {/* Password strength indicator */}
+                        <AnimatePresence>
+                          {newPw.length > 0 && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="space-y-1.5 overflow-hidden"
+                            >
+                              <div className="flex gap-1">
+                                {[1, 2, 3, 4].map(i => (
+                                  <div key={i} className={cn(
+                                    'h-1 flex-1 rounded-full transition-colors duration-300',
+                                    i <= getPasswordStrength(newPw).score
+                                      ? getPasswordStrength(newPw).score >= 3 ? 'bg-emerald' : getPasswordStrength(newPw).score >= 2 ? 'bg-amber' : 'bg-rose'
+                                      : 'bg-secondary'
+                                  )} />
+                                ))}
+                              </div>
+                              <p className={cn('text-[10px] font-medium', getPasswordStrength(newPw).color)}>
+                                {getPasswordStrength(newPw).label}
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Confirm Password */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="profile-confirm-pw" className="text-xs font-medium text-muted-foreground/60">
+                          Confirm Password
+                        </label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
+                          <Input
+                            id="profile-confirm-pw"
+                            type={showConfirmPw ? 'text' : 'password'}
+                            placeholder="Confirm new password"
+                            value={confirmPw}
+                            onChange={(e) => { setConfirmPw(e.target.value); setPwError(''); }}
+                            className="pl-9 pr-10 h-10 bg-card/40 border-border/60 text-sm focus-visible:border-emerald/40"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPw(!showConfirmPw)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"
+                            aria-label={showConfirmPw ? 'Hide password' : 'Show password'}
+                          >
+                            {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {confirmPw && newPw && confirmPw !== newPw && (
+                          <p className="text-[10px] text-rose">Passwords do not match</p>
+                        )}
+                      </div>
+
+                      {/* Submit */}
+                      <Button
+                        className="w-full bg-emerald hover:bg-emerald/90 text-emerald-950 h-10"
+                        disabled={pwChanging || !currentPw || !newPw || !confirmPw}
+                        onClick={async () => {
+                          if (newPw !== confirmPw) {
+                            setPwError('Passwords do not match');
+                            return;
+                          }
+                          setPwError('');
+                          setPwSuccess('');
+                          setPwChanging(true);
+                          try {
+                            await fetchJson('/api/auth/password', {
+                              method: 'PUT',
+                              body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+                            });
+                            setPwSuccess('Password updated successfully');
+                            setCurrentPw('');
+                            setNewPw('');
+                            setConfirmPw('');
+                            setTimeout(() => {
+                              setShowPwChange(false);
+                              setPwSuccess('');
+                            }, 1500);
+                          } catch (err: unknown) {
+                            setPwError(err instanceof Error ? err.message : 'Failed to update password');
+                          } finally {
+                            setPwChanging(false);
+                          }
+                        }}
+                      >
+                        {pwChanging ? 'Updating...' : 'Update Password'}
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </DialogContent>

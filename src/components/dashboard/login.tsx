@@ -191,7 +191,7 @@ export function LoginScreen() {
               {isLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="skeleton-kpi rounded-lg" style={{ height: '72px' }} />
+                    <div key={i} className="skeleton rounded-lg" style={{ height: '72px' }} />
                   ))}
                 </div>
               ) : (

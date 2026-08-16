@@ -3,13 +3,14 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Map, BarChart3, ShieldAlert } from 'lucide-react';
+import { Loader2, Map, BarChart3, ShieldAlert, Lock } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import { CommandPalette } from '@/components/dashboard/command-palette';
 import { KeyboardShortcuts } from '@/components/dashboard/keyboard-shortcuts';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type ElectionInfo } from '@/store/dashboard';
@@ -224,19 +225,14 @@ export default function Home() {
   // Show loading state after login
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3 animate-scale-in">
-          <div className="relative inline-block">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald" />
-            <div className="absolute inset-0 rounded-full animate-ping bg-emerald/10" />
-          </div>
-          <p className="text-sm text-muted-foreground">Loading {user?.role?.replace(/_/g, ' ')} dashboard...</p>
-          <div className="flex items-center justify-center gap-1.5 mt-2">
-            <div className="skeleton h-1.5 w-16 rounded-full" />
-            <div className="skeleton h-1.5 w-24 rounded-full" />
-            <div className="skeleton h-1.5 w-12 rounded-full" />
-          </div>
+      <div className="h-screen flex flex-col bg-background">
+        <div className={user?.role === 'FIELD_AGENT' ? 'md:block hidden' : ''}>
+          <AppHeader />
         </div>
+        <main className="flex-1 overflow-hidden">
+          <DashboardSkeleton />
+        </main>
+        {user?.role === 'FIELD_AGENT' && <MobileBottomNav />}
       </div>
     );
   }
@@ -437,6 +433,10 @@ export default function Home() {
             </motion.div>
           </AnimatePresence>
         </main>
+        <footer className="h-8 border-t border-border/40 flex items-center justify-between px-4 text-[10px] text-muted-foreground/30 shrink-0">
+          <span>OmniVote Monitor v2.1</span>
+          <span className="flex items-center gap-1">AES-256 Encrypted<Lock className="h-2.5 w-2.5" /></span>
+        </footer>
         <MobileBottomNav />
       </div>
       <PwaRegistration />

@@ -33,6 +33,7 @@ import {
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
+import { ExportButton } from '@/components/dashboard/export-button';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -526,6 +527,15 @@ export function PvtQuickCount() {
 
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
+      {/* ── Toolbar ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-emerald-400" />
+          <h3 className="text-sm font-semibold text-foreground">Parallel Vote Tabulation</h3>
+        </div>
+        <ExportButton exportType="pvt" label="Export PVT" />
+      </div>
+
       {/* ── Top Stats Bar ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard

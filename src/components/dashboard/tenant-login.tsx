@@ -44,6 +44,7 @@ export function TenantLogin() {
 
   const { login, setElectionInfo, setTenantId, isAuthenticated, user } = useDashboardStore();
 
+  const [view, setView] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -51,6 +52,10 @@ export function TenantLogin() {
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState('');
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -104,6 +109,29 @@ export function TenantLogin() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
       setLoggingIn(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      setForgotError('Email is required');
+      return;
+    }
+    setForgotLoading(true);
+    setForgotError('');
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      if (!res.ok) throw new Error('Something went wrong. Please try again.');
+      setForgotSent(true);
+    } catch (err: unknown) {
+      setForgotError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -277,160 +305,292 @@ export function TenantLogin() {
               </div>
             </motion.div>
 
-            <motion.h3
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="text-lg font-semibold mb-1"
-            >
-              Sign In
-            </motion.h3>
-            <motion.p
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-sm text-muted-foreground mb-6"
-            >
-              Enter your credentials to access the command center.
-            </motion.p>
-
-            <motion.form
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              onSubmit={handleLogin}
-              className="space-y-4"
-            >
-              {/* Email field */}
-              <div className="space-y-1.5">
-                <label htmlFor="tenant-login-email" className={cn(
-                  'text-xs font-medium transition-colors',
-                  focusedField === 'email' ? 'text-foreground' : 'text-muted-foreground/60'
-                )}>
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className={cn(
-                    'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors',
-                    focusedField === 'email' ? 'text-emerald' : 'text-muted-foreground/40'
-                  )} />
-                  <Input
-                    id="tenant-login-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => setFocusedField(null)}
-                    className="pl-9 h-11 bg-card/40 border-border/60 text-sm transition-all focus-visible:border-emerald/40"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Password field */}
-              <div className="space-y-1.5">
-                <label htmlFor="tenant-login-password" className={cn(
-                  'text-xs font-medium transition-colors',
-                  focusedField === 'password' ? 'text-foreground' : 'text-muted-foreground/60'
-                )}>
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className={cn(
-                    'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors',
-                    focusedField === 'password' ? 'text-emerald' : 'text-muted-foreground/40'
-                  )} />
-                  <Input
-                    id="tenant-login-password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
-                    className="pl-9 pr-10 h-11 bg-card/40 border-border/60 text-sm transition-all focus-visible:border-emerald/40"
-                    autoComplete="current-password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-
-                {/* Password strength indicator */}
-                <AnimatePresence>
-                  {password.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-1.5 overflow-hidden"
-                    >
-                      {/* Strength bar */}
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4].map(i => (
-                          <div key={i} className={cn(
-                            'h-1 flex-1 rounded-full transition-colors duration-300',
-                            i <= pwStrength.score
-                              ? pwStrength.score >= 3 ? 'bg-emerald' : pwStrength.score >= 2 ? 'bg-amber' : 'bg-rose'
-                              : 'bg-secondary'
-                          )} />
-                        ))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className={cn('text-[10px] font-medium', pwStrength.color)}>
-                          {pwStrength.label}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Error message */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="flex items-start gap-2 p-3 rounded-lg bg-rose/10 border border-rose/20 text-xs text-rose"
-                  >
-                    <XIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <span>{error}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Submit button */}
-              <Button
-                type="submit"
-                className="w-full h-11 font-medium text-white transition-all duration-200 hover:shadow-lg"
-                style={{
-                  backgroundColor: accentColor,
-                  boxShadow: `0 0 0 0 ${accentColor}00`,
-                }}
-                disabled={loggingIn}
-                onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 20px ${accentColor}30`; }}
-                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
-              >
-                {loggingIn ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Authenticating...</>
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
+            {/* ═══════════ Login Form ═══════════ */}
+            <AnimatePresence mode="wait">
+              {view === 'login' ? (
+                <motion.div
+                  key="login"
+                  initial={{ opacity: 0, x: 0 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <h3 className="text-lg font-semibold mb-1">
                     Sign In
-                    <Shield className="h-3.5 w-3.5" style={{ opacity: 0.6 }} />
-                  </span>
-                )}
-              </Button>
-            </motion.form>
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Enter your credentials to access the command center.
+                  </p>
+
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    {/* Email field */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="tenant-login-email" className={cn(
+                        'text-xs font-medium transition-colors',
+                        focusedField === 'email' ? 'text-foreground' : 'text-muted-foreground/60'
+                      )}>
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail className={cn(
+                          'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors',
+                          focusedField === 'email' ? 'text-emerald' : 'text-muted-foreground/40'
+                        )} />
+                        <Input
+                          id="tenant-login-email"
+                          type="email"
+                          placeholder="your@email.com"
+                          value={email}
+                          onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                          onFocus={() => setFocusedField('email')}
+                          onBlur={() => setFocusedField(null)}
+                          className="pl-9 h-11 bg-card/40 border-border/60 text-sm transition-all focus-visible:border-emerald/40"
+                          autoComplete="email"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password field */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="tenant-login-password" className={cn(
+                        'text-xs font-medium transition-colors',
+                        focusedField === 'password' ? 'text-foreground' : 'text-muted-foreground/60'
+                      )}>
+                        Password
+                      </label>
+                      <div className="relative">
+                        <Lock className={cn(
+                          'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors',
+                          focusedField === 'password' ? 'text-emerald' : 'text-muted-foreground/40'
+                        )} />
+                        <Input
+                          id="tenant-login-password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter your password"
+                          value={password}
+                          onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                          onFocus={() => setFocusedField('password')}
+                          onBlur={() => setFocusedField(null)}
+                          className="pl-9 pr-10 h-11 bg-card/40 border-border/60 text-sm transition-all focus-visible:border-emerald/40"
+                          autoComplete="current-password"
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+
+                      {/* Password strength indicator */}
+                      <AnimatePresence>
+                        {password.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="space-y-1.5 overflow-hidden"
+                          >
+                            {/* Strength bar */}
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4].map(i => (
+                                <div key={i} className={cn(
+                                  'h-1 flex-1 rounded-full transition-colors duration-300',
+                                  i <= pwStrength.score
+                                    ? pwStrength.score >= 3 ? 'bg-emerald' : pwStrength.score >= 2 ? 'bg-amber' : 'bg-rose'
+                                    : 'bg-secondary'
+                                )} />
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className={cn('text-[10px] font-medium', pwStrength.color)}>
+                                {pwStrength.label}
+                              </p>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Forgot password link */}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => { setView('forgot'); setError(''); setForgotError(''); setForgotSent(false); setForgotEmail(email); }}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+
+                    {/* Error message */}
+                    <AnimatePresence>
+                      {error && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="flex items-start gap-2 p-3 rounded-lg bg-rose/10 border border-rose/20 text-xs text-rose"
+                        >
+                          <XIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>{error}</span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Submit button */}
+                    <Button
+                      type="submit"
+                      className="w-full h-11 font-medium text-white transition-all duration-200 hover:shadow-lg"
+                      style={{
+                        backgroundColor: accentColor,
+                        boxShadow: `0 0 0 0 ${accentColor}00`,
+                      }}
+                      disabled={loggingIn}
+                      onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 20px ${accentColor}30`; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+                    >
+                      {loggingIn ? (
+                        <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Authenticating...</>
+                      ) : (
+                        <span className="flex items-center justify-center gap-2">
+                          Sign In
+                          <Shield className="h-3.5 w-3.5" style={{ opacity: 0.6 }} />
+                        </span>
+                      )}
+                    </Button>
+                  </form>
+                </motion.div>
+              ) : (
+                /* ═══════════ Forgot Password Form ═══════════ */
+                <motion.div
+                  key="forgot"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <h3 className="text-lg font-semibold mb-1">
+                    Reset Password
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Enter your email and we&apos;ll send you a reset link.
+                  </p>
+
+                  {forgotSent ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="space-y-4"
+                    >
+                      <div className="flex items-start gap-3 p-4 rounded-lg bg-emerald/10 border border-emerald/20">
+                        <div className="w-8 h-8 rounded-full bg-emerald/20 flex items-center justify-center shrink-0 mt-0.5">
+                          <Check className="h-4 w-4 text-emerald" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-emerald">Reset link sent</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            If an account exists, a reset link has been sent to your email.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setView('login')}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Back to Sign In
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <form onSubmit={handleForgotPassword} className="space-y-4">
+                      {/* Forgot email field */}
+                      <div className="space-y-1.5">
+                        <label htmlFor="tenant-forgot-email" className={cn(
+                          'text-xs font-medium transition-colors',
+                          focusedField === 'forgot-email' ? 'text-foreground' : 'text-muted-foreground/60'
+                        )}>
+                          Email Address
+                        </label>
+                        <div className="relative">
+                          <Mail className={cn(
+                            'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors',
+                            focusedField === 'forgot-email' ? 'text-emerald' : 'text-muted-foreground/40'
+                          )} />
+                          <Input
+                            id="tenant-forgot-email"
+                            type="email"
+                            placeholder="your@email.com"
+                            value={forgotEmail}
+                            onChange={(e) => { setForgotEmail(e.target.value); setForgotError(''); }}
+                            onFocus={() => setFocusedField('forgot-email')}
+                            onBlur={() => setFocusedField(null)}
+                            className="pl-9 h-11 bg-card/40 border-border/60 text-sm transition-all focus-visible:border-emerald/40"
+                            autoComplete="email"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Forgot error message */}
+                      <AnimatePresence>
+                        {forgotError && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            className="flex items-start gap-2 p-3 rounded-lg bg-rose/10 border border-rose/20 text-xs text-rose"
+                          >
+                            <XIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span>{forgotError}</span>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Send reset link button */}
+                      <Button
+                        type="submit"
+                        className="w-full h-11 font-medium text-white transition-all duration-200 hover:shadow-lg"
+                        style={{
+                          backgroundColor: accentColor,
+                          boxShadow: `0 0 0 0 ${accentColor}00`,
+                        }}
+                        disabled={forgotLoading}
+                        onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 4px 20px ${accentColor}30`; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; }}
+                      >
+                        {forgotLoading ? (
+                          <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...</>
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            Send Reset Link
+                            <Mail className="h-3.5 w-3.5" style={{ opacity: 0.6 }} />
+                          </span>
+                        )}
+                      </Button>
+
+                      {/* Back to sign in */}
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setView('login')}
+                          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <ArrowLeft className="h-3.5 w-3.5" />
+                          Back to Sign In
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {process.env.NODE_ENV !== 'production' && (
               <p className="text-[10px] text-muted-foreground/30 mt-4 text-center">

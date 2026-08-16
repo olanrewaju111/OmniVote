@@ -83,6 +83,41 @@
   --sidebar-ring: oklch(0.65 0.19 160);
 }
 
+/* ═══ Light Theme ═══ */
+.light {
+  --background: oklch(0.985 0.002 260);
+  --foreground: oklch(0.13 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.13 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.13 0.02 260);
+  --primary: oklch(0.55 0.17 160);
+  --primary-foreground: oklch(0.98 0.005 160);
+  --secondary: oklch(0.95 0.005 260);
+  --secondary-foreground: oklch(0.25 0.02 260);
+  --muted: oklch(0.96 0.005 260);
+  --muted-foreground: oklch(0.50 0.01 260);
+  --accent: oklch(0.95 0.01 160);
+  --accent-foreground: oklch(0.20 0.02 160);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.90 0.005 260);
+  --input: oklch(0.90 0.005 260);
+  --ring: oklch(0.55 0.17 160);
+  --chart-1: oklch(0.55 0.17 160);
+  --chart-2: oklch(0.65 0.14 75);
+  --chart-3: oklch(0.55 0.20 25);
+  --chart-4: oklch(0.55 0.16 260);
+  --chart-5: oklch(0.60 0.13 195);
+  --sidebar: oklch(0.975 0.002 260);
+  --sidebar-foreground: oklch(0.25 0.02 260);
+  --sidebar-primary: oklch(0.55 0.17 160);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.94 0.01 160);
+  --sidebar-accent-foreground: oklch(0.20 0.02 160);
+  --sidebar-border: oklch(0.91 0.005 260);
+  --sidebar-ring: oklch(0.55 0.17 160);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -112,10 +147,25 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.40 0.008 260);
 }
+/* Light theme scrollbar overrides */
+.light ::-webkit-scrollbar-thumb {
+  background: oklch(0.82 0.005 260);
+  border-radius: 10px;
+}
+.light ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.72 0.008 260);
+}
+.light * {
+  scrollbar-color: oklch(0.82 0.005 260) transparent;
+}
+
 /* Firefox */
 * {
   scrollbar-width: thin;
   scrollbar-color: oklch(0.30 0.005 260) transparent;
+}
+.light * {
+  scrollbar-color: oklch(0.82 0.005 260) transparent;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -139,9 +189,9 @@
 .animate-shimmer {
   background: linear-gradient(
     90deg,
-    oklch(0.20 0.005 260) 25%,
-    oklch(0.25 0.008 260) 50%,
-    oklch(0.20 0.005 260) 75%
+    color-mix(in oklch, var(--muted) 50%, transparent) 25%,
+    color-mix(in oklch, var(--muted) 80%, transparent) 50%,
+    color-mix(in oklch, var(--muted) 50%, transparent) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
@@ -254,37 +304,12 @@
   animation: shimmer 1.8s ease-in-out infinite;
   background: linear-gradient(
     90deg,
-    oklch(0.20 0.005 260) 25%,
-    oklch(0.25 0.008 260) 50%,
-    oklch(0.20 0.005 260) 75%
+    color-mix(in oklch, var(--muted) 50%, transparent) 25%,
+    color-mix(in oklch, var(--muted) 80%, transparent) 50%,
+    color-mix(in oklch, var(--muted) 50%, transparent) 75%
   );
   background-size: 200% 100%;
   border-radius: var(--radius-sm);
-}
-.skeleton-text {
-  height: 12px;
-  width: 100%;
-}
-.skeleton-text-sm {
-  height: 10px;
-  width: 75%;
-}
-.skeleton-heading {
-  height: 20px;
-  width: 50%;
-}
-.skeleton-avatar {
-  border-radius: 9999px;
-}
-.skeleton-card {
-  height: 96px;
-  width: 100%;
-  border-radius: var(--radius-lg);
-}
-.skeleton-kpi {
-  height: 80px;
-  width: 100%;
-  border-radius: var(--radius-lg);
 }
 
 /* ═══════════════════════════════════════════════════════

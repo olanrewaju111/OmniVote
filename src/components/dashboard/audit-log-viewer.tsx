@@ -13,7 +13,8 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Download, Search, ChevronLeft, ChevronRight, RefreshCw, Filter, ScrollText } from 'lucide-react';
+import { FileText, Search, ChevronLeft, ChevronRight, RefreshCw, Filter, ScrollText } from 'lucide-react';
+import { ExportButton } from '@/components/dashboard/export-button';
 
 interface AuditLogEntry {
   id: string;
@@ -119,10 +120,6 @@ export function AuditLogViewer() {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  const handleExport = () => {
-    window.open(`/api/export?type=audit-logs&format=csv&tenantId=${tenantId}`, '_blank');
-  };
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -143,10 +140,7 @@ export function AuditLogViewer() {
             <Filter className="h-4 w-4 mr-1" />
             Filters
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-1" />
-            Export CSV
-          </Button>
+          <ExportButton exportType="audit-logs" />
           <Button variant="outline" size="sm" onClick={() => { setPage(0); fetchLogs(); }}>
             <RefreshCw className="h-4 w-4" />
           </Button>

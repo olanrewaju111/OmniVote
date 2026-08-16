@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { ExportButton } from '@/components/dashboard/export-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,6 +86,7 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
           </Button>
         </div>
         <div className="flex items-center gap-2">
+          <ExportButton exportType="incidents" label="Export" />
           <Select value={incidentFilter.type} onValueChange={(v) => setIncidentFilter({ ...incidentFilter, type: v })}>
             <SelectTrigger className="h-7 w-32 text-[11px]"><SelectValue placeholder="Type" /></SelectTrigger>
             <SelectContent>
