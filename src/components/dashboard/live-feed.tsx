@@ -201,26 +201,35 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
           </AnimatePresence>
 
           {!loading && filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              <Radio className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="font-medium text-foreground/60">No incidents in the feed</p>
-              <p className="text-xs mt-1">
+            <div className="text-center py-16 animate-scale-in">
+              <div className="w-16 h-16 rounded-2xl bg-card/60 border border-border/50 flex items-center justify-center mx-auto mb-4">
+                <Radio className="h-7 w-7 text-muted-foreground/25" />
+              </div>
+              <p className="text-sm font-medium text-foreground/50">No incidents in the feed</p>
+              <p className="text-xs text-muted-foreground/40 mt-1.5 max-w-xs mx-auto leading-relaxed">
                 {incidents.length === 0
-                  ? 'Incidents will appear here as field agents submit reports.'
-                  : 'Try adjusting the filters above to see more results.'}
+                  ? 'Incidents will appear here in real-time as field agents submit reports from polling units across the federation.'
+                  : 'No incidents match your current filter selection. Try adjusting the type or severity filters above.'}
               </p>
+              {incidents.length === 0 && (
+                <div className="flex items-center justify-center gap-2 mt-4 text-[10px] text-emerald/60">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse-dot" />
+                  Listening for incoming reports...
+                </div>
+              )}
             </div>
           )}
 
           {loading && (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <div className="flex items-center justify-center py-6 gap-2 text-xs text-muted-foreground/50">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Loading incidents...</span>
             </div>
           )}
 
           {hasMore && !loading && onLoadMore && (
-            <Button variant="ghost" size="sm" className="w-full text-xs" onClick={onLoadMore}>
-              <ChevronDown className="h-3 w-3 mr-1" /> Load More
+            <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground/60 hover:text-foreground" onClick={onLoadMore}>
+              <ChevronDown className="h-3 w-3 mr-1" /> Load more incidents
             </Button>
           )}
         </div>

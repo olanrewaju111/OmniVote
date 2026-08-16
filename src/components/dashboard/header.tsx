@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -84,6 +84,84 @@ function inferSearchTab(query: string, userRole: string): ViewTab | null {
   return null;
 }
 
+// Live clock component
+function LiveClock() {
+  const [time, setTime] = useState('');
+  const [date, setDate] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+      setDate(now.toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' }));
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
+      <Clock className="h-3 w-3" aria-hidden="true" />
+      <span className="tabular-nums font-medium text-foreground/70">{time}</span>
+      <span className="text-muted-foreground/40">{date}</span>
+    </div>
+  );
+}
+
+// Connection quality indicator
+function ConnectionIndicator() {
+  const [quality, setQuality] = useState<'good' | 'degraded' | 'offline'>('good');
+  const [latency, setLatency] = useState<number | null>(null);
+
+  useEffect(() => {
+    const check = async () => {
+      if (!navigator.onLine) {
+        setQuality('offline');
+        setLatency(null);
+        return;
+      }
+      try {
+        const start = performance.now();
+        await fetch('/api/health', { method: 'HEAD', cache: 'no-store' });
+        const ms = Math.round(performance.now() - start);
+        setLatency(ms);
+        setQuality(ms < 300 ? 'good' : ms < 1000 ? 'degraded' : 'degraded');
+      } catch {
+        setQuality('degraded');
+        setLatency(null);
+      }
+    };
+    check();
+    const id = setInterval(check, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (quality === 'offline') {
+    return (
+      <div className="flex items-center gap-1.5 px-2 h-7 rounded-md bg-amber/10 border border-amber/20 text-amber text-[10px] font-medium">
+        <WifiOff className="h-3 w-3" />
+        <span className="hidden xl:inline">Offline</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn(
+      'hidden md:flex items-center gap-1.5 px-2 h-7 rounded-md border text-[10px] font-medium transition-colors',
+      quality === 'good'
+        ? 'bg-emerald/5 border-emerald/15 text-emerald/70'
+        : 'bg-amber/5 border-amber/15 text-amber/70'
+    )}>
+      {quality === 'good'
+        ? <Wifi className="h-3 w-3" />
+        : <Signal className="h-3 w-3" />
+      }
+      {latency !== null && <span className="tabular-nums">{latency}ms</span>}
+    </div>
+  );
+}
+
 function OfflineBanner() {
   const [isOffline, setIsOffline] = useState(false);
 
@@ -116,17 +194,19 @@ export function AppHeader({ kpis }: HeaderProps) {
   const [profileOpen, setProfileOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Ctrl/Cmd+K shortcut to focus search
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
+  // Cmd/Ctrl+K shortcut opens command palette (handled by CommandPalette component)
+  // This search is for inline header search
+  const handleSearchSubmit = useCallback(() => {
+    const q = globalSearch.trim();
+    if (!q) return;
+    const tab = inferSearchTab(q, user?.role || '');
+    if (tab) setSelectedTab(tab);
+  }, [globalSearch, user?.role, setSelectedTab]);
+
+  const handleSearchClear = useCallback(() => {
+    setGlobalSearch('');
+    searchRef.current?.focus();
+  }, [setGlobalSearch]);
 
   const { data: alertsRes } = useQuery<{ alerts: AlertItem[] }>({
     queryKey: ['alerts-header', tenantId],
@@ -144,7 +224,7 @@ export function AppHeader({ kpis }: HeaderProps) {
         body: JSON.stringify({ alertId }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['alerts'] }),
-    onError: () => { /* non-critical — badge updates on next refetch */ },
+    onError: () => { /* non-critical */ },
   });
 
   const markAllRead = useMutation({
@@ -157,28 +237,16 @@ export function AppHeader({ kpis }: HeaderProps) {
     onError: () => { /* non-critical */ },
   });
 
-  const handleSearchSubmit = useCallback(() => {
-    const q = globalSearch.trim();
-    if (!q) return;
-    const tab = inferSearchTab(q, user?.role || '');
-    if (tab) setSelectedTab(tab);
-  }, [globalSearch, user?.role, setSelectedTab]);
-
-  const handleSearchClear = useCallback(() => {
-    setGlobalSearch('');
-    searchRef.current?.focus();
-  }, [setGlobalSearch]);
-
   return (
     <>
       <OfflineBanner />
-      <header className="h-16 border-b border-border bg-card/80 backdrop-blur-sm flex items-center px-4 gap-4 shrink-0 z-10">
+      <header className="h-14 border-b border-border bg-card/70 backdrop-blur-md flex items-center px-3 sm:px-4 gap-3 shrink-0 z-10">
         <MobileMenuTrigger />
 
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <label htmlFor="global-search" className="sr-only">Search polling units, incidents, agents</label>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        {/* Search — shows on sm+ or hidden on mobile (command palette used instead) */}
+        <div className="relative flex-1 max-w-xs hidden sm:block">
+          <label htmlFor="global-search" className="sr-only">Search</label>
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
           <Input
             id="global-search"
             ref={searchRef}
@@ -188,71 +256,91 @@ export function AppHeader({ kpis }: HeaderProps) {
               if (e.key === 'Enter') handleSearchSubmit();
               if (e.key === 'Escape') handleSearchClear();
             }}
-            placeholder="Search polling units, incidents, agents..."
-            className="pl-9 pr-8 h-9 bg-background border-border text-sm"
+            placeholder="Search..."
+            className="pl-8 pr-16 h-8 bg-background/60 border-border/60 text-xs"
           />
-          {globalSearch && (
-            <button
-              onClick={handleSearchClear}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Clear search"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <kbd className="absolute right-8 top-1/2 -translate-y-1/2 hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground pointer-events-none">
-            {globalSearch ? '' : <><span className="text-xs">&#8984;</span>K</>}
-          </kbd>
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {globalSearch && (
+              <button
+                onClick={handleSearchClear}
+                className="p-0.5 rounded text-muted-foreground/50 hover:text-foreground transition-colors"
+                aria-label="Clear search"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            <kbd className="h-4.5 px-1 rounded bg-muted/80 text-[9px] text-muted-foreground/40 font-mono border border-border/50">
+              &#8984;K
+            </kbd>
+          </div>
         </div>
 
-        {/* Election Type Badge */}
-        <div className="flex items-center gap-2">
+        {/* Mobile search trigger */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="sm:hidden h-8 gap-1.5 text-xs text-muted-foreground"
+          onClick={() => {
+            // Trigger command palette on mobile
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+          }}
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span>Search</span>
+        </Button>
+
+        {/* Right side controls */}
+        <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
+          {/* Live Clock */}
+          <LiveClock />
+
+          {/* Connection quality */}
+          <ConnectionIndicator />
+
+          {/* Election Type Badge */}
           <Badge
             variant="outline"
             className={cn(
-              'text-[11px] h-9 px-3 font-medium gap-1.5 cursor-default',
+              'text-[10px] h-7 px-2 font-medium gap-1 cursor-default hidden sm:flex',
               TIER_STYLES[electionTier] || 'border-border text-muted-foreground'
             )}
           >
-            <Vote className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="hidden sm:inline">{TIER_SHORT[electionTier]}</span>
-            <span className="sm:hidden">{electionTier === 'LOCAL' ? 'Local' : electionTier === 'STATE' ? 'Gov' : 'Pres'}</span>
+            <Vote className="h-3 w-3" aria-hidden="true" />
+            <span className="hidden md:inline">{TIER_SHORT[electionTier]}</span>
+            <span className="md:hidden">{electionTier === 'LOCAL' ? 'Local' : electionTier === 'STATE' ? 'Gov' : 'Pres'}</span>
           </Badge>
 
+          {/* Election date — only for larger screens */}
           {electionInfo?.date && (
-            <div className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <div className="hidden xl:flex items-center gap-1 text-[10px] text-muted-foreground/60">
               <Calendar className="h-3 w-3" aria-hidden="true" />
               {new Date(electionInfo.date).toLocaleDateString('en-NG', {
                 day: 'numeric', month: 'short', year: 'numeric',
               })}
             </div>
           )}
-        </div>
 
-        <div className="flex items-center gap-2 ml-auto">
-          {/* System health — only for admin roles */}
+          {/* System health indicator — admin roles only */}
           {user && (user.role === 'SUPER_ADMIN' || user.role === 'TENANT_ADMIN') && (
-            <div className="hidden md:flex items-center gap-2 px-3 h-9 rounded-md bg-background border border-border">
-              <Activity className="h-3.5 w-3.5 text-emerald" aria-hidden="true" />
-              <span className="text-xs text-muted-foreground">All Systems</span>
+            <div className="hidden lg:flex items-center gap-1.5 px-2 h-7 rounded-md bg-background/60 border border-border/60">
+              <Activity className="h-3 w-3 text-emerald" aria-hidden="true" />
+              <span className="text-[10px] text-muted-foreground">Systems</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald" />
             </div>
           )}
 
-          {/* AI Defense — hide for field agents */}
+          {/* Defense button — hide for field agents */}
           {user && user.role !== 'FIELD_AGENT' && (
             <Button
               variant="outline"
               size="sm"
-              className="h-9 gap-2 bg-background border-border text-sm"
+              className="h-7 gap-1.5 bg-background/60 border-border/60 text-xs hidden sm:flex"
               onClick={() => setSelectedTab('alerts')}
             >
-              <Shield className="h-4 w-4 text-cyan" aria-hidden="true" />
-              <span className="hidden sm:inline">Defense</span>
+              <Shield className="h-3.5 w-3.5 text-cyan" aria-hidden="true" />
+              <span className="hidden md:inline">Defense</span>
               {kpis?.securityAlerts ? (
-                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[10px]">
-                  {kpis.securityAlerts}
-                </Badge>
+                <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[9px]">{kpis.securityAlerts}</Badge>
               ) : null}
             </Button>
           )}
@@ -263,25 +351,23 @@ export function AppHeader({ kpis }: HeaderProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="relative h-9 w-9 p-0 bg-background border-border"
+                className="relative h-7 w-7 p-0 bg-background/60 border-border/60"
                 aria-label={recentUnread.length > 0 ? `Notifications, ${recentUnread.length} unread` : 'Notifications'}
               >
-                <Bell className="h-4 w-4" />
+                <Bell className="h-3.5 w-3.5" />
                 {recentUnread.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-[9px] font-bold flex items-center justify-center text-white">
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-[8px] font-bold flex items-center justify-center text-white ring-2 ring-background">
                     {recentUnread.length > 9 ? '9+' : recentUnread.length}
                   </span>
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-0" role="region" aria-label="Notifications">
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+            <DropdownMenuContent align="end" className="w-80 p-0 glass-strong" role="region" aria-label="Notifications">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
                 <DropdownMenuLabel className="p-0 text-xs font-semibold">
                   Notifications
                   {recentUnread.length > 0 && (
-                    <Badge variant="destructive" className="ml-2 text-[9px] h-4 min-w-4 px-1">
-                      {recentUnread.length}
-                    </Badge>
+                    <Badge variant="destructive" className="ml-1.5 text-[9px] h-4 min-w-4 px-1">{recentUnread.length}</Badge>
                   )}
                 </DropdownMenuLabel>
                 {unreadAlerts.length > 0 && (
@@ -300,7 +386,7 @@ export function AppHeader({ kpis }: HeaderProps) {
                     {recentUnread.map((alert) => (
                       <div
                         key={alert.id}
-                        className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/50 transition-colors group"
+                        className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/40 transition-colors group"
                       >
                         <div className="mt-0.5 shrink-0">{categoryIcon(alert.category)}</div>
                         <div className="flex-1 min-w-0">
@@ -316,17 +402,17 @@ export function AppHeader({ kpis }: HeaderProps) {
                             >
                               {alert.category}
                             </Badge>
-                            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                            <span className="text-[9px] text-muted-foreground/60 flex items-center gap-0.5">
                               <Clock className="h-2.5 w-2.5" aria-hidden="true" />
                               {relativeTime(alert.createdAt)}
                             </span>
                           </div>
                           <p className="text-[11px] font-medium mt-0.5 truncate">{alert.title}</p>
-                          <p className="text-[10px] text-muted-foreground line-clamp-1">{alert.description}</p>
+                          <p className="text-[10px] text-muted-foreground/60 line-clamp-1">{alert.description}</p>
                         </div>
                         <button
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead.mutate(alert.id); }}
-                          className="shrink-0 mt-1 p-1 rounded text-muted-foreground hover:text-emerald opacity-0 group-hover:opacity-100 transition-all"
+                          className="shrink-0 mt-1 p-1 rounded text-muted-foreground/40 hover:text-emerald opacity-0 group-hover:opacity-100 transition-all"
                           title="Mark as read"
                           aria-label="Mark notification as read"
                         >
@@ -337,8 +423,9 @@ export function AppHeader({ kpis }: HeaderProps) {
                   </div>
                 ) : (
                   <div className="py-8 text-center text-muted-foreground text-xs">
-                    <Bell className="h-5 w-5 mx-auto mb-1.5 opacity-30" aria-hidden="true" />
-                    No new notifications
+                    <Bell className="h-5 w-5 mx-auto mb-1.5 opacity-20" aria-hidden="true" />
+                    <p className="font-medium text-foreground/50">All caught up</p>
+                    <p className="text-[10px] mt-0.5 text-muted-foreground/50">No new notifications</p>
                   </div>
                 )}
               </ScrollArea>
@@ -352,20 +439,20 @@ export function AppHeader({ kpis }: HeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Separator orientation="vertical" className="h-8 bg-border" />
+          <Separator orientation="vertical" className="h-6 bg-border/60" />
 
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-9 px-2 gap-2">
-                <Avatar className="h-7 w-7">
-                  <AvatarFallback className="bg-emerald/20 text-emerald text-xs font-bold">
+              <Button variant="ghost" className="h-8 px-1.5 gap-2">
+                <Avatar className="h-6 w-6 ring-1 ring-border/50">
+                  <AvatarFallback className="bg-emerald/15 text-emerald text-[10px] font-bold">
                     {user?.name?.split(' ').map(n => n[0]).join('').substring(0, 2) || '??'}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden lg:block text-left">
-                  <p className="text-xs font-medium leading-tight">{user?.name || 'User'}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{user?.role?.replace(/_/g, ' ') || ''}</p>
+                  <p className="text-[11px] font-medium leading-tight">{user?.name || 'User'}</p>
+                  <p className="text-[9px] text-muted-foreground/50 leading-tight">{user?.role?.replace(/_/g, ' ') || ''}</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
@@ -382,7 +469,7 @@ export function AppHeader({ kpis }: HeaderProps) {
 
       {/* Profile Dialog */}
       <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md glass-strong">
           <DialogHeader>
             <DialogTitle>User Profile</DialogTitle>
             <DialogDescription>Your account information and role details.</DialogDescription>
@@ -390,8 +477,8 @@ export function AppHeader({ kpis }: HeaderProps) {
           {user && (
             <div className="space-y-4 py-2">
               <div className="flex items-center gap-4">
-                <Avatar className="h-14 w-14">
-                  <AvatarFallback className="bg-emerald/20 text-emerald text-lg font-bold">
+                <Avatar className="h-14 w-14 ring-2 ring-emerald/20">
+                  <AvatarFallback className="bg-emerald/15 text-emerald text-lg font-bold">
                     {user.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                   </AvatarFallback>
                 </Avatar>

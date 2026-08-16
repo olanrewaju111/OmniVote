@@ -89,49 +89,287 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Smooth font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom scrollbar for dark theme */
+/* ═══════════════════════════════════════════════════════
+   SCROLLBAR — Thin, elegant, dark-theme optimized
+   ═══════════════════════════════════════════════════════ */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: oklch(0.15 0.005 260);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.35 0.01 260);
-  border-radius: 3px;
+  background: oklch(0.30 0.005 260);
+  border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0.01 260);
+  background: oklch(0.40 0.008 260);
+}
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.30 0.005 260) transparent;
 }
 
-/* Pulse animation for live indicators */
+/* ═══════════════════════════════════════════════════════
+   ANIMATIONS — Core motion library
+   ═══════════════════════════════════════════════════════ */
+
+/* Live pulse dot */
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 .animate-pulse-dot {
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
-/* Glow effects */
-.glow-emerald {
-  box-shadow: 0 0 12px oklch(0.65 0.19 160 / 0.3);
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
-.glow-rose {
-  box-shadow: 0 0 12px oklch(0.65 0.22 25 / 0.3);
-}
-.glow-amber {
-  box-shadow: 0 0 12px oklch(0.75 0.16 75 / 0.3);
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.20 0.005 260) 25%,
+    oklch(0.25 0.008 260) 50%,
+    oklch(0.20 0.005 260) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* Map grid background pattern */
+/* Subtle breathing glow */
+@keyframes breathe {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.animate-breathe {
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* Ripple effect for buttons */
+@keyframes ripple {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+/* Slide up fade */
+@keyframes slide-up-fade {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up-fade 0.3s ease-out;
+}
+
+/* Scale in */
+@keyframes scale-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+/* Number counter pop */
+@keyframes counter-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+.animate-counter-pop {
+  animation: counter-pop 0.3s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════
+   GLOW EFFECTS
+   ═══════════════════════════════════════════════════════ */
+.glow-emerald {
+  box-shadow: 0 0 15px oklch(0.65 0.19 160 / 0.25), 0 0 4px oklch(0.65 0.19 160 / 0.15);
+}
+.glow-rose {
+  box-shadow: 0 0 15px oklch(0.65 0.22 25 / 0.25), 0 0 4px oklch(0.65 0.22 25 / 0.15);
+}
+.glow-amber {
+  box-shadow: 0 0 15px oklch(0.75 0.16 75 / 0.25), 0 0 4px oklch(0.75 0.16 75 / 0.15);
+}
+.glow-cyan {
+  box-shadow: 0 0 15px oklch(0.70 0.15 195 / 0.25), 0 0 4px oklch(0.70 0.15 195 / 0.15);
+}
+.glow-violet {
+  box-shadow: 0 0 15px oklch(0.55 0.20 295 / 0.25), 0 0 4px oklch(0.55 0.20 295 / 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════
+   GLASSMORPHISM UTILITY
+   ═══════════════════════════════════════════════════════ */
+.glass {
+  background: oklch(0.18 0.006 260 / 0.6);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+}
+.glass-subtle {
+  background: oklch(0.18 0.006 260 / 0.3);
+  backdrop-filter: blur(8px) saturate(1.2);
+  -webkit-backdrop-filter: blur(8px) saturate(1.2);
+}
+.glass-strong {
+  background: oklch(0.16 0.005 260 / 0.85);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+
+/* ═══════════════════════════════════════════════════════
+   MAP GRID BACKGROUND PATTERN
+   ═══════════════════════════════════════════════════════ */
 .map-grid {
   background-image:
-    linear-gradient(oklch(0.28 0.01 260 / 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.28 0.01 260 / 0.3) 1px, transparent 1px);
+    linear-gradient(oklch(0.28 0.01 260 / 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.28 0.01 260 / 0.25) 1px, transparent 1px);
   background-size: 40px 40px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FOCUS VISIBLE — Enhanced ring for accessibility
+   ═══════════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid oklch(0.65 0.19 160 / 0.5);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════
+   SKELETON LOADING PATTERNS
+   ═══════════════════════════════════════════════════════ */
+.skeleton {
+  animation: shimmer 1.8s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    oklch(0.20 0.005 260) 25%,
+    oklch(0.25 0.008 260) 50%,
+    oklch(0.20 0.005 260) 75%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+}
+.skeleton-text {
+  height: 12px;
+  width: 100%;
+}
+.skeleton-text-sm {
+  height: 10px;
+  width: 75%;
+}
+.skeleton-heading {
+  height: 20px;
+  width: 50%;
+}
+.skeleton-avatar {
+  border-radius: 9999px;
+}
+.skeleton-card {
+  height: 96px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+}
+.skeleton-kpi {
+  height: 80px;
+  width: 100%;
+  border-radius: var(--radius-lg);
+}
+
+/* ═══════════════════════════════════════════════════════
+   BADGE & CHIP ENHANCEMENTS
+   ═══════════════════════════════════════════════════════ */
+.badge-dot::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: currentColor;
+}
+.badge-pulse::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: currentColor;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CARD HOVER LIFT
+   ═══════════════════════════════════════════════════════ */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px oklch(0 0 0 / 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PROGRESS BAR ANIMATIONS
+   ═══════════════════════════════════════════════════════ */
+.progress-bar-striped {
+  background-image: linear-gradient(
+    45deg,
+    oklch(1 0 0 / 0.1) 25%, transparent 25%,
+    transparent 50%, oklch(1 0 0 / 0.1) 50%,
+    oklch(1 0 0 / 0.1) 75%, transparent 75%
+  );
+  background-size: 1rem 1rem;
+  animation: progress-stripe 0.6s linear infinite;
+}
+@keyframes progress-stripe {
+  0% { background-position: 1rem 0; }
+  100% { background-position: 0 0; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR ACTIVE INDICATOR
+   ═══════════════════════════════════════════════════════ */
+.sidebar-active-bar {
+  position: relative;
+}
+.sidebar-active-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-emerald);
+  transition: all 0.2s ease;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SELECTION & HIGHLIGHT
+   ═══════════════════════════════════════════════════════ */
+::selection {
+  background: oklch(0.65 0.19 160 / 0.3);
+  color: oklch(0.95 0 0);
+}
+
+/* ═══════════════════════════════════════════════════════
+   TRANSITIONS — Global easing
+   ═══════════════════════════════════════════════════════ */
+.transition-default {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }

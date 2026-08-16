@@ -3,13 +3,15 @@
 import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Map, BarChart3, ShieldAlert } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
+import { CommandPalette } from '@/components/dashboard/command-palette';
+import { KeyboardShortcuts } from '@/components/dashboard/keyboard-shortcuts';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type ElectionInfo } from '@/store/dashboard';
 import { KpiGrid } from '@/components/dashboard/kpi-grid';
 import { PwaRegistration } from '@/components/pwa-registration';
@@ -203,8 +205,11 @@ export default function Home() {
   if (!isAuthenticated && sessionRestore.isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald mx-auto" />
+        <div className="text-center space-y-3 animate-scale-in">
+          <div className="relative inline-block">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald" />
+            <div className="absolute inset-0 rounded-full animate-ping bg-emerald/10" />
+          </div>
           <p className="text-sm text-muted-foreground">Restoring session...</p>
         </div>
       </div>
@@ -220,9 +225,17 @@ export default function Home() {
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-3">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald mx-auto" />
+        <div className="text-center space-y-3 animate-scale-in">
+          <div className="relative inline-block">
+            <Loader2 className="h-8 w-8 animate-spin text-emerald" />
+            <div className="absolute inset-0 rounded-full animate-ping bg-emerald/10" />
+          </div>
           <p className="text-sm text-muted-foreground">Loading {user?.role?.replace(/_/g, ' ')} dashboard...</p>
+          <div className="flex items-center justify-center gap-1.5 mt-2">
+            <div className="skeleton h-1.5 w-16 rounded-full" />
+            <div className="skeleton h-1.5 w-24 rounded-full" />
+            <div className="skeleton h-1.5 w-12 rounded-full" />
+          </div>
         </div>
       </div>
     );
@@ -230,6 +243,8 @@ export default function Home() {
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
+      <KeyboardShortcuts />
+      <CommandPalette />
       <div className="hidden md:block">
         <AppSidebar />
       </div>
@@ -437,9 +452,21 @@ function OverviewTab({
   incidents: Incident[];
   alertsData: AlertsData | undefined;
 }) {
+  const { setSelectedTab, user } = useDashboardStore();
+
+  const criticalCount = incidents.filter(i => i.severity === 'CRITICAL').length;
+  const recentIncidents = incidents.slice(0, 5);
+
+  // Quick actions based on role
+  const quickActions = [
+    { label: 'View Map', tab: 'map' as ViewTab, icon: <Map className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: `${dashData.election.openUnits} units active` },
+    { label: 'Situation Room', tab: 'situation' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-emerald', bg: 'bg-emerald/10', desc: 'Hierarchical results' },
+    { label: criticalCount > 0 ? `Critical Alerts (${criticalCount})` : 'Alert Triage', tab: 'alerts' as ViewTab, icon: <ShieldAlert className="h-4 w-4" />, color: criticalCount > 0 ? 'text-rose' : 'text-amber', bg: criticalCount > 0 ? 'bg-rose/10' : 'bg-amber/10', desc: `${dashData.kpis.unreadAlerts} unread` },
+  ];
+
   return (
     <div className="h-full flex flex-col p-4 gap-3 overflow-hidden">
-      {/* Top: KPI grid (includes the 4 quick stats inline so nothing overflows) */}
+      {/* Top: KPI grid */}
       <div className="shrink-0">
         <KpiGrid
           data={dashData.kpis}
@@ -454,7 +481,24 @@ function OverviewTab({
         />
       </div>
 
-      {/* Feed: takes remaining space, no scroll overflow */}
+      {/* Quick action cards */}
+      <div className="shrink-0 grid grid-cols-3 gap-2">
+        {quickActions.map((action) => (
+          <button
+            key={action.tab}
+            onClick={() => setSelectedTab(action.tab)}
+            className="rounded-lg border border-border/60 bg-card/30 hover:bg-card/50 p-3 text-left transition-all duration-200 card-lift group"
+          >
+            <div className={cn('p-1.5 rounded-md w-fit mb-2 transition-colors', action.bg)}>
+              <span className={action.color}>{action.icon}</span>
+            </div>
+            <p className="text-xs font-medium leading-tight">{action.label}</p>
+            <p className="text-[10px] text-muted-foreground/50 mt-0.5">{action.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Feed: takes remaining space */}
       <div className="flex-1 min-h-0">
         <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
           <LiveFeed incidents={incidents.slice(0, 25)} />

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, Globe, Megaphone, CalendarDays,
-  Shield, MapPin, Eye, Flame, Menu,
+  Shield, MapPin, Eye, Flame, Menu, Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,30 +17,86 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
-const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; roles: UserRole[] }[] = [
-  { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
-  { id: 'situation', label: 'Situation Room', icon: <BarChart3 className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
-  { id: 'map', label: 'Geo Map', icon: <Map className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
-  { id: 'feed', label: 'Live Feed', icon: <Radio className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'] },
-  { id: 'alerts', label: 'Alert Triage', icon: <ShieldAlert className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'osint', label: 'OSINT Monitor', icon: <Globe className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'ai', label: 'AI Engine', icon: <Brain className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
-  { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
-  { id: 'security', label: 'Security Center', icon: <Shield className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
-  { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
-  { id: 'pvt', label: 'PVT / Quick Count', icon: <BarChart3 className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
-  { id: 'evidence', label: 'Evidence Dossier', icon: <FileText className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'flashpoint', label: 'Flashpoint & Wargame', icon: <Activity className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
-  { id: 'honeypot', label: 'Honeypot / PWD', icon: <Eye className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
-  { id: 'agents', label: 'Agent Roster', icon: <Users className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
-  { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'audit-logs', label: 'Audit Logs', icon: <FileText className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
-  { id: 'system', label: 'System Health', icon: <Server className="h-5 w-5" />, roles: ['SUPER_ADMIN'] },
-  { id: 'tenants', label: 'Settings', icon: <Building2 className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
-  { id: 'submit', label: 'Submit Report', icon: <Send className="h-5 w-5" />, roles: ['FIELD_AGENT'] },
-  { id: 'my-reports', label: 'Reports', icon: <FileText className="h-5 w-5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'] },
+// ── Navigation sections for visual grouping ──
+interface NavItem {
+  id: ViewTab;
+  label: string;
+  icon: React.ReactNode;
+  roles: UserRole[];
+  keywords?: string[];
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'core',
+    label: 'Command',
+    items: [
+      { id: 'overview', label: 'Overview', icon: <LayoutDashboard className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+      { id: 'situation', label: 'Situation Room', icon: <BarChart3 className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+      { id: 'map', label: 'Geo Map', icon: <Map className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+      { id: 'feed', label: 'Live Feed', icon: <Radio className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'] },
+    ],
+  },
+  {
+    id: 'intelligence',
+    label: 'Intelligence',
+    items: [
+      { id: 'alerts', label: 'Alert Triage', icon: <ShieldAlert className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+      { id: 'osint', label: 'OSINT Monitor', icon: <Globe className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+      { id: 'ai', label: 'AI Engine', icon: <Brain className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+      { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+    ],
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    items: [
+      { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+      { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+      { id: 'security', label: 'Security Center', icon: <Shield className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
+      { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+    ],
+  },
+  {
+    id: 'analysis',
+    label: 'Analysis',
+    items: [
+      { id: 'pvt', label: 'PVT / Quick Count', icon: <BarChart3 className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+      { id: 'evidence', label: 'Evidence Dossier', icon: <FileText className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+      { id: 'flashpoint', label: 'Flashpoint & Wargame', icon: <Flame className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+      { id: 'honeypot', label: 'Honeypot / PWD', icon: <Eye className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
+    ],
+  },
+  {
+    id: 'team',
+    label: 'Team',
+    items: [
+      { id: 'agents', label: 'Agent Roster', icon: <Users className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+      { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+      { id: 'audit-logs', label: 'Audit Logs', icon: <FileText className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+    ],
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    items: [
+      { id: 'system', label: 'System Health', icon: <Server className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
+      { id: 'tenants', label: 'Settings', icon: <Settings className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+    ],
+  },
+];
+
+// Field agent items (flat, no sections)
+const FIELD_AGENT_ITEMS: NavItem[] = [
+  { id: 'submit', label: 'Submit Report', icon: <Send className="h-4.5 w-4.5" />, roles: ['FIELD_AGENT'] },
+  { id: 'my-reports', label: 'My Reports', icon: <FileText className="h-4.5 w-4.5" />, roles: ['FIELD_AGENT'] },
+  { id: 'feed', label: 'Live Feed', icon: <Radio className="h-4.5 w-4.5" />, roles: ['FIELD_AGENT'] },
 ];
 
 // Shared React state for controlling the mobile Sheet
@@ -54,14 +110,12 @@ export function AppSidebar() {
 
   const [mobileOpen, setMobileOpenState] = useState(false);
 
-  // Share setter for MobileMenuTrigger (module-level singleton is fine since only one AppSidebar)
+  // Share setter for MobileMenuTrigger
   setMobileSheetOpen = setMobileOpenState;
 
   if (!user) return null;
 
   const allowedTabs = ROLE_TABS[user.role] || [];
-  const navItems = ALL_NAV.filter(item => allowedTabs.includes(item.id));
-  const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2);
 
   const handleTabSelect = (tabId: ViewTab) => {
     setSelectedTab(tabId);
@@ -74,10 +128,9 @@ export function AppSidebar() {
   };
 
   const navContent = renderNavContent({
-    navItems,
+    allowedTabs,
     activeTab,
     sidebarCollapsed,
-    initials,
     user,
     unreadAlerts,
     onTabSelect: handleTabSelect,
@@ -89,7 +142,7 @@ export function AppSidebar() {
   if (isMobile) {
     return (
       <Sheet open={mobileOpen} onOpenChange={setMobileOpenState}>
-        <SheetContent side="left" className="w-72 p-0 overflow-y-auto">
+        <SheetContent side="left" className="w-72 p-0 overflow-y-auto glass-strong">
           <SheetHeader className="sr-only">
             <SheetTitle>Navigation Menu</SheetTitle>
           </SheetHeader>
@@ -101,8 +154,8 @@ export function AppSidebar() {
 
   return (
     <aside className={cn(
-      'flex flex-col h-screen border-r border-border bg-sidebar transition-all duration-300 relative z-20',
-      sidebarCollapsed ? 'w-16' : 'w-56'
+      'flex flex-col h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-out relative z-20',
+      sidebarCollapsed ? 'w-[60px]' : 'w-[220px]'
     )} aria-label="Main navigation sidebar">
       {navContent}
     </aside>
@@ -126,10 +179,9 @@ export function MobileMenuTrigger() {
 
 // ── Reusable inner content ──
 function renderNavContent({
-  navItems,
+  allowedTabs,
   activeTab,
   sidebarCollapsed,
-  initials,
   user,
   unreadAlerts,
   onTabSelect,
@@ -137,10 +189,9 @@ function renderNavContent({
   onToggleSidebar,
   isMobile = false,
 }: {
-  navItems: typeof ALL_NAV;
+  allowedTabs: string[];
   activeTab: ViewTab;
   sidebarCollapsed: boolean;
-  initials: string;
   user: { name: string; role: string };
   unreadAlerts: number;
   onTabSelect: (id: ViewTab) => void;
@@ -148,86 +199,134 @@ function renderNavContent({
   onToggleSidebar: () => void;
   isMobile?: boolean;
 }) {
-  // In mobile Sheet, sidebar is never collapsed visually
   const collapsed = isMobile ? false : sidebarCollapsed;
+  const isFieldAgent = user.role === 'FIELD_AGENT';
+  const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2);
+
+  // Filter sections/items based on role
+  const filteredSections = NAV_SECTIONS
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => allowedTabs.includes(item.id)),
+    }))
+    .filter(section => section.items.length > 0);
+
+  const filteredFieldItems = FIELD_AGENT_ITEMS.filter(item => allowedTabs.includes(item.id));
 
   return (
     <>
-      {/* Logo area */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-emerald flex items-center justify-center shrink-0">
+      {/* ── Logo area ── */}
+      <div className={cn(
+        'flex items-center gap-3 border-b border-sidebar-border shrink-0 transition-all duration-300',
+        collapsed ? 'px-3 h-14 justify-center' : 'px-4 h-16'
+      )}>
+        <div className="w-8 h-8 rounded-lg bg-emerald flex items-center justify-center shrink-0 shadow-sm shadow-emerald/20">
           <Zap className="h-5 w-5 text-emerald-950" aria-hidden="true" />
         </div>
         {!collapsed && (
-          <div className="overflow-hidden">
+          <div className="overflow-hidden animate-slide-up">
             <h1 className="text-sm font-bold text-sidebar-foreground tracking-wide">OmniVote</h1>
             <p className="text-[10px] text-sidebar-foreground/50 uppercase tracking-widest">Monitor</p>
           </div>
         )}
       </div>
 
-      {/* Live indicator */}
-      <div className="px-4 py-3 shrink-0">
+      {/* ── Live indicator ── */}
+      <div className={cn(
+        'shrink-0 transition-all duration-300',
+        collapsed ? 'px-2 py-2.5 flex justify-center' : 'px-4 py-3'
+      )}>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-dot" />
-          {!collapsed && <span className="text-xs text-emerald font-medium">ELECTION LIVE</span>}
+          {!collapsed && <span className="text-[11px] text-emerald font-medium tracking-wide">ELECTION LIVE</span>}
         </div>
       </div>
 
       <Separator className="bg-sidebar-border" />
 
-      {/* Nav items */}
-      <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto" aria-label="Dashboard navigation">
+      {/* ── Navigation items ── */}
+      <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden" aria-label="Dashboard navigation">
         <TooltipProvider delayDuration={0}>
-          {navItems.map((item) => (
-            <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  onClick={() => onTabSelect(item.id)}
-                  className={cn(
-                    'w-full justify-start gap-3 h-10 text-sm font-medium transition-colors',
-                    activeTab === item.id
-                      ? 'bg-emerald/15 text-emerald hover:bg-emerald/20 hover:text-emerald'
-                      : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent',
-                    collapsed && 'justify-center px-0'
+          {isFieldAgent ? (
+            // Flat list for field agents
+            <div className="px-2 space-y-1">
+              {filteredFieldItems.map((item) => (
+                <NavButton
+                  key={item.id}
+                  item={item}
+                  activeTab={activeTab}
+                  collapsed={collapsed}
+                  unreadAlerts={item.id === 'alerts' ? unreadAlerts : 0}
+                  onSelect={onTabSelect}
+                />
+              ))}
+            </div>
+          ) : (
+            // Grouped sections for admin/analyst roles
+            <div className="space-y-0.5">
+              {filteredSections.map((section) => (
+                <div key={section.id} className="mb-1">
+                  {/* Section label */}
+                  {!collapsed && (
+                    <p className="px-4 py-1.5 text-[10px] font-semibold text-sidebar-foreground/35 uppercase tracking-widest">
+                      {section.label}
+                    </p>
                   )}
-                  aria-current={activeTab === item.id ? 'page' as const : undefined}
-                >
-                  <span className="shrink-0" aria-hidden="true">{item.icon}</span>
-                  {!collapsed && item.label}
-                  {item.id === 'alerts' && !collapsed && unreadAlerts > 0 && (
-                    <Badge variant="destructive" className="ml-auto text-[10px] h-5 min-w-5 px-1.5">
-                      {unreadAlerts > 99 ? '99+' : unreadAlerts}
-                    </Badge>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              {collapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
-            </Tooltip>
-          ))}
+                  {collapsed && <div className="my-1 mx-3 border-t border-sidebar-border/50" />}
+                  <div className="px-2 space-y-0.5">
+                    {section.items.map((item) => (
+                      <NavButton
+                        key={item.id}
+                        item={item}
+                        activeTab={activeTab}
+                        collapsed={collapsed}
+                        unreadAlerts={item.id === 'alerts' ? unreadAlerts : 0}
+                        onSelect={onTabSelect}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* My Reports at the bottom of nav (for non-field-agent roles) */}
+              {allowedTabs.includes('my-reports') && (
+                <>
+                  <div className="my-1 mx-3 border-t border-sidebar-border/50" />
+                  <div className="px-2 space-y-0.5">
+                    <NavButton
+                      item={{ id: 'my-reports' as ViewTab, label: 'My Reports', icon: <FileText className="h-4.5 w-4.5" /> }}
+                      activeTab={activeTab}
+                      collapsed={collapsed}
+                      unreadAlerts={0}
+                      onSelect={onTabSelect}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </TooltipProvider>
       </nav>
 
       <Separator className="bg-sidebar-border" />
 
-      {/* User info + logout — always show on mobile sheet, only when expanded on desktop */}
+      {/* ── User info + logout ── */}
       {(!collapsed || isMobile) && (
-        <div className="px-3 py-3 shrink-0 space-y-2">
+        <div className="px-3 py-3 shrink-0 space-y-2.5">
           <div className="flex items-center gap-2.5">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-emerald/20 text-emerald text-xs font-bold">{initials}</AvatarFallback>
+            <Avatar className="h-8 w-8 ring-1 ring-sidebar-border">
+              <AvatarFallback className="bg-emerald/15 text-emerald text-xs font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-sidebar-foreground truncate">{user.name}</p>
-              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user.role.replace(/_/g, ' ')}</p>
+              <p className="text-xs font-medium text-sidebar-foreground truncate leading-tight">{user.name}</p>
+              <p className="text-[10px] text-sidebar-foreground/40 truncate mt-0.5">{user.role.replace(/_/g, ' ')}</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={onLogout}
-            className="w-full justify-start gap-2 h-8 text-xs text-sidebar-foreground/50 hover:text-rose"
+            className="w-full justify-start gap-2 h-8 text-xs text-sidebar-foreground/40 hover:text-rose hover:bg-rose/5 transition-colors"
             aria-label="Sign out of OmniVote"
           >
             <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
@@ -236,14 +335,14 @@ function renderNavContent({
         </div>
       )}
 
-      {/* Collapse button — only on desktop */}
+      {/* ── Collapse button — only on desktop ── */}
       {!isMobile && (
-        <div className="p-2 shrink-0">
+        <div className="p-1.5 shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggleSidebar}
-            className="w-full justify-center text-sidebar-foreground/50 hover:text-sidebar-foreground"
+            className="w-full justify-center text-sidebar-foreground/30 hover:text-sidebar-foreground/70 h-8 transition-colors"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
           >
@@ -252,5 +351,59 @@ function renderNavContent({
         </div>
       )}
     </>
+  );
+}
+
+// ── Individual nav button with tooltip support ──
+function NavButton({
+  item,
+  activeTab,
+  collapsed,
+  unreadAlerts,
+  onSelect,
+}: {
+  item: { id: ViewTab; label: string; icon: React.ReactNode };
+  activeTab: ViewTab;
+  collapsed: boolean;
+  unreadAlerts: number;
+  onSelect: (id: ViewTab) => void;
+}) {
+  const isActive = activeTab === item.id;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={() => onSelect(item.id)}
+          className={cn(
+            'w-full flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150 outline-none',
+            'focus-visible:ring-2 focus-visible:ring-ring',
+            collapsed ? 'justify-center px-0 h-9' : 'px-3 h-9',
+            isActive
+              ? 'bg-emerald/12 text-emerald sidebar-active-bar'
+              : 'text-sidebar-foreground/50 hover:text-sidebar-foreground/85 hover:bg-sidebar-accent/60'
+          )}
+          aria-current={isActive ? 'page' as const : undefined}
+        >
+          <span className="shrink-0" aria-hidden="true">{item.icon}</span>
+          {!collapsed && (
+            <span className="flex-1 text-left truncate">{item.label}</span>
+          )}
+          {!collapsed && item.id === 'alerts' && unreadAlerts > 0 && (
+            <Badge variant="destructive" className="text-[9px] h-4.5 min-w-[18px] px-1.5 flex items-center justify-center">
+              {unreadAlerts > 99 ? '99+' : unreadAlerts}
+            </Badge>
+          )}
+        </button>
+      </TooltipTrigger>
+      {collapsed && (
+        <TooltipContent side="right" className="flex items-center gap-2">
+          {item.label}
+          {item.id === 'alerts' && unreadAlerts > 0 && (
+            <Badge variant="destructive" className="text-[9px] h-4 min-w-4 px-1">{unreadAlerts > 99 ? '99+' : unreadAlerts}</Badge>
+          )}
+        </TooltipContent>
+      )}
+    </Tooltip>
   );
 }
