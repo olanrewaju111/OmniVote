@@ -25,6 +25,7 @@ import { NotificationBell } from '@/components/dashboard/notification-center';
 import { BroadcastBriefing } from '@/components/dashboard/broadcast-briefing';
 import { WinProbabilityHeader } from '@/components/dashboard/win-probability-header';
 import { SoundToggle } from '@/components/dashboard/sound-toggle';
+import { ProfileSettingsDialog } from '@/components/dashboard/profile-settings';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface BreadcrumbData {
@@ -236,6 +237,7 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
   const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch, sseConnected } = useDashboardStore();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -474,6 +476,9 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => setProfileOpen(true)}>
                 <User className="mr-2 h-4 w-4" />Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                <Settings className="mr-2 h-4 w-4" />Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onClick={logout}>Sign Out</DropdownMenuItem>
@@ -723,6 +728,9 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
 
       {/* Broadcast Briefing Dialog */}
       <BroadcastBriefing open={broadcastOpen} onOpenChange={setBroadcastOpen} />
+
+      {/* Profile Settings Dialog */}
+      <ProfileSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
 }

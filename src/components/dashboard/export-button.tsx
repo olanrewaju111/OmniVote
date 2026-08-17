@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, Loader2, ChevronDown } from 'lucide-react';
+import { Download, Loader2, ChevronDown, FileText, Table, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { useDashboardStore } from '@/store/dashboard';
 import { toast } from 'sonner';
@@ -21,6 +22,8 @@ interface ExportButtonProps {
   size?: 'sm' | 'default';
 }
 
+type ExportFormat = 'csv' | 'excel' | 'pdf';
+
 const TYPE_LABELS: Record<string, string> = {
   incidents: 'Incidents',
   alerts: 'Alerts',
@@ -28,24 +31,48 @@ const TYPE_LABELS: Record<string, string> = {
   pvt: 'PVT Results',
 };
 
+const FORMAT_CONFIG: {
+  format: ExportFormat;
+  label: string;
+  description: string;
+  icon: typeof FileText;
+}[] = [
+  {
+    format: 'csv',
+    label: 'CSV Spreadsheet',
+    description: '.csv',
+    icon: FileText,
+  },
+  {
+    format: 'excel',
+    label: 'Excel Workbook',
+    description: '.xlsx',
+    icon: Table,
+  },
+  {
+    format: 'pdf',
+    label: 'PDF Report',
+    description: '.pdf',
+    icon: FileDown,
+  },
+];
+
 export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonProps) {
   const tenantId = useDashboardStore((s) => s.tenantId);
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
 
-  const handleExport = (format: 'csv' | 'json') => {
+  const handleExport = (format: ExportFormat) => {
     if (!tenantId) {
       toast.error('No tenant context');
       return;
     }
-    setExporting(true);
+    setExporting(format);
     const url = `/api/export?type=${exportType}&tenantId=${tenantId}&format=${format}`;
 
-    // Use fetch to trigger download and handle errors
     fetch(url)
       .then((res) => {
         if (!res.ok) throw new Error('Export failed');
 
-        // Get filename from Content-Disposition header
         const cd = res.headers.get('content-disposition');
         const filename =
           cd?.match(/filename="?([^";]+)"?/)?.[1] || `${exportType}.${format}`;
@@ -66,7 +93,7 @@ export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonPro
       .catch(() => {
         toast.error('Export failed. Try again.');
       })
-      .finally(() => setExporting(false));
+      .finally(() => setExporting(null));
   };
 
   return (
@@ -76,7 +103,7 @@ export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonPro
           variant="outline"
           size={size}
           className="gap-1.5 text-xs"
-          disabled={exporting}
+          disabled={exporting !== null}
         >
           {exporting ? (
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -87,23 +114,29 @@ export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonPro
           <ChevronDown className="h-2.5 w-2.5 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem
-          onClick={() => handleExport('csv')}
-          disabled={exporting}
-          className="text-xs gap-2 cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5" />
-          CSV Spreadsheet
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => handleExport('json')}
-          disabled={exporting}
-          className="text-xs gap-2 cursor-pointer"
-        >
-          <Download className="h-3.5 w-3.5" />
-          JSON Data
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-48">
+        {FORMAT_CONFIG.map(({ format, label: formatLabel, description, icon: Icon }, idx) => (
+          <div key={format}>
+            {idx > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              onClick={() => handleExport(format)}
+              disabled={exporting !== null}
+              className="text-xs gap-2.5 cursor-pointer py-2"
+            >
+              {exporting === format ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+              ) : (
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span className="flex flex-col">
+                <span>{formatLabel}</span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {description}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          </div>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

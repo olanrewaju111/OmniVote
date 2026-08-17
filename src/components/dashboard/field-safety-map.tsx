@@ -135,7 +135,7 @@ export function AgentMiniMap({ data }: { data: GeofenceData }) {
 
   if (activeZones.length === 0) {
     return (
-      <div className="h-56 flex items-center justify-center text-xs text-muted-foreground">
+      <div className="h-[250px] md:h-56 flex items-center justify-center text-xs text-muted-foreground">
         No active zones to display
       </div>
     );
@@ -145,7 +145,7 @@ export function AgentMiniMap({ data }: { data: GeofenceData }) {
     <LooseMapContainer
       center={center}
       zoom={8}
-      className="w-full h-56"
+      className="w-full h-[250px] md:h-56"
       zoomControl={false}
       attributionControl={false}
       style={{ background: '#09090b' }}

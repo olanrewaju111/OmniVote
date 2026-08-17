@@ -303,3 +303,35 @@ Stage Summary:
 - Overview tab now has 7 quick action cards (was 6)
 - All Phase 4 features fully wired with zero TS errors
 
+---
+Task ID: 6
+Agent: Super Z (Main)
+Task: Phase 5 — Data Persistence, Settings & Production Readiness
+
+Work Log:
+- Conducted full codebase audit: 37 API routes, 50+ components, 28 Prisma models
+- Identified 3 mock data APIs (chat, narrative, win-probability) needing DB persistence
+- Added 3 new Prisma models: ChatMessage, KeyMessage, NarrativeTimeline
+- Pushed schema with `prisma db push` — 0 errors
+- Rewrote `/api/chat` — DB-backed with auto-seed (20 messages per tenant), real sender resolution from User table
+- Rewrote `/api/narrative` — DB-backed with auto-seed (8 key messages, 10 talking points, 7 timeline events per tenant)
+- Rewrote `/api/win-probability` — computes real probabilities from ElectionResult.partyResults, confidence from PU coverage, trends from early vs late result shares, dynamic key factors (coverage, margin, turnout, violence, geographic spread, quarantined reports)
+- Created `profile-settings.tsx` — 3-tab dialog (Profile edit, Security/password change, Preferences/theme/notifications), wired into header
+- Created `/api/upload` — multipart file upload (jpg/png/gif/webp/mp4/pdf, 10MB max) with GET file serving, path traversal protection
+- Created `election-management.tsx` — CRUD UI with search/filter, responsive card grid, create/edit/delete dialogs, wired into System tab
+- Enhanced `export-button.tsx` — added PDF (jsPDF) and Excel (ExcelJS) export options alongside existing CSV
+- Enhanced `export/route.ts` — added `format=pdf` (jsPDF + autotable, landscape A4) and `format=excel` (ExcelJS with styled headers)
+- Mobile responsiveness pass: PVT (scrollable tables, wrap toolbar), OSINT (responsive filters, wrap stats), Field Safety (responsive grid, shorter map on mobile)
+- Situation Room already fully responsive — no changes needed
+- Installed npm packages: jspdf, jspdf-autotable, exceljs
+- Final `npx tsc --noEmit`: 0 errors
+- Dev server boots clean, API responds correctly
+
+Stage Summary:
+- 3 new Prisma models (ChatMessage, KeyMessage, NarrativeTimeline) with proper indexes and relations
+- 3 API routes rewritten from mock to real DB: /api/chat, /api/narrative, /api/win-probability
+- 3 new files created: profile-settings.tsx, election-management.tsx, /api/upload/route.ts
+- 4 existing files enhanced: export-button.tsx, export/route.ts, header.tsx, page.tsx
+- 4 existing files mobile-responsive: pvt-quick-count.tsx, osint-monitor.tsx, field-safety.tsx, field-safety-map.tsx
+- 0 TypeScript errors, clean dev server boot
+

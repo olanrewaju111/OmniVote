@@ -314,7 +314,7 @@ export function FieldSafety() {
   return (
     <div className="h-full flex flex-col gap-4 p-4 overflow-hidden">
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex items-center justify-between shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <MapPin className="h-5 w-5 text-emerald" />
           <h2 className="text-base font-semibold">Field Safety</h2>
@@ -354,7 +354,7 @@ export function FieldSafety() {
               </motion.div>
             )}
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Dead-Man's Switch Monitor */}
               <Card className="bg-card/40 border-border rounded-xl">
                 <div className="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -421,11 +421,11 @@ export function FieldSafety() {
                     <Satellite className="h-4 w-4 text-cyan" />
                     <span className="text-sm font-semibold">Live Agent Positions</span>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald" /> Checked In</span>
                     <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose" /> SOS</span>
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber" /> Overdue</span>
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Offline</span>
+                    <span className="hidden sm:flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber" /> Overdue</span>
+                    <span className="hidden sm:flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Offline</span>
                   </div>
                 </div>
                 <AgentMiniMap data={data} />
@@ -550,11 +550,11 @@ export function FieldSafety() {
                           <span className="text-sm font-medium truncate">{agent.name}</span>
                           {switchStatusBadge}
                         </div>
-                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
                           <span>Last seen: {formatRelativeTime(agent.lastSeenAt)}</span>
-                          <span>Trust: {agent.deviceTrustScore ?? '—'}</span>
-                          <span>Bio risk: <span className={agent.biometricRiskScore && agent.biometricRiskScore > 60 ? 'text-rose' : 'text-muted-foreground'}>{agent.biometricRiskScore ?? '—'}</span></span>
-                          <span>Last check-in: {formatRelativeTime(agent.lastCheckInAt)}</span>
+                          <span className="hidden sm:inline">Trust: {agent.deviceTrustScore ?? '—'}</span>
+                          <span className="hidden md:inline">Bio risk: <span className={agent.biometricRiskScore && agent.biometricRiskScore > 60 ? 'text-rose' : 'text-muted-foreground'}>{agent.biometricRiskScore ?? '—'}</span></span>
+                          <span className="hidden md:inline">Last check-in: {formatRelativeTime(agent.lastCheckInAt)}</span>
                         </div>
                       </div>
                       {/* Trust progress bar */}
@@ -615,7 +615,7 @@ export function FieldSafety() {
                         <span className="text-sm font-medium truncate">{ci.agentName}</span>
                         <span className="text-xs text-muted-foreground truncate">→ {ci.zoneName}</span>
                       </div>
-                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
                           <Eye className="h-3 w-3" />
                           {ci.isInsideZone ? 'Inside' : 'Outside'}
@@ -625,7 +625,7 @@ export function FieldSafety() {
                           <span className={batteryColor(ci.batteryLevel)}>{ci.batteryLevel !== null ? `${ci.batteryLevel}%` : '—'}</span>
                         </span>
                         {ci.networkType && (
-                          <span className="flex items-center gap-1">
+                          <span className="hidden sm:flex items-center gap-1">
                             <Signal className="h-3 w-3" />
                             {ci.networkType}
                           </span>
@@ -745,5 +745,5 @@ function KpiCard({ label, value, icon, accent, delay }: {
 // ── Leaflet Mini-Map for Agent Positions (dynamically loaded) ──
 const AgentMiniMap = dynamic(() => import('./field-safety-map').then(m => ({ default: m.AgentMiniMap })), {
   ssr: false,
-  loading: () => <div className="h-56 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Loading map...</div>,
+  loading: () => <div className="h-[250px] md:h-56 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Loading map...</div>,
 });

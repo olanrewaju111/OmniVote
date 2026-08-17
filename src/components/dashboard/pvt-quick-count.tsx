@@ -528,7 +528,7 @@ export function PvtQuickCount() {
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-emerald-400" />
           <h3 className="text-sm font-semibold text-foreground">Parallel Vote Tabulation</h3>
@@ -537,7 +537,7 @@ export function PvtQuickCount() {
       </div>
 
       {/* ── Top Stats Bar ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         <StatCard
           icon={BarChart3}
           label="Total PVT Submissions"
@@ -615,6 +615,7 @@ export function PvtQuickCount() {
                 </Badge>
               </div>
               <ScrollArea className="min-h-0 flex-1">
+                <div className="overflow-x-auto -mx-4 px-4">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -656,6 +657,7 @@ export function PvtQuickCount() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -679,6 +681,7 @@ export function PvtQuickCount() {
               </span>
             </div>
             <ScrollArea className="min-h-0 flex-1">
+              <div className="overflow-x-auto -mx-4 px-4">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -735,6 +738,7 @@ export function PvtQuickCount() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </ScrollArea>
           </CardContent>
         </Card>

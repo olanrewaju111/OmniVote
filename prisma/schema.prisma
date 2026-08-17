@@ -67,6 +67,9 @@ model Tenant {
   flashpointForecasts      FlashpointForecast[]
   wargameScenarios         WargameScenario[]
   accessibilityReports     AccessibilityReport[]
+  chatMessages             ChatMessage[]
+  keyMessages              KeyMessage[]
+  narrativeTimelines       NarrativeTimeline[]
 }
 
 model User {
@@ -103,6 +106,7 @@ model User {
   securityEvents SecurityEvent[]
   agentCheckIns  AgentCheckIn[]
   deadMansSwitches DeadMansSwitch[]
+  chatMessages             ChatMessage[]
 }
 
 model Election {
@@ -733,6 +737,58 @@ model AccessibilityReport {
   pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
   @@index([tenantId, pollingUnitId])
   @@index([tenantId, overallScore])
+}
+
+// ============================================================
+// MODULE 11: Team Chat (Phase 5)
+// ============================================================
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  tenantId    String
+  senderId    String
+  body        String   @default("")
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  sender      User     @relation(fields: [senderId], references: [id])
+  @@index([tenantId, createdAt])
+}
+
+// ============================================================
+// MODULE 12: Narrative Builder (Phase 5)
+// ============================================================
+
+model KeyMessage {
+  id          String   @id @default(cuid())
+  tenantId    String
+  title       String
+  body        String   @default("")
+  category    String   @default("LEADING") // LEADING, COUNTER, MOTIVATIONAL
+  priority    Int      @default(1) // 1-10
+  isActive    Boolean  @default(true)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, category])
+  @@index([tenantId, isActive])
+}
+
+model NarrativeTimeline {
+  id          String   @id @default(cuid())
+  tenantId    String
+  title       String
+  description String   @default("")
+  type        String   @default("MILESTONE") // MILESTONE, INCIDENT_RESPONSE, STRATEGY_SHIFT
+  timestamp   DateTime @default(now())
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, type])
 }
 
 model RateLimitRecord {

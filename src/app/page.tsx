@@ -82,7 +82,8 @@ const TAB_SKELETONS: Record<string, React.ComponentType> = {
   'my-reports': () => <div className="h-full p-4"><TableSkeleton rows={5} cols={4} /></div>,
   'agents': () => <div className="h-full p-4"><TableSkeleton rows={6} cols={5} /></div>,
   'engagement': ListDetailSkeleton,
-  'system': () => <CardGridSkeleton cols={3} rows={2} />,
+  'system': () => <CardGridSkeleton cols={2} rows={3} />,
+  'elections': () => <CardGridSkeleton cols={2} rows={3} />,
   'tenants': () => <div className="h-full p-4"><TableSkeleton rows={4} cols={4} /></div>,
   'campaign-analytics': () => <CardGridSkeleton cols={2} rows={3} />, 
   'social-cards': () => <CardGridSkeleton cols={1} rows={2} />, 
@@ -131,6 +132,7 @@ const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-
 const CampaignAnalyticsPanel = createDynamic(() => import('@/components/dashboard/campaign-analytics').then(m => ({ default: m.default })), 'campaign-analytics');
 const SocialCardsPanel = createDynamic(() => import('@/components/dashboard/social-cards').then(m => ({ default: m.SocialCards })), 'social-cards');
 const NarrativeBuilderPanel = createDynamic(() => import('@/components/dashboard/narrative-builder').then(m => ({ default: m.NarrativeBuilder })), 'narrative');
+const ElectionManagementPanel = createDynamic(() => import('@/components/dashboard/election-management').then(m => ({ default: m.ElectionManagement })), 'system');
 
 // ---- Types ----
 export interface Incident {
@@ -576,7 +578,10 @@ export default function Home() {
               )}
               {activeTab === 'system' && (
                 <ErrorBoundary title="System Health">
-                  <SystemHealth />
+                  <div className="h-full flex flex-col overflow-y-auto">
+                    <ElectionManagementPanel />
+                    <SystemHealth />
+                  </div>
                 </ErrorBoundary>
               )}
               {activeTab === 'tenants' && (
