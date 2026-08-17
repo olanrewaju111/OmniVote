@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -25,6 +25,13 @@ import {
   BarChart3,
   Loader2,
   Sparkles,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Route,
+  Landmark,
+  Handshake,
 } from 'lucide-react';
 import {
   BarChart,
@@ -63,6 +70,24 @@ interface VictoryProjection {
   secured: number;
   contested: number;
   leaningOpposition: number;
+}
+
+interface StateBreakdownEntry {
+  name: string;
+  leadingParty: string;
+  leadingPartyColor: string;
+  margin: number;
+  totalVotes: number;
+  status: 'SAFE' | 'LEANING' | 'TIGHT RACE' | 'LOST';
+  partyVotes: Array<{ party: string; votes: number; percentage: number }>;
+}
+
+interface CoalitionScenario {
+  parties: string[];
+  combinedPercentage: number;
+  wouldLead: boolean;
+  leaderParty: string;
+  leaderPercentage: number;
 }
 
 // Raw API shapes
@@ -138,7 +163,73 @@ function TrendArrow({ trend }: { trend: 'up' | 'down' | 'stable' }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 1. VICTORY PROJECTION PANEL
+// A. ANIMATED VICTORY GAUGE (SVG semicircle)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function VictoryGauge({ confidence, color }: { confidence: number; color: string }) {
+  const radius = 54;
+  const strokeWidth = 8;
+  const center = 60;
+  // Semicircle: from -180° to 0° (bottom half), or 0° to 180° (top half)
+  // We'll use top half semicircle
+  const circumference = Math.PI * radius; // half circle
+  const offset = circumference * (1 - confidence / 100);
+
+  return (
+    <div className="relative w-[120px] h-[70px] shrink-0">
+      {/* Glow effect behind the gauge */}
+      <div
+        className="absolute inset-0 blur-xl opacity-25 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      <svg
+        viewBox="0 0 120 70"
+        className="relative w-full h-full overflow-visible"
+      >
+        {/* Background arc */}
+        <path
+          d={`M ${center - radius} ${center} A ${radius} ${radius} 0 0 1 ${center + radius} ${center}`}
+          fill="none"
+          stroke="oklch(0.25 0.005 260)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+        {/* Animated foreground arc */}
+        <motion.path
+          d={`M ${center - radius} ${center} A ${radius} ${radius} 0 0 1 ${center + radius} ${center}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.4, ease: 'easeOut', delay: 0.3 }}
+          style={{ filter: `drop-shadow(0 0 6px ${color}40)` }}
+        />
+      </svg>
+      {/* Center percentage */}
+      <motion.div
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
+        style={{ top: '55%' }}
+      >
+        <motion.span
+          className="text-2xl font-black tabular-nums leading-none"
+          style={{ color }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+        >
+          {confidence}
+          <span className="text-xs font-semibold opacity-70">%</span>
+        </motion.span>
+      </motion.div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 1. VICTORY PROJECTION PANEL (Enhanced with gauge)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function VictoryProjectionCard({ projection, partyResults }: {
@@ -175,8 +266,8 @@ function VictoryProjectionCard({ projection, partyResults }: {
             {/* Winner display */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 glow-emerald"
-                style={{ backgroundColor: winnerColor }}
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0"
+                style={{ backgroundColor: winnerColor, boxShadow: `0 0 20px ${winnerColor}30` }}
               >
                 {projection.projectedWinner.charAt(0)}
               </div>
@@ -193,21 +284,10 @@ function VictoryProjectionCard({ projection, partyResults }: {
               </div>
             </div>
 
-            {/* Confidence meter */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">Win Confidence</span>
-                <span className="text-sm font-bold tabular-nums text-emerald">{projection.confidence}%</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full bg-emerald progress-bar-striped"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${projection.confidence}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut' }}
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground/40 mt-1">Based on {partyResults.reduce((s, p) => s + p.votes, 0).toLocaleString()} verified votes</p>
+            {/* Animated Victory Gauge (replaces linear bar) */}
+            <div className="flex flex-col items-center gap-0.5">
+              <VictoryGauge confidence={projection.confidence} color={winnerColor} />
+              <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-semibold mt-0.5">Win Confidence</span>
             </div>
 
             {/* State counts */}
@@ -233,6 +313,158 @@ function VictoryProjectionCard({ projection, partyResults }: {
                 </div>
                 <p className="text-[10px] text-muted-foreground/50">Leaning Opp.</p>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// B. PATH TO VICTORY PANEL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function PathToVictory({ states, projectedWinner }: {
+  states: StateBreakdownEntry[];
+  projectedWinner: string;
+}) {
+  const securedCount = states.filter(s => s.status === 'SAFE' && s.leadingParty === projectedWinner).length;
+  const totalCount = states.length;
+  const safeStates = states.filter(s => s.status === 'SAFE' && s.leadingParty === projectedWinner);
+  const leaningStates = states.filter(s => s.status === 'LEANING' && s.leadingParty === projectedWinner);
+  const tightRaceStates = states.filter(s => s.status === 'TIGHT RACE');
+  const lostStates = states.filter(s => s.leadingParty !== projectedWinner && s.status === 'SAFE');
+
+  const statusColorMap: Record<string, { bg: string; border: string; text: string }> = {
+    'SAFE': { bg: 'bg-emerald/15', border: 'border-emerald/30', text: 'text-emerald' },
+    'LEANING': { bg: 'bg-amber/15', border: 'border-amber/30', text: 'text-amber' },
+    'TIGHT RACE': { bg: 'bg-rose/15', border: 'border-rose/30', text: 'text-rose' },
+    'LOST': { bg: 'bg-rose/10', border: 'border-rose/20', text: 'text-rose/60' },
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
+    >
+      <Card className="border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-amber/10">
+                <Route className="h-4 w-4 text-amber" />
+              </div>
+              <CardTitle className="text-sm font-semibold">Path to Victory</CardTitle>
+            </div>
+            <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] font-semibold tabular-nums">
+              {securedCount}/{totalCount} secured
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          {/* Secured states strip */}
+          {(safeStates.length > 0 || leaningStates.length > 0 || tightRaceStates.length > 0 || lostStates.length > 0) && (
+            <div className="overflow-x-auto pb-1">
+              <div className="flex gap-1.5 min-w-max">
+                {/* Safe states */}
+                {safeStates.map((s) => {
+                  const sc = statusColorMap['SAFE'];
+                  return (
+                    <motion.div
+                      key={s.name}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold whitespace-nowrap',
+                        sc.bg, sc.border, sc.text
+                      )}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald shrink-0" />
+                      {s.name}
+                    </motion.div>
+                  );
+                })}
+                {/* Leaning states */}
+                {leaningStates.map((s) => {
+                  const sc = statusColorMap['LEANING'];
+                  return (
+                    <motion.div
+                      key={s.name}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, delay: 0.05 }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold whitespace-nowrap',
+                        sc.bg, sc.border, sc.text
+                      )}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber shrink-0" />
+                      {s.name}
+                    </motion.div>
+                  );
+                })}
+                {/* Tight race states */}
+                {tightRaceStates.map((s) => {
+                  const sc = statusColorMap['TIGHT RACE'];
+                  return (
+                    <motion.div
+                      key={s.name}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, delay: 0.1 }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold whitespace-nowrap',
+                        sc.bg, sc.border, sc.text
+                      )}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose shrink-0" />
+                      {s.name}
+                    </motion.div>
+                  );
+                })}
+                {/* Lost states */}
+                {lostStates.map((s) => {
+                  const sc = statusColorMap['LOST'];
+                  return (
+                    <motion.div
+                      key={s.name}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.2, delay: 0.15 }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold whitespace-nowrap',
+                        sc.bg, sc.border, sc.text
+                      )}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-rose/50 shrink-0" />
+                      {s.name}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Legend row */}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-emerald" />
+              <span className="text-[9px] text-muted-foreground/50">Safe</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-amber" />
+              <span className="text-[9px] text-muted-foreground/50">Leaning</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-rose" />
+              <span className="text-[9px] text-muted-foreground/50">Tight Race</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-rose/50" />
+              <span className="text-[9px] text-muted-foreground/50">Lost</span>
             </div>
           </div>
         </CardContent>
@@ -273,7 +505,7 @@ function PartyLeaderboard({ parties }: { parties: PartyResult[] }) {
                   className={cn(
                     'flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all duration-200',
                     isLeading
-                      ? 'bg-emerald/5 border border-emerald/20 glow-emerald'
+                      ? 'bg-emerald/5 border border-emerald/20'
                       : 'hover:bg-secondary/40',
                   )}
                 >
@@ -332,6 +564,102 @@ function PartyLeaderboard({ parties }: { parties: PartyResult[] }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// D. COALITION MATH INDICATOR
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function CoalitionMath({ parties }: { parties: PartyResult[] }) {
+  const scenarios = useMemo(() => {
+    if (parties.length < 3) return [];
+
+    const leader = parties[0];
+    const coalitionCombos: CoalitionScenario[] = [];
+
+    // Check 2nd + 3rd
+    if (parties.length >= 3) {
+      const combined = parties[1].percentage + parties[2].percentage;
+      coalitionCombos.push({
+        parties: [parties[1].party, parties[2].party],
+        combinedPercentage: combined,
+        wouldLead: combined > leader.percentage,
+        leaderParty: leader.party,
+        leaderPercentage: leader.percentage,
+      });
+    }
+
+    // Check 2nd + 4th
+    if (parties.length >= 4) {
+      const combined = parties[1].percentage + parties[3].percentage;
+      if (combined > leader.percentage) {
+        coalitionCombos.push({
+          parties: [parties[1].party, parties[3].party],
+          combinedPercentage: combined,
+          wouldLead: true,
+          leaderParty: leader.party,
+          leaderPercentage: leader.percentage,
+        });
+      }
+    }
+
+    // Check 3rd + 4th
+    if (parties.length >= 4 && coalitionCombos.length < 2) {
+      const combined = parties[2].percentage + parties[3].percentage;
+      if (combined > leader.percentage) {
+        coalitionCombos.push({
+          parties: [parties[2].party, parties[3].party],
+          combinedPercentage: combined,
+          wouldLead: true,
+          leaderParty: leader.party,
+          leaderPercentage: leader.percentage,
+        });
+      }
+    }
+
+    return coalitionCombos.slice(0, 2);
+  }, [parties]);
+
+  if (scenarios.length === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.15 }}
+      className="rounded-lg border border-cyan/20 bg-cyan/5 px-3 py-2.5"
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Handshake className="h-3.5 w-3.5 text-cyan" />
+        <span className="text-[11px] font-semibold text-cyan">Coalition Scenarios</span>
+      </div>
+      <div className="space-y-1">
+        {scenarios.map((sc, idx) => (
+          <div key={idx} className="flex items-start gap-1.5">
+            <Info className="h-3 w-3 text-cyan/60 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+              <span className="font-semibold text-cyan/90">
+                {sc.parties.join(' + ')} coalition
+              </span>
+              {' would have '}
+              <span className="font-bold tabular-nums text-cyan">
+                {sc.combinedPercentage.toFixed(1)}%
+              </span>
+              {sc.wouldLead ? (
+                <span className="text-emerald font-semibold">
+                  {' '}— beating {sc.leaderParty} ({sc.leaderPercentage.toFixed(1)}%)
+                </span>
+              ) : (
+                <span className="text-muted-foreground/50">
+                  {' '}— short of {sc.leaderParty} ({sc.leaderPercentage.toFixed(1)}%)
+                </span>
+              )}
+            </p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -478,6 +806,162 @@ function SwingStatesGrid({ states }: { states: SwingState[] }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// C. STATE-BY-STATE WINNER BREAKDOWN
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const filteredStates = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return states;
+    return states.filter(s =>
+      s.name.toLowerCase().includes(q) || s.leadingParty.toLowerCase().includes(q)
+    );
+  }, [states, search]);
+
+  const statusColorMap: Record<string, { color: string; bg: string }> = {
+    'SAFE': { color: 'text-emerald', bg: 'bg-emerald' },
+    'LEANING': { color: 'text-amber', bg: 'bg-amber' },
+    'TIGHT RACE': { color: 'text-rose', bg: 'bg-rose' },
+    'LOST': { color: 'text-rose/60', bg: 'bg-rose/40' },
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.25 }}
+    >
+      {/* Header — clickable */}
+      <button
+        onClick={() => setExpanded(prev => !prev)}
+        className="flex items-center gap-2 w-full group cursor-pointer"
+      >
+        <div className="p-1.5 rounded-md bg-emerald/10">
+          <Landmark className="h-4 w-4 text-emerald" />
+        </div>
+        <span className="text-sm font-semibold">State Breakdown</span>
+        <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] font-semibold ml-1">
+          {states.length} states
+        </Badge>
+        <motion.div
+          animate={{ rotate: expanded ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="ml-auto"
+        >
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground/50" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground/50" />
+          )}
+        </motion.div>
+      </button>
+
+      {/* Expandable content */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            {/* Search */}
+            <div className="relative mt-3 mb-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
+              <input
+                type="text"
+                placeholder="Search states or parties..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full h-8 rounded-md border border-border/60 bg-secondary/30 pl-8 pr-3 text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:border-emerald/40 focus:ring-1 focus:ring-emerald/20 transition-all"
+              />
+            </div>
+
+            {/* State rows */}
+            <div className="max-h-80 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+              {filteredStates.length === 0 ? (
+                <p className="text-xs text-muted-foreground/50 text-center py-6">No matching states</p>
+              ) : (
+                filteredStates.map((s) => {
+                  const sc = statusColorMap[s.status] || statusColorMap['LEANING'];
+                  const totalPct = s.partyVotes.reduce((sum, pv) => sum + pv.percentage, 0);
+                  return (
+                    <motion.div
+                      key={s.name}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.15 }}
+                      className="flex items-center gap-2 rounded-lg border border-border/40 bg-card/30 px-3 py-2 hover:bg-secondary/30 transition-colors"
+                    >
+                      {/* State name */}
+                      <span className="text-xs font-semibold min-w-[80px] sm:min-w-[100px] truncate">{s.name}</span>
+
+                      {/* Leading party with color dot */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.leadingPartyColor }} />
+                        <span className="text-[11px] font-bold" style={{ color: s.leadingPartyColor }}>{s.leadingParty}</span>
+                      </div>
+
+                      {/* Inline vote split bar */}
+                      <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden min-w-[60px] hidden sm:block">
+                        <div className="flex h-full">
+                          {s.partyVotes.slice(0, 3).map((pv) => (
+                            <div
+                              key={pv.party}
+                              className="h-full"
+                              style={{
+                                width: `${totalPct > 0 ? (pv.percentage / totalPct) * 100 : 0}%`,
+                                backgroundColor: PARTY_COLOR_MAPPINGS[pv.party] || DEFAULT_PARTY_COLOR,
+                                opacity: 0.7,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Margin */}
+                      <span className={cn('text-[10px] font-bold tabular-nums shrink-0', sc.color)}>
+                        +{s.margin.toFixed(1)}%
+                      </span>
+
+                      {/* Status */}
+                      <Badge className={cn(
+                        'text-[8px] px-1.5 py-0 h-3.5 font-bold shrink-0 hidden md:inline-flex',
+                        sc.color,
+                        s.status === 'SAFE' ? 'bg-emerald/15' :
+                        s.status === 'LEANING' ? 'bg-amber/15' :
+                        s.status === 'TIGHT RACE' ? 'bg-rose/15' : 'bg-rose/10'
+                      )}>
+                        {s.status}
+                      </Badge>
+
+                      {/* Total votes */}
+                      <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 hidden lg:block">
+                        {s.totalVotes.toLocaleString()}
+                      </span>
+                    </motion.div>
+                  );
+                })
+              )}
+            </div>
+
+            {filteredStates.length !== states.length && (
+              <p className="text-[10px] text-muted-foreground/40 mt-1.5 text-center">
+                Showing {filteredStates.length} of {states.length} states
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 5. SENTIMENT PULSE
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -571,8 +1055,17 @@ function TrackerSkeleton() {
           </div>
           <div className="flex-1 space-y-2">
             <div className="h-3 w-24 skeleton" />
-            <div className="h-2.5 w-full rounded-full skeleton" />
+            <div className="h-16 w-32 skeleton rounded-full" />
           </div>
+        </div>
+      </div>
+      {/* Path to victory skeleton */}
+      <div className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-2">
+        <div className="h-3 w-28 skeleton" />
+        <div className="flex gap-2 overflow-hidden">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-6 w-16 skeleton rounded-md shrink-0" />
+          ))}
         </div>
       </div>
       {/* Middle grid skeleton */}
@@ -588,10 +1081,19 @@ function TrackerSkeleton() {
           <div className="h-40 skeleton rounded-lg" />
         </div>
       </div>
+      {/* Coalition math skeleton */}
+      <div className="h-16 rounded-lg border skeleton" />
       {/* Swing states skeleton */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="h-20 rounded-lg skeleton" />
+        ))}
+      </div>
+      {/* State breakdown skeleton */}
+      <div className="space-y-2">
+        <div className="h-3 w-32 skeleton" />
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-10 rounded-lg skeleton" />
         ))}
       </div>
       {/* Sentiment skeleton */}
@@ -640,7 +1142,7 @@ export function ElectionTracker() {
 
   // ── Data Processing ──────────────────────────────────────────────────────
 
-  const { partyResults, swingStates, chartData, victoryProjection, sentiment } = useMemo(() => {
+  const { partyResults, swingStates, chartData, victoryProjection, sentiment, stateBreakdown, coalitionScenarios } = useMemo(() => {
     const results = resultsQuery.data?.results || [];
     const pvtSubmissions = pvtQuery.data?.pvtSubmissions || [];
     const pvtPartyTotals = pvtQuery.data?.partyTotals || [];
@@ -710,36 +1212,6 @@ export function ElectionTracker() {
       }
     }
 
-    // ── Swing states (top 8 closest races) ───────────────────────────────
-    const stateMargins: SwingState[] = [];
-    for (const [state, data] of Object.entries(stateTotalsMap)) {
-      if (data.total === 0) continue;
-      const sorted = Object.entries(data.partyVotes).sort((a, b) => b[1] - a[1]);
-      if (sorted.length < 2) continue;
-      const [firstParty, firstVotes] = sorted[0];
-      const secondVotes = sorted[1][1];
-      const margin = data.total > 0 ? ((firstVotes - secondVotes) / data.total) * 100 : 0;
-      const status: SwingState['status'] = margin < 5 ? 'TIGHT RACE' : margin < 15 ? 'LEANING' : 'SAFE';
-      stateMargins.push({
-        name: state,
-        leadingParty: firstParty,
-        leadingPartyColor: PARTY_COLOR_MAPPINGS[firstParty] || DEFAULT_PARTY_COLOR,
-        margin,
-        totalVotes: data.total,
-        status,
-      });
-    }
-    // Sort by margin ascending (tightest first) and take top 8
-    stateMargins.sort((a, b) => a.margin - b.margin);
-    const topSwingStates = stateMargins.slice(0, 8);
-
-    // ── Chart data (top 4 parties) ──────────────────────────────────────
-    const chartData = sortedParties.slice(0, 4).map((p) => ({
-      name: p.party,
-      value: p.percentage,
-      fill: PARTY_COLORS[p.party] || PARTY_COLOR_MAPPINGS[p.party] || DEFAULT_PARTY_COLOR,
-    }));
-
     // ── Victory projection (from PVT data) ──────────────────────────────
     const pvtTotal = pvtPartyTotals.reduce((s, p) => s + p.votes, 0);
     let projectedWinner = 'N/A';
@@ -759,16 +1231,74 @@ export function ElectionTracker() {
       confidence = Math.round(sortedParties[0].percentage);
     }
 
-    // Count states by status
-    const allStates = Object.entries(stateTotalsMap).map(([state, data]) => {
+    // ── Build all states breakdown ──────────────────────────────────────
+    const stateBreakdown: StateBreakdownEntry[] = [];
+    for (const [state, data] of Object.entries(stateTotalsMap)) {
+      if (data.total === 0) continue;
       const sorted = Object.entries(data.partyVotes).sort((a, b) => b[1] - a[1]);
-      if (sorted.length < 2) return { state, status: 'SAFE' as const, leader: projectedWinner };
-      const margin = data.total > 0 ? ((sorted[0][1] - sorted[1][1]) / data.total) * 100 : 100;
-      return { state, status: margin < 5 ? 'TIGHT RACE' : margin < 15 ? 'LEANING' : 'SAFE', leader: sorted[0][0] };
-    });
-    const secured = allStates.filter(s => s.status === 'SAFE' && s.leader === projectedWinner).length;
-    const contested = allStates.filter(s => s.status === 'LEANING').length;
-    const leaningOpposition = allStates.filter(s => s.status === 'TIGHT RACE' || (s.status === 'LEANING' && s.leader !== projectedWinner)).length;
+      if (sorted.length < 1) continue;
+      const firstParty = sorted[0][0];
+      const firstVotes = sorted[0][1];
+      const secondVotes = sorted.length > 1 ? sorted[1][1] : 0;
+      const margin = data.total > 0 ? ((firstVotes - secondVotes) / data.total) * 100 : 100;
+
+      let status: StateBreakdownEntry['status'] = 'SAFE';
+      if (margin < 5) {
+        status = 'TIGHT RACE';
+      } else if (margin < 15) {
+        status = 'LEANING';
+      } else {
+        status = firstParty === projectedWinner ? 'SAFE' : 'LOST';
+      }
+
+      const partyVotes = sorted.map(([party, votes]) => ({
+        party,
+        votes,
+        percentage: data.total > 0 ? (votes / data.total) * 100 : 0,
+      }));
+
+      stateBreakdown.push({
+        name: state,
+        leadingParty: firstParty,
+        leadingPartyColor: PARTY_COLOR_MAPPINGS[firstParty] || DEFAULT_PARTY_COLOR,
+        margin,
+        totalVotes: data.total,
+        status,
+        partyVotes,
+      });
+    }
+    // Sort states alphabetically for the breakdown
+    stateBreakdown.sort((a, b) => a.name.localeCompare(b.name));
+
+    // ── Swing states (top 8 closest races) ───────────────────────────────
+    const swingCandidates = [...stateBreakdown]
+      .filter(s => s.status !== 'LOST')
+      .sort((a, b) => a.margin - b.margin)
+      .slice(0, 8)
+      .map((s): SwingState => ({
+        name: s.name,
+        leadingParty: s.leadingParty,
+        leadingPartyColor: s.leadingPartyColor,
+        margin: s.margin,
+        totalVotes: s.totalVotes,
+        status: s.status === 'LOST' ? 'TIGHT RACE' : s.status,
+      }));
+
+    // ── Chart data (top 4 parties) ──────────────────────────────────────
+    const chartData = sortedParties.slice(0, 4).map((p) => ({
+      name: p.party,
+      value: p.percentage,
+      fill: PARTY_COLORS[p.party] || PARTY_COLOR_MAPPINGS[p.party] || DEFAULT_PARTY_COLOR,
+    }));
+
+    // Count states by status
+    const allStatesStatus = stateBreakdown.map(s => ({
+      status: s.status,
+      leader: s.leadingParty,
+    }));
+    const secured = allStatesStatus.filter(s => s.status === 'SAFE' && s.leader === projectedWinner).length;
+    const contested = allStatesStatus.filter(s => s.status === 'LEANING').length;
+    const leaningOpposition = allStatesStatus.filter(s => s.status === 'TIGHT RACE' || (s.status === 'LEANING' && s.leader !== projectedWinner)).length;
 
     const victoryProjection: VictoryProjection = {
       projectedWinner,
@@ -777,6 +1307,47 @@ export function ElectionTracker() {
       contested,
       leaningOpposition,
     };
+
+    // ── Coalition scenarios ──────────────────────────────────────────────
+    const coalitionScenarios: CoalitionScenario[] = [];
+    if (sortedParties.length >= 3) {
+      const leader = sortedParties[0];
+      // 2nd + 3rd
+      const combo1 = sortedParties[1].percentage + sortedParties[2].percentage;
+      coalitionScenarios.push({
+        parties: [sortedParties[1].party, sortedParties[2].party],
+        combinedPercentage: combo1,
+        wouldLead: combo1 > leader.percentage,
+        leaderParty: leader.party,
+        leaderPercentage: leader.percentage,
+      });
+      // 2nd + 4th
+      if (sortedParties.length >= 4) {
+        const combo2 = sortedParties[1].percentage + sortedParties[3].percentage;
+        if (combo2 > leader.percentage && coalitionScenarios.length < 2) {
+          coalitionScenarios.push({
+            parties: [sortedParties[1].party, sortedParties[3].party],
+            combinedPercentage: combo2,
+            wouldLead: true,
+            leaderParty: leader.party,
+            leaderPercentage: leader.percentage,
+          });
+        }
+      }
+      // 3rd + 4th
+      if (sortedParties.length >= 4 && coalitionScenarios.length < 2) {
+        const combo3 = sortedParties[2].percentage + sortedParties[3].percentage;
+        if (combo3 > leader.percentage) {
+          coalitionScenarios.push({
+            parties: [sortedParties[2].party, sortedParties[3].party],
+            combinedPercentage: combo3,
+            wouldLead: true,
+            leaderParty: leader.party,
+            leaderPercentage: leader.percentage,
+          });
+        }
+      }
+    }
 
     // ── Sentiment from OSINT ────────────────────────────────────────────
     const pos = osintCounts['POSITIVE'] || 0;
@@ -789,7 +1360,15 @@ export function ElectionTracker() {
       neutral: sentimentTotal > 0 ? Math.round((neu / sentimentTotal) * 100) : 0,
     };
 
-    return { partyResults: sortedParties, swingStates: topSwingStates, chartData, victoryProjection, sentiment };
+    return {
+      partyResults: sortedParties,
+      swingStates: swingCandidates,
+      chartData,
+      victoryProjection,
+      sentiment,
+      stateBreakdown,
+      coalitionScenarios,
+    };
   }, [
     resultsQuery.data,
     pvtQuery.data,
@@ -821,13 +1400,20 @@ export function ElectionTracker() {
   // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
-      {/* 1. Victory Projection — full width */}
+      {/* 1. Victory Projection — full width (with circular gauge) */}
       <VictoryProjectionCard projection={victoryProjection} partyResults={partyResults} />
+
+      {/* 1b. Path to Victory — full width */}
+      {stateBreakdown.length > 0 && (
+        <PathToVictory states={stateBreakdown} projectedWinner={victoryProjection.projectedWinner} />
+      )}
 
       {/* 2. Party Leaderboard (60%) + Mini Chart (40%) */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-3">
           <PartyLeaderboard parties={partyResults} />
+          {/* 2b. Coalition Math — below leaderboard */}
+          <CoalitionMath parties={partyResults} />
         </div>
         <div className="lg:col-span-2">
           <MiniResultsChart data={chartData} />
@@ -836,6 +1422,11 @@ export function ElectionTracker() {
 
       {/* 3. Key Swing States */}
       {swingStates.length > 0 && <SwingStatesGrid states={swingStates} />}
+
+      {/* 3b. State-by-State Breakdown — expandable */}
+      {stateBreakdown.length > 0 && (
+        <StateBreakdown states={stateBreakdown} />
+      )}
 
       {/* 4. Sentiment Pulse */}
       <SentimentPulse sentiment={sentiment} />

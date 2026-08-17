@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type UserRole } from '@/store/dashboard';
 import {
@@ -421,8 +422,11 @@ function NavButton({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <motion.button
           onClick={() => onSelect(item.id)}
+          initial={{ opacity: 0, x: -12 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.2 }}
           className={cn(
             'w-full flex items-center gap-2.5 rounded-md text-[13px] font-medium transition-all duration-150 outline-none',
             'focus-visible:ring-2 focus-visible:ring-ring',
@@ -442,7 +446,7 @@ function NavButton({
               {unreadAlerts > 99 ? '99+' : unreadAlerts}
             </Badge>
           )}
-        </button>
+        </motion.button>
       </TooltipTrigger>
       {collapsed && (
         <TooltipContent side="right" className="flex items-center gap-2">

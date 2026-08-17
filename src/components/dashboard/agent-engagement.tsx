@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Send, Phone, Smartphone, Bell, Clock, AlertTriangle, UserX,
   WifiOff, ShieldAlert, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp,
   MessageCircle, RefreshCw, Zap, Users, Eye, Radio, Filter, Reply,
-  QrCode, Link2, Unlink, AlertCircle,
+  QrCode, Link2, Unlink, AlertCircle, Check, CheckCheck, Megaphone, Shield, MapPin, Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
@@ -108,6 +110,24 @@ function timeAgo(dateStr: string | null): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
+// ─── Quick-Reply Templates ──────────────────────────────────────────
+
+const QUICK_REPLY_TEMPLATES = [
+  { label: 'Status Check', icon: <Eye className="h-3 w-3" />, text: 'What is your current status? Please confirm if you are at your assigned polling unit.' },
+  { label: 'Report Urgent', icon: <AlertTriangle className="h-3 w-3" />, text: 'Please submit an urgent update on the situation at your polling unit immediately.' },
+  { label: 'Acknowledged', icon: <CheckCircle2 className="h-3 w-3" />, text: 'Your report has been received and is being reviewed. Stand by for further instructions.' },
+  { label: 'Relocate', icon: <Shield className="h-3 w-3" />, text: 'For your safety, please relocate to the nearest secure point. Confirm once you have arrived.' },
+  { label: 'Check In', icon: <MapPin className="h-3 w-3" />, text: 'Please check in with your current location and any observations.' },
+  { label: 'Custom', icon: <Pencil className="h-3 w-3" />, text: '' },
+];
+
+interface LocalChatMessage {
+  id: string;
+  body: string;
+  sentAt: number;
+  status: 'sent' | 'delivered' | 'read';
+}
+
 // ─── Component ───────────────────────────────────────────────────────
 
 export function AgentEngagement() {
@@ -122,6 +142,17 @@ export function AgentEngagement() {
   const [composeAgent, setComposeAgent] = useState<{ id: string; name: string } | null>(null);
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [bulkChannel, setBulkChannel] = useState('WHATSAPP');
+
+  // Chat compose (Messages tab)
+  const [chatInput, setChatInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [localChatMsgs, setLocalChatMsgs] = useState<LocalChatMessage[]>([]);
+
+  // Bulk broadcast
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastAudience, setBroadcastAudience] = useState<'ALL' | 'ONLINE' | 'OFFLINE'>('ALL');
 
   // Check WhatsApp bridge mode for mock banner
   const { data: waCheck } = useQuery<{ mode?: string }>({
@@ -192,6 +223,90 @@ export function AgentEngagement() {
     sendMutation.mutate({ agentId, channel, triggerType: 'MANUAL', subject, body, priority, sentById: user?.id });
   }, [sendMutation, user?.id]);
 
+  // ── Chat compose send (Messages tab) ──
+  const handleChatSend = useCallback(() => {
+    if (!chatInput.trim()) return;
+    const newMsg: LocalChatMessage = {
+      id: `local-${Date.now()}`,
+      body: chatInput.trim(),
+      sentAt: Date.now(),
+      status: 'sent',
+    };
+    setLocalChatMsgs(prev => [newMsg, ...prev]);
+    setChatInput('');
+  }, [chatInput]);
+
+  // ── Typing indicator: hide after 1s blur ──
+  const handleChatFocus = useCallback(() => {
+    setIsTyping(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+  }, []);
+
+  const handleChatBlur = useCallback(() => {
+    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 1000);
+  }, []);
+
+  // ── Message status progression ──
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    localChatMsgs.forEach((msg) => {
+      const elapsed = Date.now() - msg.sentAt;
+      if (msg.status === 'sent' && elapsed < 3000) {
+        timers.push(setTimeout(() => {
+          setLocalChatMsgs(prev =>
+            prev.map(m => m.id === msg.id ? { ...m, status: 'delivered' as const } : m)
+          );
+        }, 3000 - elapsed));
+      }
+      if (msg.status === 'delivered' && elapsed < 8000) {
+        timers.push(setTimeout(() => {
+          setLocalChatMsgs(prev =>
+            prev.map(m => m.id === msg.id ? { ...m, status: 'read' as const } : m)
+          );
+        }, 8000 - elapsed));
+      }
+    });
+    return () => timers.forEach(t => clearTimeout(t));
+  }, [localChatMsgs]);
+
+  const stats = data?.stats || {} as EngStats;
+  const messages = data?.messages || [];
+
+  // ── Bulk broadcast handler ──
+  const handleBroadcastSend = useCallback(async () => {
+    if (!broadcastMsg.trim()) return;
+    const reachCount = broadcastAudience === 'ALL'
+      ? (stats.totalAgents || 0)
+      : broadcastAudience === 'ONLINE'
+        ? (stats.onlineAgents || 0)
+        : (stats.offlineAgents || 0);
+    try {
+      await fetch('/api/engagement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          action: 'BULK_BROADCAST',
+          audience: broadcastAudience,
+          body: broadcastMsg.trim(),
+          sentById: user?.id,
+        }),
+      });
+      toast.success(`Broadcast sent to ${reachCount} agents`);
+      setLocalChatMsgs(prev => [{
+        id: `broadcast-${Date.now()}`,
+        body: `Bulk broadcast sent to ${broadcastAudience === 'ALL' ? 'all agents' : broadcastAudience === 'ONLINE' ? 'online agents' : 'offline agents'} at ${new Date().toLocaleTimeString()}`,
+        sentAt: Date.now(),
+        status: 'sent',
+      }, ...prev]);
+      setBroadcastMsg('');
+      setBroadcastOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+    } catch (_e) {
+      toast.error('Failed to send broadcast');
+    }
+  }, [broadcastMsg, broadcastAudience, stats, tenantId, user, queryClient]);
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -211,9 +326,6 @@ export function AgentEngagement() {
       </div>
     );
   }
-
-  const stats = data?.stats || {} as EngStats;
-  const messages = data?.messages || [];
 
   return (
     <div className="h-full flex flex-col p-4 gap-4 overflow-hidden">
@@ -388,8 +500,11 @@ export function AgentEngagement() {
               </SelectContent>
             </Select>
 
-            {/* Quick stats */}
-            <div className="ml-auto flex items-center gap-3">
+            {/* Quick stats + Bulk Broadcast */}
+            <div className="ml-auto flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1.5 text-amber border-amber/30 hover:bg-amber/10" onClick={() => setBroadcastOpen(true)}>
+                <Megaphone className="h-3 w-3" /> Bulk Broadcast
+              </Button>
               {data?.statusStats && Object.entries(data.statusStats).map(([k, v]) => (
                 <span key={k} className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <span className={cn('w-1.5 h-1.5 rounded-full',
@@ -404,8 +519,48 @@ export function AgentEngagement() {
           </div>
 
           {/* Message list */}
-          <div className="flex-1 overflow-y-auto space-y-2">
-            {messages.length === 0 ? (
+          <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+            {/* Local messages with status icons */}
+            <AnimatePresence>
+              {localChatMsgs.map((lmsg) => (
+                <motion.div
+                  key={lmsg.id}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className={cn(
+                    'flex items-start gap-3 rounded-lg border px-3 py-2.5',
+                    lmsg.id.startsWith('broadcast-')
+                      ? 'border-amber/30 bg-amber/5'
+                      : 'border-emerald/30 bg-emerald/5'
+                  )}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-medium truncate">
+                        {lmsg.id.startsWith('broadcast-') ? 'System' : 'You'}
+                      </span>
+                      <Badge variant="outline" className={cn('text-[9px] h-4 px-1.5 shrink-0',
+                        lmsg.status === 'read' ? 'bg-emerald/15 text-emerald border-emerald/30' :
+                        lmsg.status === 'delivered' ? 'bg-cyan/15 text-cyan border-cyan/30' :
+                        'bg-muted text-muted-foreground border-border'
+                      )}>
+                        {lmsg.status}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">{lmsg.body}</p>
+                    <span className="text-[10px] text-muted-foreground/60">{timeAgo(new Date(lmsg.sentAt).toISOString())}</span>
+                  </div>
+                  {/* Message status icon */}
+                  <div className="shrink-0 mt-0.5">
+                    <MessageStatusIcon status={lmsg.status} />
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Server messages */}
+            {messages.length === 0 && localChatMsgs.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground text-sm">
                 <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-40" />
                 No messages matching your filters
@@ -415,6 +570,64 @@ export function AgentEngagement() {
                 <MessageRow key={msg.id} msg={msg} onClick={() => setSelectedMsg(msg)} />
               ))
             )}
+          </div>
+
+          {/* Typing indicator */}
+          <AnimatePresence>
+            {isTyping && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground overflow-hidden"
+              >
+                <span>You are composing...</span>
+                <span className="flex items-center gap-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" style={{ animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0s' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" style={{ animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.16s' }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" style={{ animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.32s' }} />
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Quick-reply chips */}
+          <div className="flex flex-wrap gap-1.5 shrink-0">
+            {QUICK_REPLY_TEMPLATES.map((t) => (
+              <Button
+                key={t.label}
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] gap-1.5 max-w-[160px]"
+                onClick={() => { if (t.text) setChatInput(t.text); }}
+                disabled={!t.text}
+              >
+                {t.icon}
+                <span className="truncate">{t.label}</span>
+              </Button>
+            ))}
+          </div>
+
+          {/* Compose area */}
+          <div className="flex items-end gap-2 shrink-0">
+            <Textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onFocus={handleChatFocus}
+              onBlur={handleChatBlur}
+              placeholder="Type a quick message to agents..."
+              rows={2}
+              className="text-xs flex-1 resize-none"
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+            />
+            <Button
+              size="sm"
+              className="h-auto bg-emerald hover:bg-emerald/90 text-emerald-950 px-3"
+              onClick={handleChatSend}
+              disabled={!chatInput.trim()}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </TabsContent>
 
@@ -494,6 +707,68 @@ export function AgentEngagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ─── Bulk Broadcast Dialog ────────────────────────────── */}
+      <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Megaphone className="h-4 w-4 text-amber" />
+              Bulk Broadcast
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Send a message to multiple agents at once
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Message</label>
+              <Textarea
+                value={broadcastMsg}
+                onChange={(e) => setBroadcastMsg(e.target.value)}
+                placeholder="Type your broadcast message..."
+                rows={4}
+                className="text-xs"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium">Audience</label>
+              <RadioGroup value={broadcastAudience} onValueChange={(v) => setBroadcastAudience(v as 'ALL' | 'ONLINE' | 'OFFLINE')} className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="ALL" id="aud-all" />
+                  <Label htmlFor="aud-all" className="text-xs cursor-pointer">All Agents</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="ONLINE" id="aud-online" />
+                  <Label htmlFor="aud-online" className="text-xs cursor-pointer">Online Agents</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="OFFLINE" id="aud-offline" />
+                  <Label htmlFor="aud-offline" className="text-xs cursor-pointer">Offline Agents</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            <div className="text-[10px] text-muted-foreground">
+              Estimated reach:{' '}
+              <span className="font-medium text-foreground">
+                {broadcastAudience === 'ALL'
+                  ? (stats.totalAgents || 0)
+                  : broadcastAudience === 'ONLINE'
+                    ? (stats.onlineAgents || 0)
+                    : (stats.offlineAgents || 0)}
+              </span>{' '}
+              agents
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setBroadcastMsg(''); setBroadcastOpen(false); }}>Cancel</Button>
+            <Button size="sm" className="gap-2 bg-amber hover:bg-amber/90 text-amber-950" onClick={handleBroadcastSend} disabled={!broadcastMsg.trim()}>
+              <Megaphone className="h-3.5 w-3.5" />
+              Send Broadcast
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -512,6 +787,12 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
       </div>
     </Card>
   );
+}
+
+function MessageStatusIcon({ status }: { status: 'sent' | 'delivered' | 'read' }) {
+  if (status === 'sent') return <Check className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="Sent" />;
+  if (status === 'delivered') return <CheckCheck className="h-3.5 w-3.5 text-muted-foreground/60" aria-label="Delivered" />;
+  return <CheckCheck className="h-3.5 w-3.5 text-emerald" aria-label="Read" />;
 }
 
 function AgentGroupCard({

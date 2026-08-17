@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +19,9 @@ import { useDashboardStore } from '@/store/dashboard';
 import {
   Calendar, MapPin, Users, AlertTriangle, Flag, Eye, CheckCircle,
   XCircle, TrendingUp, Mic, Megaphone, Shield, Plus,
-  Loader2, ImageIcon, Radio, AlertCircle,
+  Loader2, ImageIcon, Radio, AlertCircle, Clock, Timer, ChevronRight,
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
@@ -120,10 +121,19 @@ const PARTY_COLORS: Record<string, string> = {
 
 const TONE_STYLES: Record<string, string> = {
   POSITIVE: 'bg-emerald/15 text-emerald border-emerald/30',
-  NEUTRAL: 'bg-cyan/15 text-cyan border-cyan/30',
+  NEUTRAL: 'bg-gray-500/15 text-gray-500 border-gray-500/30',
   NEGATIVE: 'bg-rose/15 text-rose border-rose/30',
   AGGRESSIVE: 'bg-rose text-white border-rose/40',
   INCITING: 'bg-rose text-white border-rose/40',
+  MIXED: 'bg-amber/15 text-amber border-amber/30',
+};
+
+const PARTY_HEX_COLORS: Record<string, string> = {
+  APC: '#008751',
+  PDP: '#CE1126',
+  LP: '#2196F3',
+  NNPP: '#FF9800',
+  APGA: '#00B4D8',
 };
 
 const SUPPRESSION_TYPES: Record<string, string> = {
@@ -373,6 +383,9 @@ export function CampaignMonitor() {
             <TabsTrigger value="hate-speech" className="text-xs h-7 flex-1 gap-1.5">
               <Flag className="h-3 w-3" /> Hate Speech
             </TabsTrigger>
+            <TabsTrigger value="calendar" className="text-xs h-7 flex-1 gap-1.5">
+              <Clock className="h-3 w-3" /> Calendar
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -421,6 +434,11 @@ export function CampaignMonitor() {
         {/* ── Hate Speech Tab ── */}
         <TabsContent value="hate-speech" className="flex-1 min-h-0 mt-0 flex flex-col">
           <HateSpeechTab items={hateSpeechItems} isLoading={eventsLoading} />
+        </TabsContent>
+
+        {/* ── Calendar Tab ── */}
+        <TabsContent value="calendar" className="flex-1 min-h-0 mt-0 flex flex-col">
+          <CalendarTab events={events} isLoading={eventsLoading} error={eventsError} />
         </TabsContent>
       </Tabs>
 
@@ -1295,6 +1313,375 @@ function HateSpeechTab({
       </div>
     </>
   );
+}
+
+// ─── Calendar Tab ─────────────────────────────────────────────────────────
+
+function CalendarTab({
+  events, isLoading, error,
+}: {
+  events: CampaignEvent[];
+  isLoading: boolean;
+  error: Error | null;
+}) {
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  const scrollToEvent = useCallback((eventId: string) => {
+    setHighlightedId(eventId);
+    const el = document.getElementById(`timeline-event-${eventId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setHighlightedId(null), 3000);
+    }
+  }, []);
+
+  // Sort: upcoming first (by date asc), then past (by date desc)
+  const sortedEvents = useMemo(() => {
+    const now = new Date();
+    const upcoming = events
+      .filter(e => new Date(e.eventDate) >= now)
+      .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime());
+    const past = events
+      .filter(e => new Date(e.eventDate) < now)
+      .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+    return [...upcoming, ...past];
+  }, [events]);
+
+  const nextEvent = useMemo(
+    () => events
+      .filter(e => new Date(e.eventDate) >= new Date())
+      .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())[0] || null,
+    [events]
+  );
+
+  const upcomingStrip = useMemo(
+    () => events
+      .filter(e => new Date(e.eventDate) >= new Date())
+      .sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime())
+      .slice(0, 5),
+    [events]
+  );
+
+  // Group events by date label
+  const groupedEvents = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 86400000);
+    const weekEnd = new Date(today.getTime() + 7 * 86400000);
+
+    const groups: { label: string; events: CampaignEvent[] }[] = [];
+    let currentGroup: { label: string; events: CampaignEvent[] } | null = null;
+
+    for (const event of sortedEvents) {
+      const d = new Date(event.eventDate);
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+      let label: string;
+      if (dayStart.getTime() === today.getTime()) {
+        label = 'Today';
+      } else if (dayStart.getTime() === tomorrow.getTime()) {
+        label = 'Tomorrow';
+      } else if (d >= today && d < weekEnd) {
+        label = 'This Week';
+      } else if (d >= today) {
+        label = 'Later';
+      } else {
+        label = d.toLocaleDateString('en-NG', { weekday: 'short', month: 'short', day: 'numeric' });
+      }
+
+      if (!currentGroup || currentGroup.label !== label) {
+        currentGroup = { label, events: [event] };
+        groups.push(currentGroup);
+      } else {
+        currentGroup.events.push(event);
+      }
+    }
+    return groups;
+  }, [sortedEvents]);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Loader2 className="h-6 w-6 animate-spin text-cyan mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading calendar...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <AlertTriangle className="h-6 w-6 text-amber mx-auto" />
+          <p className="text-sm text-muted-foreground">Failed to load calendar</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Countdown Card */}
+      {nextEvent && <CountdownCard event={nextEvent} />}
+
+      {/* Upcoming Events Strip */}
+      {upcomingStrip.length > 0 && (
+        <div className="px-4 py-2.5 border-b border-border shrink-0 bg-card/30">
+          <div className="flex items-center gap-2 mb-2">
+            <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Upcoming Events</span>
+          </div>
+          <ScrollArea className="w-full" type="scroll">
+            <div className="flex gap-2 pb-1">
+              {upcomingStrip.map(ev => (
+                <button
+                  key={ev.id}
+                  onClick={() => scrollToEvent(ev.id)}
+                  className="shrink-0 rounded-lg border border-border bg-card/60 hover:bg-card/90 transition-colors p-2.5 text-left w-44"
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span
+                      className="shrink-0 w-2 h-2 rounded-full"
+                      style={{ backgroundColor: PARTY_HEX_COLORS[ev.party] || '#888' }}
+                    />
+                    <span className="text-[10px] font-medium text-muted-foreground truncate">{ev.party}</span>
+                  </div>
+                  <p className="text-xs font-semibold truncate leading-tight">{ev.title}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 truncate">
+                    {formatEventDate(ev.eventDate)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">{ev.state}</p>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* Timeline */}
+      <div ref={timelineRef} className="flex-1 min-h-0 overflow-y-auto p-4">
+        {sortedEvents.length === 0 ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <Clock className="h-8 w-8 text-muted-foreground/30 mx-auto" />
+              <p className="text-sm text-muted-foreground">No events on the calendar</p>
+              <p className="text-[11px] text-muted-foreground/60">Events will appear here once logged</p>
+            </div>
+          </div>
+        ) : (
+          <div className="relative">
+            {/* Vertical connecting line */}
+            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+
+            <div className="space-y-1">
+              {groupedEvents.map((group, gIdx) => (
+                <div key={group.label + gIdx}>
+                  {/* Date group header */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: gIdx * 0.06, duration: 0.2 }}
+                    className="flex items-center gap-3 mb-2 mt-4 first:mt-0"
+                  >
+                    <span className="text-[11px] font-semibold text-foreground/70 uppercase tracking-wider min-w-[100px]">
+                      {group.label}
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[10px] text-muted-foreground">{group.events.length} event{group.events.length !== 1 ? 's' : ''}</span>
+                  </motion.div>
+
+                  {/* Events in group */}
+                  <div className="space-y-2 pl-5">
+                    {group.events.map((event) => {
+                      const isUpcoming = new Date(event.eventDate) >= new Date();
+                      const hexColor = PARTY_HEX_COLORS[event.party] || '#888';
+                      const globalIdx = sortedEvents.findIndex(e => e.id === event.id);
+
+                      return (
+                        <motion.div
+                          key={event.id}
+                          id={`timeline-event-${event.id}`}
+                          initial={{ opacity: 0, x: -12 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: (globalIdx + 1) * 0.04, duration: 0.3 }}
+                          className={cn(
+                            'relative rounded-xl border bg-card/40 p-3 space-y-2 transition-all duration-300',
+                            highlightedId === event.id
+                              ? 'border-cyan/50 bg-cyan/5 shadow-[0_0_0_2px_rgba(0,180,216,0.15)]'
+                              : 'border-border'
+                          )}
+                        >
+                          {/* Timeline dot */}
+                          <span
+                            className={cn(
+                              'absolute -left-[21px] top-4 w-[14px] h-[14px] rounded-full border-2 border-background',
+                              isUpcoming && 'animate-pulse'
+                            )}
+                            style={{ backgroundColor: hexColor }}
+                          />
+
+                          {/* Date + time row */}
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            <span>{formatEventDate(event.eventDate)}</span>
+                          </div>
+
+                          {/* Title + party */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                              className="shrink-0 w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: hexColor }}
+                            />
+                            <p className="text-xs font-semibold flex-1 min-w-0 truncate">{event.title}</p>
+                            <Badge className={cn('text-[9px] h-4 border', PARTY_COLORS[event.party] || 'border-muted text-muted-foreground')}>
+                              {event.party}
+                            </Badge>
+                          </div>
+
+                          {/* Venue */}
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            <span className="truncate">
+                              {event.state}{event.lga ? ` / ${event.lga}` : ''}{event.venue ? ` • ${event.venue}` : ''}
+                            </span>
+                          </div>
+
+                          {/* Badges row */}
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Badge className={cn('text-[9px] h-4 border', TONE_STYLES[event.tone] || 'border-muted text-muted-foreground')}>
+                              {event.tone}
+                            </Badge>
+
+                            {event.aiFlags && event.aiFlags.length > 0 && event.aiFlags.map(flag => (
+                              <Badge
+                                key={flag}
+                                variant="outline"
+                                className={cn(
+                                  'text-[9px] h-4',
+                                  flag === 'hate_speech_detected'
+                                    ? 'border-rose/30 text-rose'
+                                    : flag.includes('state_resource')
+                                      ? 'border-amber/30 text-amber'
+                                      : 'border-cyan/30 text-cyan'
+                                )}
+                              >
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                {flag.replace(/_/g, ' ')}
+                              </Badge>
+                            ))}
+
+                            {event.estimatedCrowd != null && event.estimatedCrowd > 0 && (
+                              <Badge variant="outline" className="text-[9px] h-4 border-muted text-muted-foreground">
+                                <Users className="h-2.5 w-2.5 mr-0.5" />
+                                {formatNumber(event.estimatedCrowd)}
+                              </Badge>
+                            )}
+
+                            {event.incidentCount > 0 && (
+                              <Badge className="bg-rose/15 text-rose border-rose/30 text-[9px] h-4 border">
+                                <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                                {event.incidentCount} incident{event.incidentCount !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Countdown Card ─────────────────────────────────────────────────────────
+
+function CountdownCard({ event }: { event: CampaignEvent }) {
+  const [countdown, setCountdown] = useState('');
+  const hexColor = PARTY_HEX_COLORS[event.party] || '#888';
+
+  useEffect(() => {
+    function update() {
+      const now = new Date();
+      const target = new Date(event.eventDate);
+      const diff = target.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        const elapsed = Math.abs(diff);
+        const hours = Math.floor(elapsed / 3600000);
+        const mins = Math.floor((elapsed % 3600000) / 60000);
+        if (hours >= 24) {
+          setCountdown(`Started ${Math.floor(hours / 24)}d ${hours % 24}h ago`);
+        } else {
+          setCountdown(`Started ${hours}h ${mins}m ago`);
+        }
+      } else {
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        if (days > 0) {
+          setCountdown(`In ${days}d ${hours}h ${mins}m`);
+        } else if (hours > 0) {
+          setCountdown(`In ${hours}h ${mins}m`);
+        } else {
+          setCountdown(`In ${mins}m`);
+        }
+      }
+    }
+    update();
+    const id = setInterval(update, 30000);
+    return () => clearInterval(id);
+  }, [event.eventDate]);
+
+  return (
+    <div
+      className="mx-4 mt-3 mb-0 rounded-xl border border-border bg-card/60 p-3 flex items-center gap-3 overflow-hidden relative"
+    >
+      {/* Left accent border */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
+        style={{ backgroundColor: hexColor }}
+      />
+
+      <div className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${hexColor}15` }}>
+        <Timer className="h-4 w-4" style={{ color: hexColor }} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Next Rally</p>
+        <p className="text-xs font-semibold truncate">{event.title}</p>
+        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+          <MapPin className="h-3 w-3 shrink-0" />
+          <span className="truncate">{event.state}{event.lga ? ` / ${event.lga}` : ''}</span>
+        </div>
+      </div>
+
+      <div className="shrink-0 text-right">
+        <p className="text-xs font-bold tabular-nums" style={{ color: hexColor }}>{countdown}</p>
+        <Badge className={cn('text-[9px] h-4 border mt-1', PARTY_COLORS[event.party] || 'border-muted text-muted-foreground')}>
+          {event.party}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+// ─── Helpers (Calendar) ─────────────────────────────────────────────────────
+
+function formatEventDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-NG', {
+    weekday: 'short', month: 'short', day: 'numeric',
+  }) + ' \u2022 ' + d.toLocaleTimeString('en-NG', {
+    hour: 'numeric', minute: '2-digit', hour12: true,
+  });
 }
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────

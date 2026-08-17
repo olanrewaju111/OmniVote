@@ -474,3 +474,94 @@
 .animate-ticker-scroll:hover {
   animation-play-state: paused;
 }
+
+/* ═══════════════════════════════════════════════════════
+   MICRO-INTERACTIONS — Phase 4 Transitions
+   ═══════════════════════════════════════════════════════ */
+
+/* Staggered card entrance */
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-card-entrance {
+  animation: card-entrance 0.4s ease-out both;
+}
+
+/* Button ripple effect */
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), oklch(1 0 0 / 0.15), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.btn-ripple:active::after {
+  opacity: 1;
+}
+
+/* Shimmer effect for skeleton cards */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.22 0.006 260 / 0.3) 25%,
+    oklch(0.22 0.006 260 / 0.6) 50%,
+    oklch(0.22 0.006 260 / 0.3) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Bounce-in micro interaction */
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.5s ease-out both;
+}
+
+/* Number count-up pulse */
+@keyframes count-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.animate-count-pulse {
+  animation: count-pulse 0.3s ease-out;
+}
+
+/* Slide-in from left (for sidebar items) */
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out both;
+}
+
+/* Fade-scale for dialogs/modals */
+@keyframes fade-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-scale-in {
+  animation: fade-scale-in 0.2s ease-out both;
+}

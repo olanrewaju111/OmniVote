@@ -22,6 +22,7 @@ interface LiveFeedProps {
   loading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  onIncidentClick?: (incident: Incident) => void;
 }
 
 function severityColor(s: string) {
@@ -54,7 +55,7 @@ function formatTime(date: string | Date) {
   return `${Math.floor(diff / 60)}h ${diff % 60}m ago`;
 }
 
-export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedProps) {
+export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentClick }: LiveFeedProps) {
   const { liveFeedPaused, toggleLiveFeed, incidentFilter, setIncidentFilter } = useDashboardStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -132,11 +133,21 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore }: LiveFeedPr
                     ? 'bg-rose/5 border-rose/20 hover:bg-rose/10'
                     : 'bg-card/60 border-border hover:bg-card/80'
                 )}
-                onClick={() => setExpandedId(expandedId === inc.id ? null : inc.id)}
+                onClick={() => {
+                  if (onIncidentClick) {
+                    onIncidentClick(inc);
+                  } else {
+                    setExpandedId(expandedId === inc.id ? null : inc.id);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setExpandedId(expandedId === inc.id ? null : inc.id);
+                    if (onIncidentClick) {
+                      onIncidentClick(inc);
+                    } else {
+                      setExpandedId(expandedId === inc.id ? null : inc.id);
+                    }
                   }
                 }}
                 tabIndex={0}

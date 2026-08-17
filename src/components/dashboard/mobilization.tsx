@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Upload, Users, Send, CheckCircle, AlertTriangle, Clock,
   BarChart3, Plus, Phone, Shield, FileText, Pause, Play, Loader2,
   X, Eye, MessageCircle, UserPlus, Check, Image, Music, Video, AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { fetchJson } from '@/lib/api';
@@ -182,6 +185,15 @@ export function MobilizationEngine() {
   });
   const [mediaFilter, setMediaFilter] = useState<string>('all');
 
+  // Quick-Compose state
+  const [quickComposeOpen, setQuickComposeOpen] = useState(false);
+  const [quickMessage, setQuickMessage] = useState('');
+  const [quickAudience, setQuickAudience] = useState('all');
+  const [quickMediaType, setQuickMediaType] = useState('whatsapp');
+  const [quickSending, setQuickSending] = useState(false);
+  const [quickProgress, setQuickProgress] = useState(0);
+  const quickTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   // ─── Data fetching ────────────────────────────────────────────────
 
   const { data, isLoading, isError } = useQuery<CampaignData>({
@@ -195,6 +207,54 @@ export function MobilizationEngine() {
   const campaigns = data?.campaigns ?? [];
   const contactLists = data?.contactLists ?? [];
   const stats = data?.stats ?? { totalCampaigns: 0, activeSending: 0, totalDelivered: 0, totalOptOuts: 0, totalContacts: 0 };
+
+  // ─── Quick-Compose constants & helpers ──────────────────────────
+
+  const TEMPLATE_VARIABLES = [
+    { key: '{{agent_name}}', label: 'Agent Name' },
+    { key: '{{state}}', label: 'State' },
+    { key: '{{polling_unit}}', label: 'Polling Unit' },
+    { key: '{{election_date}}', label: 'Election Date' },
+    { key: '{{party}}', label: 'Party' },
+  ] as const;
+
+  const quickAudienceOptions = useMemo(() => [
+    { value: 'all', label: 'All Agents', count: stats.totalContacts || 0 },
+    { value: 'online', label: 'Online Only', count: Math.floor((stats.totalContacts || 0) * 0.68) },
+    { value: 'offline', label: 'Offline Agents', count: Math.floor((stats.totalContacts || 0) * 0.32) },
+    { value: 'no_reports', label: 'No Reports', count: Math.floor((stats.totalContacts || 0) * 0.15) },
+  ], [stats.totalContacts]);
+
+  function getQuickAudienceCount() {
+    return quickAudienceOptions.find(o => o.value === quickAudience)?.count ?? 0;
+  }
+
+  function getDeliveryEstimate() {
+    if (quickMediaType === 'whatsapp') return '~2-5 min';
+    if (quickMediaType === 'sms') return '~5-15 min';
+    return '~3-10 min';
+  }
+
+  function getChannelLabel() {
+    if (quickMediaType === 'whatsapp') return 'WhatsApp';
+    if (quickMediaType === 'sms') return 'SMS';
+    return 'WhatsApp + SMS';
+  }
+
+  function insertVariable(variable: string) {
+    const textarea = quickTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = quickMessage.slice(0, start);
+    const after = quickMessage.slice(end);
+    const newMsg = before + variable + after;
+    setQuickMessage(newMsg);
+    requestAnimationFrame(() => {
+      textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+      textarea.focus();
+    });
+  }
 
   const allTemplates = useMemo(
     () => {
@@ -314,6 +374,50 @@ export function MobilizationEngine() {
     setDetailOpen(true);
   }
 
+  async function handleQuickSend() {
+    if (!quickMessage.trim()) return;
+    setQuickSending(true);
+    setQuickProgress(0);
+
+    const audienceCount = getQuickAudienceCount();
+
+    // Simulated progress animation
+    const interval = setInterval(() => {
+      setQuickProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(interval);
+          return 90;
+        }
+        return Math.min(prev + Math.random() * 12 + 4, 90);
+      });
+    }, 300);
+
+    try {
+      await fetchJson(`/api/campaigns?tenantId=${tenantId}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: `Quick Broadcast – ${new Date().toLocaleString('en-NG')}`,
+          templateBody: quickMessage,
+          channel: quickMediaType === 'sms' ? 'SMS' : 'WHATSAPP',
+          rateLimitPerMin: '50',
+        }),
+      });
+      clearInterval(interval);
+      setQuickProgress(100);
+      await new Promise(r => setTimeout(r, 500));
+      toast.success(`Broadcast sent to ~${formatNumber(audienceCount)} agents`);
+      setQuickMessage('');
+      setQuickComposeOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['campaigns', tenantId] });
+    } catch (err) {
+      clearInterval(interval);
+      toast.error(err instanceof Error ? err.message : 'Failed to send broadcast');
+    } finally {
+      setQuickSending(false);
+      setQuickProgress(0);
+    }
+  }
+
   // ─── Loading state ────────────────────────────────────────────────
 
   if (isLoading) {
@@ -394,6 +498,204 @@ export function MobilizationEngine() {
             </Card>
           </motion.div>
         ))}
+      </div>
+
+      {/* ─── Quick-Compose Inline Broadcast ─────────────────────── */}
+      <div className="shrink-0">
+        <div className={cn(
+          "rounded-xl border border-border bg-card/40 overflow-hidden",
+          quickComposeOpen && "border-emerald/30",
+        )}>
+          {/* Toggle header */}
+          <div
+            className={cn(
+              "flex items-center gap-2.5 px-4 py-2.5 cursor-pointer select-none transition-colors hover:bg-muted/20",
+              !quickComposeOpen && "border-l-[3px] border-l-emerald rounded-tl-[9px]",
+            )}
+            onClick={() => setQuickComposeOpen(prev => !prev)}
+          >
+            <Megaphone className="h-4 w-4 text-emerald shrink-0" />
+            <span className="text-sm font-medium">Quick Broadcast</span>
+            {!quickComposeOpen && (
+              <span className="text-[10px] text-muted-foreground ml-1 hidden sm:inline">
+                Send an instant message to your agents
+              </span>
+            )}
+            {quickComposeOpen && (
+              <Badge variant="outline" className="text-[10px] h-5 border-emerald/30 text-emerald bg-emerald/10">
+                Compose
+              </Badge>
+            )}
+            <div className="flex-1" />
+            <motion.div
+              animate={{ rotate: quickComposeOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </motion.div>
+          </div>
+
+          {/* Expandable form */}
+          <AnimatePresence initial={false}>
+            {quickComposeOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="border-l-[3px] border-l-emerald px-4 pb-4 pt-1 space-y-3">
+
+                  {/* Template variable chips */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground font-medium shrink-0 mr-0.5">Insert:</span>
+                    {TEMPLATE_VARIABLES.map(v => (
+                      <button
+                        key={v.key}
+                        type="button"
+                        onClick={() => insertVariable(v.key)}
+                        className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono rounded-md bg-muted/60 border border-border text-muted-foreground hover:text-emerald hover:border-emerald/30 hover:bg-emerald/5 transition-colors cursor-pointer"
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Message textarea */}
+                  <div className="relative">
+                    <Textarea
+                      ref={quickTextareaRef}
+                      value={quickMessage}
+                      onChange={e => {
+                        setQuickMessage(e.target.value.slice(0, 1000));
+                        const el = e.target;
+                        el.style.height = 'auto';
+                        el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+                      }}
+                      placeholder="Type your broadcast message here…"
+                      className="min-h-[72px] max-h-[200px] text-sm rounded-lg resize-none pr-20"
+                      disabled={quickSending}
+                    />
+                    <span
+                      className="absolute bottom-2 right-3 text-[10px] tabular-nums pointer-events-none"
+                      style={{ color: quickMessage.length > 900 ? 'rgb(239 68 68)' : 'hsl(var(--muted-foreground))' }}
+                    >
+                      {quickMessage.length}/1000
+                    </span>
+                  </div>
+
+                  {/* Audience selector chips */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground font-medium shrink-0 mr-0.5">To:</span>
+                    {quickAudienceOptions.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setQuickAudience(opt.value)}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-lg border transition-colors cursor-pointer",
+                          quickAudience === opt.value
+                            ? "border-emerald/40 bg-emerald/10 text-emerald"
+                            : "border-border bg-muted/40 text-muted-foreground hover:text-foreground hover:border-border",
+                        )}
+                      >
+                        {opt.label}
+                        <span className="text-[9px] tabular-nums opacity-70">~{formatNumber(opt.count)}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Media type + delivery estimation + send row */}
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    {/* Media type toggle */}
+                    <ToggleGroup
+                      type="single"
+                      value={quickMediaType}
+                      onValueChange={v => { if (v) setQuickMediaType(v); }}
+                      className="h-8"
+                    >
+                      <ToggleGroupItem
+                        value="whatsapp"
+                        className="h-8 px-3 text-xs gap-1.5 data-[state=on]:bg-emerald/15 data-[state=on]:text-emerald"
+                      >
+                        <MessageCircle className="h-3 w-3" /> WhatsApp
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="sms"
+                        className="h-8 px-3 text-xs gap-1.5 data-[state=on]:bg-amber/15 data-[state=on]:text-amber"
+                      >
+                        <Phone className="h-3 w-3" /> SMS
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="both"
+                        className="h-8 px-3 text-xs gap-1.5 data-[state=on]:bg-cyan/15 data-[state=on]:text-cyan"
+                      >
+                        <Send className="h-3 w-3" /> Both
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+
+                    <div className="flex items-center gap-3">
+                      {/* Delivery estimation */}
+                      <div className="text-[10px] text-muted-foreground text-right leading-tight hidden sm:block">
+                        <div>Est. delivery: <span className="text-foreground font-medium">{getDeliveryEstimate()}</span></div>
+                        <div>Audience: <span className="text-foreground font-medium">~{formatNumber(getQuickAudienceCount())} contacts</span></div>
+                      </div>
+
+                      {/* Send button */}
+                      <Button
+                        size="sm"
+                        className="h-8 text-xs bg-emerald hover:bg-emerald/90 text-emerald-foreground rounded-lg shrink-0"
+                        disabled={quickSending || !quickMessage.trim()}
+                        onClick={handleQuickSend}
+                      >
+                        {quickSending ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <Send className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Send Broadcast
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Progress bar during sending */}
+                  <AnimatePresence>
+                    {quickSending && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Progress value={quickProgress} className="h-1.5 flex-1 bg-emerald/20 [&>div]:bg-emerald" />
+                          <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">{Math.round(quickProgress)}%</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Confirmation summary line */}
+                  {!quickSending && quickMessage.trim() && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Will send to{' '}
+                      <span className="text-foreground font-medium">~{formatNumber(getQuickAudienceCount())} agents</span>{' '}
+                      via <span className="text-foreground font-medium">{getChannelLabel()}</span>
+                    </p>
+                  )}
+
+                  {/* Mobile delivery estimate (shown on small screens) */}
+                  {!quickSending && quickMessage.trim() && (
+                    <div className="text-[10px] text-muted-foreground leading-tight sm:hidden">
+                      <div>Est. delivery: <span className="text-foreground font-medium">{getDeliveryEstimate()}</span> · Audience: <span className="text-foreground font-medium">~{formatNumber(getQuickAudienceCount())}</span></div>
+                    </div>
+                  )}
+
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Tabs */}

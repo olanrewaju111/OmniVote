@@ -24,6 +24,7 @@ import {
 import {
   BarChart3, Trophy, AlertTriangle, Users, Download, Copy, Share2,
   ChevronDown, Smartphone, Monitor, QrCode, Eye, Loader2, Sparkles,
+  MessageCircle, Check, Activity, TrendingUp,
 } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ const GRADIENTS = {
 } as const;
 
 type GradientKey = keyof typeof GRADIENTS;
-type TemplateType = 'results' | 'victory' | 'incident' | 'turnout';
+type TemplateType = 'results' | 'victory' | 'incident' | 'turnout' | 'live-snapshot' | 'turnout-tracker';
 type AspectRatio = 'story' | 'feed';
 
 const TEMPLATE_CONFIG: Record<TemplateType, {
@@ -80,6 +81,20 @@ const TEMPLATE_CONFIG: Record<TemplateType, {
     defaultTitle: 'VOTER TURNOUT UPDATE',
     defaultSubtitle: 'Citizens exercising their democratic right',
     description: 'Turnout progress ring',
+  },
+  'live-snapshot': {
+    icon: Activity,
+    label: 'Live Snapshot',
+    defaultTitle: 'LIVE RESULTS SNAPSHOT',
+    defaultSubtitle: 'Real-time election results — auto-refreshed every 30 seconds',
+    description: 'Auto-generated live results',
+  },
+  'turnout-tracker': {
+    icon: TrendingUp,
+    label: 'Turnout Track',
+    defaultTitle: 'VOTER TURNOUT TRACKER',
+    defaultSubtitle: 'Monitoring voter participation across polling units',
+    description: 'Turnout with sparkline',
   },
 };
 
@@ -120,8 +135,13 @@ function renderCardToCanvas(opts: {
     location: string;
     description: string;
   };
+  electionInfo?: {
+    title: string;
+    status: string;
+  };
+  liveSnapshotTotalVotes?: number;
 }): HTMLCanvasElement {
-  const { template, aspectRatio, title, subtitle, party, showWatermark, showQr, gradient, electionName, results, dashboardStats, incidentInfo } = opts;
+  const { template, aspectRatio, title, subtitle, party, showWatermark, showQr, gradient, electionName, results, dashboardStats, incidentInfo, electionInfo, liveSnapshotTotalVotes } = opts;
 
   const isStory = aspectRatio === 'story';
   const W = isStory ? 1080 : 1200;
@@ -212,6 +232,17 @@ function renderCardToCanvas(opts: {
     drawIncidentContent(ctx, incidentInfo, W, H, contentY, pad, bodySize, smallSize, tinySize, scale, g);
   } else if (template === 'turnout') {
     drawTurnoutContent(ctx, dashboardStats, W, H, contentY, pad, bodySize, smallSize, tinySize, scale, g);
+  } else if (template === 'live-snapshot') {
+    drawLiveSnapshotContent(ctx, {
+      parties: results || [],
+      electionTitle: electionInfo?.title || electionName,
+      electionStatus: electionInfo?.status || 'ACTIVE',
+      totalVotes: liveSnapshotTotalVotes || dashboardStats?.totalVotes || 0,
+      openUnits: dashboardStats?.openUnits || 0,
+      totalPollingUnits: dashboardStats?.totalPollingUnits || 0,
+    }, W, H, contentY, pad, bodySize, smallSize, tinySize, scale, g);
+  } else if (template === 'turnout-tracker') {
+    drawTurnoutTrackerContent(ctx, dashboardStats, W, H, contentY, pad, bodySize, smallSize, tinySize, scale, g);
   }
 
   // ── Subtitle ──
@@ -639,6 +670,336 @@ function drawTurnoutContent(
   ctx.restore();
 }
 
+function drawLiveSnapshotContent(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    parties: ResultParty[];
+    electionTitle: string;
+    electionStatus: string;
+    totalVotes: number;
+    openUnits: number;
+    totalPollingUnits: number;
+  },
+  W: number, H: number,
+  startY: number,
+  pad: number,
+  bodySize: number, smallSize: number, tinySize: number,
+  scale: number,
+  g: typeof GRADIENTS[GradientKey],
+) {
+  const { parties, electionTitle, electionStatus, totalVotes, openUnits, totalPollingUnits } = opts;
+  const sorted = [...parties].sort((a, b) => b.votes - a.votes).slice(0, 4);
+  const maxVotes = sorted[0]?.votes || 1;
+  let y = startY;
+
+  // LIVE badge with pulsing dot
+  ctx.save();
+  const liveColor = '#ef4444';
+  const liveText = electionStatus === 'ACTIVE' ? '● LIVE' : electionStatus;
+  ctx.font = `700 ${smallSize}px system-ui, -apple-system, sans-serif`;
+  const liveW = ctx.measureText(liveText).width + 20;
+  const liveH = smallSize + 14;
+  ctx.fillStyle = liveColor;
+  ctx.globalAlpha = 0.15;
+  ctx.beginPath();
+  ctx.roundRect(pad, y, liveW, liveH, liveH / 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = liveColor;
+  ctx.fillText(liveText, pad + 10, y + liveH - 5);
+  ctx.restore();
+  y += liveH + 16 * scale;
+
+  // Election title
+  ctx.save();
+  ctx.font = `700 ${Math.round(24 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.textBaseline = 'top';
+  ctx.fillText(electionTitle || 'Nigeria General Election', pad, y);
+  ctx.restore();
+  y += 36 * scale;
+
+  // Party bars
+  const barAreaW = W - pad * 2;
+  const barH = Math.round(48 * scale);
+  const barGap = Math.round(16 * scale);
+  const barRadius = Math.round(8 * scale);
+
+  sorted.forEach((p) => {
+    const color = PARTY_COLORS[p.party] || g.accent;
+    const pct = Math.max(0.02, p.votes / maxVotes);
+    const barW = Math.max(4, (barAreaW - 150 * scale) * pct);
+
+    // Party label
+    ctx.save();
+    ctx.font = `700 ${bodySize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.party, pad, y + barH / 2);
+    ctx.restore();
+
+    // Bar background
+    const barX = pad + 72 * scale;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.roundRect(barX, y, barAreaW - 150 * scale, barH, barRadius);
+    ctx.fill();
+
+    // Bar fill
+    const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    barGrad.addColorStop(0, color);
+    barGrad.addColorStop(1, color + 'cc');
+    ctx.fillStyle = barGrad;
+    ctx.beginPath();
+    ctx.roundRect(barX, y, barW, barH, barRadius);
+    ctx.fill();
+    ctx.restore();
+
+    // Percentage
+    ctx.save();
+    ctx.font = `600 ${smallSize}px system-ui, -apple-system, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${p.percentage.toFixed(1)}%`, W - pad, y + barH / 2);
+    ctx.restore();
+
+    y += barH + barGap;
+  });
+
+  y += 8;
+
+  // Stats row
+  const puCoverage = totalPollingUnits > 0 ? Math.round((openUnits / totalPollingUnits) * 1000) / 10 : 0;
+  const statBoxW = (barAreaW - 12 * scale) / 2;
+  const statBoxH = Math.round(64 * scale);
+
+  // Total votes box
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath();
+  ctx.roundRect(pad, y, statBoxW, statBoxH, 10);
+  ctx.fill();
+  ctx.font = `700 ${Math.round(22 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'top';
+  ctx.fillText(totalVotes.toLocaleString(), pad + 14, y + 10);
+  ctx.font = `400 ${tinySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText('TOTAL VOTES COUNTED', pad + 14, y + 40);
+  ctx.restore();
+
+  // PU Coverage box
+  const box2X = pad + statBoxW + 12 * scale;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath();
+  ctx.roundRect(box2X, y, statBoxW, statBoxH, 10);
+  ctx.fill();
+  ctx.font = `700 ${Math.round(22 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = g.accent;
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${puCoverage}%`, box2X + 14, y + 10);
+  ctx.font = `400 ${tinySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText('PU COVERAGE', box2X + 14, y + 40);
+  ctx.restore();
+
+  y += statBoxH + 12 * scale;
+
+  // Timestamp
+  const now = new Date();
+  const watOffset = 60; // WAT = UTC+1
+  const watTime = new Date(now.getTime() + (watOffset + now.getTimezoneOffset()) * 60000);
+  const timeStr = watTime.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+  const dateStr = watTime.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
+
+  ctx.save();
+  ctx.font = `400 ${tinySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`Last updated: ${dateStr} · ${timeStr} WAT`, pad, y);
+  ctx.restore();
+}
+
+function generateSparklineData(currentTurnout: number): number[] {
+  const points: number[] = [];
+  const numPoints = 12;
+  for (let i = 0; i < numPoints - 1; i++) {
+    const base = (currentTurnout * (i + 1)) / numPoints;
+    const noise = Math.sin(i * 2.3) * currentTurnout * 0.06;
+    points.push(Math.max(0, Math.min(100, base + noise)));
+  }
+  points.push(currentTurnout);
+  return points;
+}
+
+function drawTurnoutTrackerContent(
+  ctx: CanvasRenderingContext2D,
+  stats: { totalRegistered: number; totalVotes: number; avgTurnout: number; openUnits: number; totalPollingUnits: number } | undefined,
+  W: number, H: number,
+  startY: number,
+  pad: number,
+  bodySize: number, smallSize: number, tinySize: number,
+  scale: number,
+  g: typeof GRADIENTS[GradientKey],
+) {
+  const registered = stats?.totalRegistered || 0;
+  const votes = stats?.totalVotes || 0;
+  const turnout = stats?.avgTurnout || 0;
+  const y = startY;
+
+  // Large turnout percentage
+  ctx.save();
+  ctx.font = `900 ${Math.round(96 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = g.accent;
+  ctx.textBaseline = 'top';
+  ctx.globalAlpha = 0.15;
+  ctx.fillText(`${turnout.toFixed(1)}`, pad, y);
+  ctx.restore();
+
+  // Big percentage text
+  ctx.save();
+  ctx.font = `900 ${Math.round(80 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`${turnout.toFixed(1)}%`, pad, y);
+  ctx.restore();
+
+  // "TURNOUT" label
+  ctx.save();
+  ctx.font = `500 ${bodySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.textBaseline = 'top';
+  ctx.fillText('VOTER TURNOUT', pad, y + 90 * scale);
+  ctx.restore();
+
+  const barY = y + 130 * scale;
+  const barAreaW = W - pad * 2;
+  const barH = Math.round(16 * scale);
+
+  // Progress bar background
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.roundRect(pad, barY, barAreaW, barH, barH / 2);
+  ctx.fill();
+
+  // Progress bar fill
+  const fillW = Math.max(barH, barAreaW * (turnout / 100));
+  const barGrad = ctx.createLinearGradient(pad, 0, pad + fillW, 0);
+  barGrad.addColorStop(0, g.accent);
+  barGrad.addColorStop(1, g.accent + 'aa');
+  ctx.fillStyle = barGrad;
+  ctx.beginPath();
+  ctx.roundRect(pad, barY, fillW, barH, barH / 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Stats boxes
+  const boxY = barY + 40 * scale;
+  const boxW = (barAreaW - 16 * scale) / 2;
+  const boxH = Math.round(72 * scale);
+
+  // Registered voters
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath();
+  ctx.roundRect(pad, boxY, boxW, boxH, 12);
+  ctx.fill();
+  ctx.font = `700 ${Math.round(26 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'top';
+  ctx.fillText(registered.toLocaleString(), pad + 16, boxY + 12);
+  ctx.font = `400 ${tinySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText('REGISTERED VOTERS', pad + 16, boxY + 46);
+  ctx.restore();
+
+  // Votes counted
+  const box2X = pad + boxW + 16 * scale;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath();
+  ctx.roundRect(box2X, boxY, boxW, boxH, 12);
+  ctx.fill();
+  ctx.font = `700 ${Math.round(26 * scale)}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = g.accent;
+  ctx.textBaseline = 'top';
+  ctx.fillText(votes.toLocaleString(), box2X + 16, boxY + 12);
+  ctx.font = `400 ${tinySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText('VOTES COUNTED', box2X + 16, boxY + 46);
+  ctx.restore();
+
+  // Sparkline
+  const sparkY = boxY + boxH + 28 * scale;
+  const sparkW = barAreaW;
+  const sparkH = Math.round(80 * scale);
+  const data = generateSparklineData(turnout);
+
+  // Sparkline label
+  ctx.save();
+  ctx.font = `400 ${tinySize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.textBaseline = 'top';
+  ctx.fillText('TURNOUT PROGRESSION', pad, sparkY);
+  ctx.restore();
+
+  const sparkTopY = sparkY + 20 * scale;
+
+  // Sparkline area fill
+  ctx.save();
+  ctx.beginPath();
+  const stepX = sparkW / (data.length - 1);
+  ctx.moveTo(pad, sparkTopY + sparkH);
+  for (let i = 0; i < data.length; i++) {
+    const px = pad + i * stepX;
+    const py = sparkTopY + sparkH - (data[i] / 100) * sparkH;
+    if (i === 0) ctx.lineTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.lineTo(pad + (data.length - 1) * stepX, sparkTopY + sparkH);
+  ctx.closePath();
+  const areaGrad = ctx.createLinearGradient(0, sparkTopY, 0, sparkTopY + sparkH);
+  areaGrad.addColorStop(0, g.accent + '30');
+  areaGrad.addColorStop(1, g.accent + '05');
+  ctx.fillStyle = areaGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // Sparkline line
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const px = pad + i * stepX;
+    const py = sparkTopY + sparkH - (data[i] / 100) * sparkH;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = g.accent;
+  ctx.lineWidth = Math.round(2.5 * scale);
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  ctx.restore();
+
+  // End dot
+  ctx.save();
+  const lastX = pad + (data.length - 1) * stepX;
+  const lastY = sparkTopY + sparkH - (data[data.length - 1] / 100) * sparkH;
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, Math.round(4 * scale), 0, Math.PI * 2);
+  ctx.fillStyle = g.accent;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, Math.round(8 * scale), 0, Math.PI * 2);
+  ctx.fillStyle = g.accent + '30';
+  ctx.fill();
+  ctx.restore();
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function SocialCards() {
@@ -656,6 +1017,7 @@ export function SocialCards() {
   const [gradient, setGradient] = useState<GradientKey>('emerald-dark');
   const [settingsOpen, setSettingsOpen] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [copiedSummary, setCopiedSummary] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Fetch results data
@@ -668,6 +1030,7 @@ export function SocialCards() {
 
   // Fetch dashboard stats
   const { data: dashStats } = useQuery<{
+    electionInfo?: { tier: string; title: string; status: string; date: string | null };
     election: {
       totalRegistered: number;
       totalVotes: number;
@@ -720,8 +1083,10 @@ export function SocialCards() {
       results: parties,
       dashboardStats: dashStats?.election,
       incidentInfo,
+      electionInfo: dashStats?.electionInfo,
+      liveSnapshotTotalVotes: resultsData?.totalVotes,
     });
-  }, [template, aspectRatio, title, subtitle, party, showWatermark, showQr, gradient, electionName, parties, dashStats?.election, incidentInfo]);
+  }, [template, aspectRatio, title, subtitle, party, showWatermark, showQr, gradient, electionName, parties, dashStats?.election, dashStats?.electionInfo, incidentInfo, resultsData?.totalVotes]);
 
   // Update preview canvas
   useEffect(() => {
@@ -820,6 +1185,89 @@ export function SocialCards() {
       setIsExporting(false);
     }
   }, [getCanvas, template, title, subtitle, downloadPng]);
+
+  // WhatsApp share text generator
+  const getWhatsAppText = useCallback(() => {
+    const sorted = [...parties].sort((a, b) => b.votes - a.votes);
+    const leading = sorted[0];
+    let stat = '';
+    switch (template) {
+      case 'results':
+      case 'live-snapshot':
+        stat = leading ? `${leading.party} Leads with ${leading.percentage.toFixed(1)}%` : 'Election update';
+        break;
+      case 'victory': {
+        const top = parties.find(p => p.party === party) || leading;
+        stat = top ? `${top.party} at ${top.percentage.toFixed(1)}% — Securing Victory` : 'Victory update';
+        break;
+      }
+      case 'incident':
+        stat = `Election Alert — ${incidentInfo.severity} at ${incidentInfo.location}`;
+        break;
+      case 'turnout':
+      case 'turnout-tracker':
+        stat = `Turnout at ${dashStats?.election?.avgTurnout?.toFixed(1) || '0.0'}%`;
+        break;
+    }
+    return `${stat} — OmniVote Election Monitor`;
+  }, [template, parties, party, incidentInfo, dashStats?.election?.avgTurnout]);
+
+  const shareWhatsApp = useCallback(() => {
+    const text = getWhatsAppText();
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+    toast.success('WhatsApp share opened');
+  }, [getWhatsAppText]);
+
+  // Copy plain text summary
+  const getCardSummary = useCallback(() => {
+    const sorted = [...parties].sort((a, b) => b.votes - a.votes);
+    switch (template) {
+      case 'results':
+      case 'live-snapshot': {
+        const lines = [
+          title,
+          '',
+          ...sorted.slice(0, 4).map(p => `${p.party}: ${p.percentage.toFixed(1)}% (${p.votes.toLocaleString()} votes)`),
+          '',
+          `Total: ${(resultsData?.totalVotes || parties.reduce((s, p) => s + p.votes, 0)).toLocaleString()} votes`,
+        ];
+        if (template === 'live-snapshot') {
+          const coverage = dashStats?.election?.totalPollingUnits
+            ? Math.round((dashStats.election.openUnits / dashStats.election.totalPollingUnits) * 1000) / 10
+            : 0;
+          lines.push(`PU Coverage: ${coverage}%`);
+        }
+        lines.push('', subtitle);
+        return lines.join('\n');
+      }
+      case 'victory': {
+        const top = parties.find(p => p.party === party) || sorted[0];
+        return [title, '', `${top?.party}: ${top?.percentage.toFixed(1)}% (${top?.votes.toLocaleString()} votes)`, '', subtitle].join('\n');
+      }
+      case 'incident':
+        return [title, '', `Severity: ${incidentInfo.severity}`, `Location: ${incidentInfo.location}`, '', incidentInfo.description, '', subtitle].join('\n');
+      case 'turnout':
+      case 'turnout-tracker': {
+        const stats = dashStats?.election;
+        return [title, '', `Turnout: ${stats?.avgTurnout?.toFixed(1) || '0.0'}%`, `Registered: ${(stats?.totalRegistered || 0).toLocaleString()}`, `Votes: ${(stats?.totalVotes || 0).toLocaleString()}`, '', subtitle].join('\n');
+      }
+      default:
+        return title;
+    }
+  }, [template, title, subtitle, parties, party, incidentInfo, dashStats?.election, resultsData?.totalVotes]);
+
+  const copySummary = useCallback(async () => {
+    try {
+      const text = getCardSummary();
+      await navigator.clipboard.writeText(text);
+      setCopiedSummary(true);
+      toast.success('Copied to clipboard!');
+      setTimeout(() => setCopiedSummary(false), 2000);
+    } catch {
+      toast.error('Failed to copy — check clipboard permissions');
+    }
+  }, [getCardSummary]);
 
   const isStory = aspectRatio === 'story';
 
@@ -1067,7 +1515,7 @@ export function SocialCards() {
 
           {/* Action bar */}
           <div className="border-t border-border/40 p-3 space-y-2">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <Button
                 size="sm"
                 onClick={downloadPng}
@@ -1079,7 +1527,16 @@ export function SocialCards() {
                 ) : (
                   <Download className="h-3.5 w-3.5" />
                 )}
-                Download
+                <span className="hidden xl:inline ml-1">Download</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={shareWhatsApp}
+                className="bg-[#25D366] hover:bg-[#25D366]/90 text-white border-0 text-xs h-9"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline ml-1">WhatsApp</span>
               </Button>
               <Button
                 size="sm"
@@ -1093,7 +1550,7 @@ export function SocialCards() {
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
-                Copy
+                <span className="hidden xl:inline ml-1">Image</span>
               </Button>
               <Button
                 size="sm"
@@ -1107,9 +1564,31 @@ export function SocialCards() {
                 ) : (
                   <Share2 className="h-3.5 w-3.5" />
                 )}
-                Share
+                <span className="hidden xl:inline ml-1">Share</span>
               </Button>
             </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={copySummary}
+              className="w-full text-xs h-8 text-muted-foreground hover:text-foreground"
+            >
+              {copiedSummary ? (
+                <motion.span
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className="flex items-center gap-1.5 text-emerald"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Copied!
+                </motion.span>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy Summary
+                </span>
+              )}
+            </Button>
             <p className="text-[10px] text-muted-foreground/50 text-center">
               {isStory ? '1080 × 1920px' : '1200 × 628px'} · PNG
             </p>

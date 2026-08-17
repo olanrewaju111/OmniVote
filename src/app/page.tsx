@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Map, BarChart3, ShieldAlert, Lock } from 'lucide-react';
@@ -24,6 +24,8 @@ import { cn } from '@/lib/utils';
 import { QuickActionsFab } from '@/components/dashboard/quick-actions-fab';
 import { ElectionTicker } from '@/components/dashboard/election-ticker';
 import { ElectionTracker } from '@/components/dashboard/election-tracker';
+import { ElectionSummaryInfographic } from '@/components/dashboard/election-summary-infographic';
+import { IncidentDetailSlideover } from '@/components/dashboard/incident-detail-slideover';
 
 // Tab display labels for breadcrumbs & toasts
 const TAB_LABELS: Record<string, string> = {
@@ -393,10 +395,10 @@ export default function Home() {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, y: 12, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.995 }}
+              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
               className="h-full"
               role="tabpanel"
               aria-label={`${activeTab.replace(/-/g, ' ')} panel`}
@@ -580,6 +582,20 @@ function OverviewTab({
 }) {
   const { setSelectedTab, user } = useDashboardStore();
 
+  // Incident detail slideover state (shared with LiveFeed via callback)
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [slideoverOpen, setSlideoverOpen] = useState(false);
+
+  const handleIncidentClick = useCallback((inc: Incident) => {
+    setSelectedIncident(inc);
+    setSlideoverOpen(true);
+  }, []);
+
+  const handleSlideoverClose = useCallback(() => {
+    setSlideoverOpen(false);
+    setSelectedIncident(null);
+  }, []);
+
   const criticalCount = incidents.filter(i => i.severity === 'CRITICAL').length;
   const recentIncidents = incidents.slice(0, 5);
 
@@ -614,10 +630,13 @@ function OverviewTab({
 
       {/* Quick action cards — stack on small screens */}
       <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        {visibleActions.map((action) => (
-          <button
+        {visibleActions.map((action, idx) => (
+          <motion.button
             key={action.tab}
             onClick={() => setSelectedTab(action.tab)}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: idx * 0.06, ease: 'easeOut' }}
             className="rounded-lg border border-border/60 bg-card/30 hover:bg-card/50 p-3 text-left transition-all duration-200 card-lift group"
           >
             <div className={cn('p-1.5 rounded-md w-fit mb-2 transition-colors', action.bg)}>
@@ -625,9 +644,16 @@ function OverviewTab({
             </div>
             <p className="text-xs font-medium leading-tight">{action.label}</p>
             <p className="text-[10px] text-muted-foreground/50 mt-0.5">{action.desc}</p>
-          </button>
+          </motion.button>
         ))}
       </div>
+
+      {/* Election Summary Infographic — shareable snapshot */}
+      {!isFieldAgent && (
+        <div className="shrink-0">
+          <ElectionSummaryInfographic />
+        </div>
+      )}
 
       {/* Election Tracker — political intelligence widget */}
       {!isFieldAgent && (
@@ -639,9 +665,16 @@ function OverviewTab({
       {/* Feed: takes remaining space */}
       <div className="flex-1 min-h-0">
         <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-          <LiveFeed incidents={incidents.slice(0, 25)} />
+          <LiveFeed incidents={incidents.slice(0, 25)} onIncidentClick={handleIncidentClick} />
         </div>
       </div>
+
+      {/* Incident Detail Slideover */}
+      <IncidentDetailSlideover
+        incident={selectedIncident}
+        open={slideoverOpen}
+        onClose={handleSlideoverClose}
+      />
     </div>
   );
 }
