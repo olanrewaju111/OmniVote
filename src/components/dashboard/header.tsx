@@ -21,6 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { NotificationBell } from '@/components/dashboard/notification-center';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface BreadcrumbData {
@@ -423,98 +424,7 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
           )}
 
           {/* Notifications Bell */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="relative h-7 w-7 p-0 bg-background/60 border-border/60"
-                aria-label={recentUnread.length > 0 ? `Notifications, ${recentUnread.length} unread` : 'Notifications'}
-              >
-                <Bell className="h-3.5 w-3.5" />
-                {recentUnread.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-[8px] font-bold flex items-center justify-center text-white ring-2 ring-background">
-                    {recentUnread.length > 9 ? '9+' : recentUnread.length}
-                  </span>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 p-0 glass-strong" role="region" aria-label="Notifications">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                <DropdownMenuLabel className="p-0 text-xs font-semibold">
-                  Notifications
-                  {recentUnread.length > 0 && (
-                    <Badge variant="destructive" className="ml-1.5 text-[9px] h-4 min-w-4 px-1">{recentUnread.length}</Badge>
-                  )}
-                </DropdownMenuLabel>
-                {unreadAlerts.length > 0 && (
-                  <button
-                    onClick={(e) => { e.preventDefault(); markAllRead.mutate(); }}
-                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded hover:bg-accent"
-                  >
-                    <CheckCheck className="h-3 w-3" aria-hidden="true" />
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              <ScrollArea className="max-h-72">
-                {recentUnread.length > 0 ? (
-                  <div className="py-1">
-                    {recentUnread.map((alert) => (
-                      <div
-                        key={alert.id}
-                        className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/40 transition-colors group"
-                      >
-                        <div className="mt-0.5 shrink-0">{categoryIcon(alert.category)}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'text-[9px] h-4 border px-1',
-                                alert.type === 'SECURITY'
-                                  ? 'text-rose border-rose/30 bg-rose/10'
-                                  : 'text-cyan border-cyan/30 bg-cyan/10'
-                              )}
-                            >
-                              {alert.category}
-                            </Badge>
-                            <span className="text-[9px] text-muted-foreground/60 flex items-center gap-0.5">
-                              <Clock className="h-2.5 w-2.5" aria-hidden="true" />
-                              {relativeTime(alert.createdAt)}
-                            </span>
-                          </div>
-                          <p className="text-[11px] font-medium mt-0.5 truncate">{alert.title}</p>
-                          <p className="text-[10px] text-muted-foreground/60 line-clamp-1">{alert.description}</p>
-                        </div>
-                        <button
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); markRead.mutate(alert.id); }}
-                          className="shrink-0 mt-1 p-1 rounded text-muted-foreground/40 hover:text-emerald opacity-0 group-hover:opacity-100 transition-all"
-                          title="Mark as read"
-                          aria-label="Mark notification as read"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground text-xs">
-                    <Bell className="h-5 w-5 mx-auto mb-1.5 opacity-20" aria-hidden="true" />
-                    <p className="font-medium text-foreground/50">All caught up</p>
-                    <p className="text-[10px] mt-0.5 text-muted-foreground/50">No new notifications</p>
-                  </div>
-                )}
-              </ScrollArea>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="justify-center text-[11px] text-muted-foreground py-2 cursor-pointer"
-                onClick={() => setSelectedTab('alerts')}
-              >
-                View all alerts
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <NotificationBell />
 
           <Separator orientation="vertical" className="h-6 bg-border/60" />
 

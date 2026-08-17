@@ -1,0 +1,844 @@
+'use client';
+
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
+import { useDashboardStore } from '@/store/dashboard';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Trophy,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ShieldCheck,
+  ShieldAlert,
+  MapPin,
+  Activity,
+  BarChart3,
+  Loader2,
+  Sparkles,
+} from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface PartyResult {
+  party: string;
+  votes: number;
+  percentage: number;
+  states: number;
+  trend: 'up' | 'down' | 'stable';
+}
+
+interface SwingState {
+  name: string;
+  leadingParty: string;
+  leadingPartyColor: string;
+  margin: number;
+  totalVotes: number;
+  status: 'SAFE' | 'LEANING' | 'TIGHT RACE';
+}
+
+interface VictoryProjection {
+  projectedWinner: string;
+  confidence: number;
+  secured: number;
+  contested: number;
+  leaningOpposition: number;
+}
+
+// Raw API shapes
+interface RawResult {
+  id: string;
+  partyResults: Array<{ party: string; votes: number }>;
+  pollingUnit: { state: string; lga: string; totalVotes: number };
+  totalVotesCast: number;
+}
+
+interface RawPvtSubmission {
+  id: string;
+  partyResults: Array<{ party: string; votes: number }>;
+  pollingUnit: { state: string; lga: string };
+  isVerified: boolean;
+  totalVotesCast: number;
+}
+
+interface OsintData {
+  posts: Array<{ sentiment: string }>;
+  counts: {
+    total: number;
+    bySentiment: Record<string, number>;
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const PARTY_COLORS: Record<string, string> = {
+  APC: '#008751',
+  PDP: '#CE1126',
+  LP: '#2196F3',
+  NNPP: '#FF9800',
+};
+
+const PARTY_COLOR_MAPPINGS: Record<string, string> = {
+  APC: '#008751',
+  PDP: '#CE1126',
+  LP: '#2196F3',
+  NNPP: '#FF9800',
+  SDP: '#9C27B0',
+  ADC: '#FF5722',
+  YPP: '#4CAF50',
+  APP: '#00BCD4',
+};
+
+const DEFAULT_PARTY_COLOR = '#607D8B';
+
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    background: 'oklch(0.18 0.006 260)',
+    border: '1px solid oklch(0.28 0.01 260)',
+    borderRadius: 8,
+    fontSize: 12,
+  },
+  labelStyle: { color: 'oklch(0.9 0 0)' },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TREND ARROW COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function TrendArrow({ trend }: { trend: 'up' | 'down' | 'stable' }) {
+  if (trend === 'up') {
+    return <TrendingUp className="h-3.5 w-3.5 text-emerald shrink-0" />;
+  }
+  if (trend === 'down') {
+    return <TrendingDown className="h-3.5 w-3.5 text-rose shrink-0" />;
+  }
+  return <Minus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 1. VICTORY PROJECTION PANEL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function VictoryProjectionCard({ projection, partyResults }: {
+  projection: VictoryProjection;
+  partyResults: PartyResult[];
+}) {
+  const winnerColor = PARTY_COLOR_MAPPINGS[projection.projectedWinner] || DEFAULT_PARTY_COLOR;
+  const runnerUp = partyResults.length > 1 ? partyResults[1] : null;
+  const gap = runnerUp ? (projection.confidence - (100 - projection.confidence)) : projection.confidence;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      <Card className="border border-border/60 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <CardHeader className="pb-3 pt-4 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-emerald/10">
+                <Trophy className="h-4 w-4 text-emerald" />
+              </div>
+              <CardTitle className="text-sm font-semibold">Victory Projection</CardTitle>
+            </div>
+            <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] font-semibold">
+              <Sparkles className="h-3 w-3 mr-1" />
+              PVT-BASED
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* Winner display */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 glow-emerald"
+                style={{ backgroundColor: winnerColor }}
+              >
+                {projection.projectedWinner.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">Projected Winner</p>
+                <p className="text-xl font-bold tabular-nums" style={{ color: winnerColor }}>
+                  {projection.projectedWinner}
+                </p>
+                {runnerUp && (
+                  <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                    +{gap.toFixed(1)}pts ahead of {runnerUp.party}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Confidence meter */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">Win Confidence</span>
+                <span className="text-sm font-bold tabular-nums text-emerald">{projection.confidence}%</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full bg-emerald progress-bar-striped"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${projection.confidence}%` }}
+                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground/40 mt-1">Based on {partyResults.reduce((s, p) => s + p.votes, 0).toLocaleString()} verified votes</p>
+            </div>
+
+            {/* State counts */}
+            <div className="flex gap-3 sm:gap-4 shrink-0">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <ShieldCheck className="h-3 w-3 text-emerald" />
+                  <span className="text-lg font-bold tabular-nums text-emerald">{projection.secured}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">Secured</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <Activity className="h-3 w-3 text-amber" />
+                  <span className="text-lg font-bold tabular-nums text-amber">{projection.contested}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">Contested</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-1">
+                  <ShieldAlert className="h-3 w-3 text-rose" />
+                  <span className="text-lg font-bold tabular-nums text-rose">{projection.leaningOpposition}</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">Leaning Opp.</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 2. PARTY PERFORMANCE LEADERBOARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function PartyLeaderboard({ parties }: { parties: PartyResult[] }) {
+  return (
+    <Card className="border border-border/60 bg-card/50 backdrop-blur-sm">
+      <CardHeader className="pb-3 pt-4 px-4">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-md bg-cyan/10">
+            <BarChart3 className="h-4 w-4 text-cyan" />
+          </div>
+          <CardTitle className="text-sm font-semibold">Party Leaderboard</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        <div className="space-y-1.5">
+          <AnimatePresence mode="popLayout">
+            {parties.map((party, idx) => {
+              const isLeading = idx === 0;
+              const partyColor = PARTY_COLOR_MAPPINGS[party.party] || DEFAULT_PARTY_COLOR;
+              return (
+                <motion.div
+                  key={party.party}
+                  layoutId={`party-${party.party}`}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.35, delay: idx * 0.06 }}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all duration-200',
+                    isLeading
+                      ? 'bg-emerald/5 border border-emerald/20 glow-emerald'
+                      : 'hover:bg-secondary/40',
+                  )}
+                >
+                  {/* Rank */}
+                  <span className={cn(
+                    'w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0',
+                    isLeading
+                      ? 'bg-emerald/15 text-emerald'
+                      : idx === 1
+                        ? 'bg-amber/15 text-amber'
+                        : idx === 2
+                          ? 'bg-rose/15 text-rose'
+                          : 'bg-secondary text-muted-foreground',
+                  )}>
+                    {idx + 1}
+                  </span>
+
+                  {/* Party color dot + code */}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: partyColor }}
+                    />
+                    <span className="text-xs font-semibold truncate">{party.party}</span>
+                    {isLeading && (
+                      <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[9px] px-1.5 py-0 h-4 font-bold">
+                        LEADING
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Trend */}
+                  <TrendArrow trend={party.trend} />
+
+                  {/* States */}
+                  <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 hidden sm:block">
+                    {party.states} states
+                  </span>
+
+                  {/* Percentage */}
+                  <span
+                    className="text-xs font-bold tabular-nums shrink-0 w-10 text-right"
+                    style={{ color: isLeading ? partyColor : undefined }}
+                  >
+                    {party.percentage.toFixed(1)}%
+                  </span>
+
+                  {/* Votes */}
+                  <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0 w-16 text-right hidden md:block">
+                    {party.votes.toLocaleString()}
+                  </span>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 3. MINI RESULTS CHART (Horizontal Bar)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function MiniResultsChart({ data }: { data: Array<{ name: string; value: number; fill: string }> }) {
+  return (
+    <Card className="border border-border/60 bg-card/50 backdrop-blur-sm">
+      <CardHeader className="pb-3 pt-4 px-4">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-md bg-amber/10">
+            <BarChart3 className="h-4 w-4 text-amber" />
+          </div>
+          <CardTitle className="text-sm font-semibold">Vote Distribution</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              layout="vertical"
+              data={data}
+              margin={{ top: 0, right: 40, bottom: 0, left: 0 }}
+              barCategoryGap="20%"
+            >
+              <XAxis
+                type="number"
+                tick={{ fontSize: 10, fill: 'oklch(0.6 0 0)' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 11, fontWeight: 600, fill: 'oklch(0.85 0 0)' }}
+                axisLine={false}
+                tickLine={false}
+                width={42}
+              />
+              <Tooltip
+                {...TOOLTIP_STYLE}
+                formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+                cursor={{ fill: 'oklch(0.22 0.008 260 / 0.4)' }}
+              />
+              <Bar
+                dataKey="value"
+                radius={[0, 4, 4, 0]}
+                animationDuration={1200}
+                animationEasing="ease-out"
+              >
+                {data.map((entry, idx) => (
+                  <Cell key={`cell-${idx}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex items-center justify-center gap-3 mt-2">
+          {data.map((d) => (
+            <div key={d.name} className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.fill }} />
+              <span className="text-[10px] text-muted-foreground/60">{d.name}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 4. KEY SWING STATE INDICATORS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SwingStateCard({ state }: { state: SwingState }) {
+  const statusConfig: Record<string, { color: string; bg: string; border: string }> = {
+    'SAFE': { color: 'text-emerald', bg: 'bg-emerald/15', border: 'border-emerald/30' },
+    'LEANING': { color: 'text-amber', bg: 'bg-amber/15', border: 'border-amber/30' },
+    'TIGHT RACE': { color: 'text-rose', bg: 'bg-rose/15', border: 'border-rose/30' },
+  };
+  const sc = statusConfig[state.status] || statusConfig['LEANING'];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-lg border border-border/60 bg-card/40 backdrop-blur-sm p-3 card-lift"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <MapPin className="h-3 w-3 text-muted-foreground/40" />
+          <span className="text-xs font-semibold truncate">{state.name}</span>
+        </div>
+        <Badge className={cn('text-[9px] px-1.5 py-0 h-4 font-bold', sc.bg, sc.color, sc.border)}>
+          {state.status}
+        </Badge>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <div
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: state.leadingPartyColor }}
+          />
+          <span className="text-[11px] font-semibold" style={{ color: state.leadingPartyColor }}>
+            {state.leadingParty}
+          </span>
+        </div>
+        <span className={cn('text-[11px] font-bold tabular-nums', sc.color)}>
+          +{state.margin.toFixed(1)}%
+        </span>
+      </div>
+      <p className="text-[10px] text-muted-foreground/40 mt-1 tabular-nums">
+        {state.totalVotes.toLocaleString()} votes counted
+      </p>
+    </motion.div>
+  );
+}
+
+function SwingStatesGrid({ states }: { states: SwingState[] }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.2 }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <div className="p-1.5 rounded-md bg-violet/10">
+          <MapPin className="h-4 w-4 text-violet" />
+        </div>
+        <h3 className="text-sm font-semibold">Key Swing States</h3>
+        <Badge className="bg-violet/15 text-violet border-violet/30 text-[10px] font-semibold ml-1">
+          {states.length} critical
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {states.map((s) => (
+          <SwingStateCard key={s.name} state={s} />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5. SENTIMENT PULSE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SentimentPulse({ sentiment }: {
+  sentiment: { positive: number; negative: number; neutral: number };
+}) {
+  const chips = [
+    {
+      label: 'Positive Sentiment',
+      value: sentiment.positive,
+      color: 'text-emerald',
+      bg: 'bg-emerald/10',
+      border: 'border-emerald/20',
+      trend: 'up' as const,
+    },
+    {
+      label: 'Negative Sentiment',
+      value: sentiment.negative,
+      color: 'text-rose',
+      bg: 'bg-rose/10',
+      border: 'border-rose/20',
+      trend: 'down' as const,
+    },
+    {
+      label: 'Neutral',
+      value: sentiment.neutral,
+      color: 'text-muted-foreground',
+      bg: 'bg-secondary',
+      border: 'border-border/60',
+      trend: 'stable' as const,
+    },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+        className="flex items-center gap-2"
+      >
+        <div className="p-1.5 rounded-md bg-cyan/10">
+          <Activity className="h-4 w-4 text-cyan" />
+        </div>
+        <span className="text-sm font-semibold">Sentiment Pulse</span>
+      </motion.div>
+      <div className="grid grid-cols-3 gap-2">
+      {chips.map((chip) => (
+        <motion.div
+          key={chip.label}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+          className={cn(
+            'flex items-center gap-2 rounded-lg border bg-card/40 px-3 py-2.5 transition-all duration-200 card-lift',
+            chip.border,
+          )}
+        >
+          <div className={cn('p-1.5 rounded-md shrink-0', chip.bg)}>
+            <TrendArrow trend={chip.trend} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] text-muted-foreground/50 block leading-tight truncate">
+              {chip.label}
+            </span>
+            <span className={cn('text-sm font-bold tabular-nums block leading-tight', chip.color)}>
+              {chip.value}%
+            </span>
+          </div>
+        </motion.div>
+      ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOADING SKELETON
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function TrackerSkeleton() {
+  return (
+    <div className="space-y-4">
+      {/* Victory projection skeleton */}
+      <div className="rounded-xl border border-border/60 bg-card/50 p-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl skeleton" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-28 skeleton" />
+            <div className="h-5 w-16 skeleton" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-24 skeleton" />
+            <div className="h-2.5 w-full rounded-full skeleton" />
+          </div>
+        </div>
+      </div>
+      {/* Middle grid skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        <div className="lg:col-span-3 rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
+          <div className="h-3 w-32 skeleton" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-10 skeleton rounded-lg" />
+          ))}
+        </div>
+        <div className="lg:col-span-2 rounded-xl border border-border/60 bg-card/50 p-4">
+          <div className="h-3 w-32 skeleton mb-3" />
+          <div className="h-40 skeleton rounded-lg" />
+        </div>
+      </div>
+      {/* Swing states skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-lg skeleton" />
+        ))}
+      </div>
+      {/* Sentiment skeleton */}
+      <div className="grid grid-cols-3 gap-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-14 rounded-lg skeleton" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function ElectionTracker() {
+  const { tenantId } = useDashboardStore();
+
+  // ── Data Fetches ──────────────────────────────────────────────────────────
+
+  const resultsQuery = useQuery({
+    queryKey: ['election-tracker-results', tenantId],
+    queryFn: () => fetchJson<{ results: RawResult[] }>(`/api/results?tenantId=${tenantId}`),
+    refetchInterval: 30_000,
+    enabled: !!tenantId,
+  });
+
+  const pvtQuery = useQuery({
+    queryKey: ['election-tracker-pvt', tenantId],
+    queryFn: () => fetchJson<{
+      pvtSubmissions: RawPvtSubmission[];
+      partyTotals: Array<{ party: string; votes: number }>;
+      coverage: { totalPollingUnits: number; pvtCoveredUnits: number; coveragePct: number };
+    }>(`/api/pvt?tenantId=${tenantId}`),
+    refetchInterval: 45_000,
+    enabled: !!tenantId,
+  });
+
+  const osintQuery = useQuery({
+    queryKey: ['election-tracker-osint', tenantId],
+    queryFn: () => fetchJson<OsintData>(`/api/osint?tenantId=${tenantId}&limit=5`),
+    refetchInterval: 60_000,
+    enabled: !!tenantId,
+  });
+
+  // ── Data Processing ──────────────────────────────────────────────────────
+
+  const { partyResults, swingStates, chartData, victoryProjection, sentiment } = useMemo(() => {
+    const results = resultsQuery.data?.results || [];
+    const pvtSubmissions = pvtQuery.data?.pvtSubmissions || [];
+    const pvtPartyTotals = pvtQuery.data?.partyTotals || [];
+    const osintCounts = osintQuery.data?.counts?.bySentiment || {};
+    const osintTotal = osintQuery.data?.counts?.total || 0;
+
+    // ── Aggregate results by party ──────────────────────────────────────
+    const partyVotesMap: Record<string, number> = {};
+    const partyStatesMap: Record<string, Set<string>> = {};
+    const stateTotalsMap: Record<string, { partyVotes: Record<string, number>; total: number }> = {};
+
+    // From official results
+    for (const r of results) {
+      const state = r.pollingUnit?.state || 'Unknown';
+      if (!stateTotalsMap[state]) {
+        stateTotalsMap[state] = { partyVotes: {}, total: 0 };
+      }
+      for (const p of r.partyResults || []) {
+        partyVotesMap[p.party] = (partyVotesMap[p.party] || 0) + p.votes;
+        stateTotalsMap[state].partyVotes[p.party] = (stateTotalsMap[state].partyVotes[p.party] || 0) + p.votes;
+        stateTotalsMap[state].total += p.votes;
+        if (!partyStatesMap[p.party]) partyStatesMap[p.party] = new Set();
+        if (p.votes > 0) partyStatesMap[p.party].add(state);
+      }
+    }
+
+    // Merge PVT party totals (supplementary data)
+    for (const pt of pvtPartyTotals) {
+      partyVotesMap[pt.party] = (partyVotesMap[pt.party] || 0) + pt.votes;
+    }
+
+    // Also aggregate from PVT submissions by state
+    for (const s of pvtSubmissions) {
+      const state = s.pollingUnit?.state || 'Unknown';
+      if (!stateTotalsMap[state]) {
+        stateTotalsMap[state] = { partyVotes: {}, total: 0 };
+      }
+      for (const p of s.partyResults || []) {
+        stateTotalsMap[state].partyVotes[p.party] = (stateTotalsMap[state].partyVotes[p.party] || 0) + p.votes;
+        stateTotalsMap[state].total += p.votes;
+        if (!partyStatesMap[p.party]) partyStatesMap[p.party] = new Set();
+        if (p.votes > 0) partyStatesMap[p.party].add(state);
+      }
+    }
+
+    // Build party results
+    const totalVotes = Object.values(partyVotesMap).reduce((s, v) => s + v, 0);
+    const sortedParties = Object.entries(partyVotesMap)
+      .map(([party, votes]) => ({
+        party,
+        votes,
+        percentage: totalVotes > 0 ? (votes / totalVotes) * 100 : 0,
+        states: partyStatesMap[party]?.size || 0,
+        trend: 'stable' as 'up' | 'down' | 'stable',
+      }))
+      .sort((a, b) => b.votes - a.votes);
+
+    // Assign trends (simulate based on position — in production, compare with previous snapshot)
+    if (sortedParties.length > 1) {
+      const topPct = sortedParties[0].percentage;
+      const secondPct = sortedParties[1].percentage;
+      const diff = topPct - secondPct;
+      sortedParties[0].trend = diff > 10 ? 'up' : diff > 3 ? 'stable' : 'stable';
+      sortedParties[1].trend = diff > 10 ? 'down' : diff > 3 ? 'stable' : 'up';
+      for (let i = 2; i < sortedParties.length; i++) {
+        sortedParties[i].trend = i < sortedParties.length - 1 ? 'stable' : 'down';
+      }
+    }
+
+    // ── Swing states (top 8 closest races) ───────────────────────────────
+    const stateMargins: SwingState[] = [];
+    for (const [state, data] of Object.entries(stateTotalsMap)) {
+      if (data.total === 0) continue;
+      const sorted = Object.entries(data.partyVotes).sort((a, b) => b[1] - a[1]);
+      if (sorted.length < 2) continue;
+      const [firstParty, firstVotes] = sorted[0];
+      const secondVotes = sorted[1][1];
+      const margin = data.total > 0 ? ((firstVotes - secondVotes) / data.total) * 100 : 0;
+      const status: SwingState['status'] = margin < 5 ? 'TIGHT RACE' : margin < 15 ? 'LEANING' : 'SAFE';
+      stateMargins.push({
+        name: state,
+        leadingParty: firstParty,
+        leadingPartyColor: PARTY_COLOR_MAPPINGS[firstParty] || DEFAULT_PARTY_COLOR,
+        margin,
+        totalVotes: data.total,
+        status,
+      });
+    }
+    // Sort by margin ascending (tightest first) and take top 8
+    stateMargins.sort((a, b) => a.margin - b.margin);
+    const topSwingStates = stateMargins.slice(0, 8);
+
+    // ── Chart data (top 4 parties) ──────────────────────────────────────
+    const chartData = sortedParties.slice(0, 4).map((p) => ({
+      name: p.party,
+      value: p.percentage,
+      fill: PARTY_COLORS[p.party] || PARTY_COLOR_MAPPINGS[p.party] || DEFAULT_PARTY_COLOR,
+    }));
+
+    // ── Victory projection (from PVT data) ──────────────────────────────
+    const pvtTotal = pvtPartyTotals.reduce((s, p) => s + p.votes, 0);
+    let projectedWinner = 'N/A';
+    let confidence = 0;
+    if (pvtPartyTotals.length > 0) {
+      projectedWinner = pvtPartyTotals[0].party;
+      const topVotes = pvtPartyTotals[0].votes;
+      const secondVotes = pvtPartyTotals.length > 1 ? pvtPartyTotals[1].votes : 0;
+      confidence = pvtTotal > 0 ? Math.min(Math.round((topVotes / pvtTotal) * 100), 99) : 0;
+      // Boost confidence if gap is significant
+      if (secondVotes > 0) {
+        const gap = ((topVotes - secondVotes) / pvtTotal) * 100;
+        confidence = Math.min(Math.round(confidence + gap * 0.5), 99);
+      }
+    } else if (sortedParties.length > 0) {
+      projectedWinner = sortedParties[0].party;
+      confidence = Math.round(sortedParties[0].percentage);
+    }
+
+    // Count states by status
+    const allStates = Object.entries(stateTotalsMap).map(([state, data]) => {
+      const sorted = Object.entries(data.partyVotes).sort((a, b) => b[1] - a[1]);
+      if (sorted.length < 2) return { state, status: 'SAFE' as const, leader: projectedWinner };
+      const margin = data.total > 0 ? ((sorted[0][1] - sorted[1][1]) / data.total) * 100 : 100;
+      return { state, status: margin < 5 ? 'TIGHT RACE' : margin < 15 ? 'LEANING' : 'SAFE', leader: sorted[0][0] };
+    });
+    const secured = allStates.filter(s => s.status === 'SAFE' && s.leader === projectedWinner).length;
+    const contested = allStates.filter(s => s.status === 'LEANING').length;
+    const leaningOpposition = allStates.filter(s => s.status === 'TIGHT RACE' || (s.status === 'LEANING' && s.leader !== projectedWinner)).length;
+
+    const victoryProjection: VictoryProjection = {
+      projectedWinner,
+      confidence,
+      secured,
+      contested,
+      leaningOpposition,
+    };
+
+    // ── Sentiment from OSINT ────────────────────────────────────────────
+    const pos = osintCounts['POSITIVE'] || 0;
+    const neg = osintCounts['NEGATIVE'] || 0;
+    const neu = osintCounts['NEUTRAL'] || 0;
+    const sentimentTotal = pos + neg + neu;
+    const sentiment = {
+      positive: sentimentTotal > 0 ? Math.round((pos / sentimentTotal) * 100) : 0,
+      negative: sentimentTotal > 0 ? Math.round((neg / sentimentTotal) * 100) : 0,
+      neutral: sentimentTotal > 0 ? Math.round((neu / sentimentTotal) * 100) : 0,
+    };
+
+    return { partyResults: sortedParties, swingStates: topSwingStates, chartData, victoryProjection, sentiment };
+  }, [
+    resultsQuery.data,
+    pvtQuery.data,
+    osintQuery.data,
+  ]);
+
+  // ── Loading state ──────────────────────────────────────────────────────
+  const isLoading = resultsQuery.isLoading || pvtQuery.isLoading || osintQuery.isLoading;
+  if (isLoading) return <TrackerSkeleton />;
+
+  // ── Empty state ────────────────────────────────────────────────────────
+  const hasNoData = partyResults.length === 0 && pvtQuery.data?.partyTotals.length === 0;
+  if (hasNoData) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center py-16 text-center"
+      >
+        <div className="p-3 rounded-xl bg-secondary mb-3">
+          <BarChart3 className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground/60">No election data yet</p>
+        <p className="text-xs text-muted-foreground/40 mt-1">Results and PVT submissions will appear here once data is available.</p>
+      </motion.div>
+    );
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-4">
+      {/* 1. Victory Projection — full width */}
+      <VictoryProjectionCard projection={victoryProjection} partyResults={partyResults} />
+
+      {/* 2. Party Leaderboard (60%) + Mini Chart (40%) */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        <div className="lg:col-span-3">
+          <PartyLeaderboard parties={partyResults} />
+        </div>
+        <div className="lg:col-span-2">
+          <MiniResultsChart data={chartData} />
+        </div>
+      </div>
+
+      {/* 3. Key Swing States */}
+      {swingStates.length > 0 && <SwingStatesGrid states={swingStates} />}
+
+      {/* 4. Sentiment Pulse */}
+      <SentimentPulse sentiment={sentiment} />
+    </div>
+  );
+}

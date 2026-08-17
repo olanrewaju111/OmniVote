@@ -21,6 +21,9 @@ import { PwaRegistration } from '@/components/pwa-registration';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { QuickActionsFab } from '@/components/dashboard/quick-actions-fab';
+import { ElectionTicker } from '@/components/dashboard/election-ticker';
+import { ElectionTracker } from '@/components/dashboard/election-tracker';
 
 // Tab display labels for breadcrumbs & toasts
 const TAB_LABELS: Record<string, string> = {
@@ -73,6 +76,8 @@ const TAB_SKELETONS: Record<string, React.ComponentType> = {
   'engagement': ListDetailSkeleton,
   'system': () => <CardGridSkeleton cols={3} rows={2} />,
   'tenants': () => <div className="h-full p-4"><TableSkeleton rows={4} cols={4} /></div>,
+  'campaign-analytics': () => <CardGridSkeleton cols={2} rows={3} />, 
+  'social-cards': () => <CardGridSkeleton cols={1} rows={2} />, 
 };
 
 const createDynamic = <T extends React.ComponentType<any>>(
@@ -113,6 +118,8 @@ const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evide
 const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })), 'flashpoint');
 const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })), 'honeypot');
 const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-log-viewer').then(m => ({ default: m.AuditLogViewer })), 'audit-logs');
+const CampaignAnalyticsPanel = createDynamic(() => import('@/components/dashboard/campaign-analytics').then(m => ({ default: m.default })), 'campaign-analytics');
+const SocialCardsPanel = createDynamic(() => import('@/components/dashboard/social-cards').then(m => ({ default: m.SocialCards })), 'social-cards');
 
 // ---- Types ----
 export interface Incident {
@@ -554,12 +561,10 @@ export default function Home() {
             </motion.div>
           </AnimatePresence>
         </main>
-        <footer className="h-8 border-t border-border/40 flex items-center justify-between px-4 text-[10px] text-muted-foreground/30 shrink-0">
-          <span>OmniVote Monitor v2.1</span>
-          <span className="flex items-center gap-1">AES-256 Encrypted<Lock className="h-2.5 w-2.5" /></span>
-        </footer>
+        <ElectionTicker />
         <MobileBottomNav />
       </div>
+      <QuickActionsFab />
       <PwaRegistration />
     </div>
   );
@@ -579,14 +584,19 @@ function OverviewTab({
   const recentIncidents = incidents.slice(0, 5);
 
   // Quick actions based on role
+  const isFieldAgent = user?.role === 'FIELD_AGENT';
   const quickActions = [
     { label: 'View Map', tab: 'map' as ViewTab, icon: <Map className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: `${dashData.election.openUnits} units active` },
     { label: 'Situation Room', tab: 'situation' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-emerald', bg: 'bg-emerald/10', desc: 'Hierarchical results' },
     { label: criticalCount > 0 ? `Critical Alerts (${criticalCount})` : 'Alert Triage', tab: 'alerts' as ViewTab, icon: <ShieldAlert className="h-4 w-4" />, color: criticalCount > 0 ? 'text-rose' : 'text-amber', bg: criticalCount > 0 ? 'bg-rose/10' : 'bg-amber/10', desc: `${dashData.kpis.unreadAlerts} unread` },
+    { label: 'Election Tracker', tab: 'pvt' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-violet', bg: 'bg-violet/10', desc: 'Party performance & projections', show: !isFieldAgent },
+    { label: 'Generate Social Card', tab: 'mobilization' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: 'Shareable election graphics', show: !isFieldAgent },
   ];
 
+  const visibleActions = quickActions.filter(a => a.show !== false);
+
   return (
-    <div className="h-full flex flex-col p-4 gap-3 overflow-hidden">
+    <div className="h-full flex flex-col p-4 gap-3 overflow-y-auto">
       {/* Top: KPI grid */}
       <div className="shrink-0">
         <KpiGrid
@@ -603,8 +613,8 @@ function OverviewTab({
       </div>
 
       {/* Quick action cards — stack on small screens */}
-      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {quickActions.map((action) => (
+      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {visibleActions.map((action) => (
           <button
             key={action.tab}
             onClick={() => setSelectedTab(action.tab)}
@@ -618,6 +628,13 @@ function OverviewTab({
           </button>
         ))}
       </div>
+
+      {/* Election Tracker — political intelligence widget */}
+      {!isFieldAgent && (
+        <div className="shrink-0 overflow-hidden">
+          <ElectionTracker />
+        </div>
+      )}
 
       {/* Feed: takes remaining space */}
       <div className="flex-1 min-h-0">
