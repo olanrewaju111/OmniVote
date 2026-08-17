@@ -26,6 +26,9 @@ import { ElectionTicker } from '@/components/dashboard/election-ticker';
 import { ElectionTracker } from '@/components/dashboard/election-tracker';
 import { ElectionSummaryInfographic } from '@/components/dashboard/election-summary-infographic';
 import { IncidentDetailSlideover } from '@/components/dashboard/incident-detail-slideover';
+import { ChatToggleButton, TeamChatDrawer } from '@/components/dashboard/team-chat';
+import { ToastSoundEnhancer } from '@/components/dashboard/toast-sound-enhancer';
+import { WinProbabilityGauge } from '@/components/dashboard/win-probability-gauge';
 
 // Tab display labels for breadcrumbs & toasts
 const TAB_LABELS: Record<string, string> = {
@@ -40,13 +43,14 @@ const TAB_LABELS: Record<string, string> = {
   'submit': 'Submit Report', 'my-reports': 'My Reports',
   'agents': 'Agent Roster', 'engagement': 'Agent Engagement',
   'system': 'System Health', 'tenants': 'Tenant Management',
+  'narrative': 'Narrative Builder',
 };
 
 // Section grouping for breadcrumbs
 const TAB_SECTION: Record<string, string> = {
   'overview': 'Command', 'situation': 'Command', 'map': 'Command', 'feed': 'Command',
   'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
-  'mobilization': 'Operations', 'campaigns': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
+  'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
   'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
   'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
@@ -82,6 +86,7 @@ const TAB_SKELETONS: Record<string, React.ComponentType> = {
   'tenants': () => <div className="h-full p-4"><TableSkeleton rows={4} cols={4} /></div>,
   'campaign-analytics': () => <CardGridSkeleton cols={2} rows={3} />, 
   'social-cards': () => <CardGridSkeleton cols={1} rows={2} />, 
+  'narrative': () => <CardGridSkeleton cols={2} rows={3} />,
 };
 
 const createDynamic = <T extends React.ComponentType<any>>(
@@ -125,6 +130,7 @@ const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/ho
 const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-log-viewer').then(m => ({ default: m.AuditLogViewer })), 'audit-logs');
 const CampaignAnalyticsPanel = createDynamic(() => import('@/components/dashboard/campaign-analytics').then(m => ({ default: m.default })), 'campaign-analytics');
 const SocialCardsPanel = createDynamic(() => import('@/components/dashboard/social-cards').then(m => ({ default: m.SocialCards })), 'social-cards');
+const NarrativeBuilderPanel = createDynamic(() => import('@/components/dashboard/narrative-builder').then(m => ({ default: m.NarrativeBuilder })), 'narrative');
 
 // ---- Types ----
 export interface Incident {
@@ -578,12 +584,22 @@ export default function Home() {
                   <TenantManagement />
                 </ErrorBoundary>
               )}
+              {activeTab === 'narrative' && (
+                <ErrorBoundary title="Narrative Builder">
+                  <div className="h-full">
+                    <NarrativeBuilderPanel />
+                  </div>
+                </ErrorBoundary>
+              )}
             </motion.div>
           </AnimatePresence>
         </main>
         <ElectionTicker />
         <MobileBottomNav />
       </div>
+      <ToastSoundEnhancer />
+      <TeamChatDrawer />
+      <ChatToggleButton />
       <QuickActionsFab />
       <PwaRegistration />
     </div>
@@ -678,6 +694,13 @@ function OverviewTab({
       {!isFieldAgent && (
         <div className="shrink-0 overflow-hidden">
           <ElectionTracker />
+        </div>
+      )}
+
+      {/* Win Probability Gauge — election winning intelligence */}
+      {!isFieldAgent && (
+        <div className="shrink-0">
+          <WinProbabilityGauge />
         </div>
       )}
 

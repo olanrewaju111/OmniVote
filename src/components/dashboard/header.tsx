@@ -23,6 +23,8 @@ import { fetchJson } from '@/lib/api';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { NotificationBell } from '@/components/dashboard/notification-center';
 import { BroadcastBriefing } from '@/components/dashboard/broadcast-briefing';
+import { WinProbabilityHeader } from '@/components/dashboard/win-probability-header';
+import { SoundToggle } from '@/components/dashboard/sound-toggle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface BreadcrumbData {
@@ -440,6 +442,14 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
 
           {/* Notifications Bell */}
           <NotificationBell />
+
+          {/* Win Probability — compact badge for non-field roles */}
+          {user && user.role !== 'FIELD_AGENT' && (
+            <WinProbabilityHeader />
+          )}
+
+          {/* Sound toggle */}
+          <SoundToggle />
 
           <Separator orientation="vertical" className="h-6 bg-border/60" />
 

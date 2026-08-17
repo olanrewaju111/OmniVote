@@ -7,7 +7,7 @@ import { useDashboardStore, ROLE_TABS, type ViewTab, type UserRole } from '@/sto
 import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
-  Server, Building2, LogOut, MessageSquareWarning, Globe, Megaphone, CalendarDays,
+  Server, Building2, LogOut, MessageSquareWarning, MessageSquare, Globe, Megaphone, CalendarDays,
   Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,8 @@ const NAV_SECTIONS: NavSection[] = [
     id: 'operations',
     label: 'Operations',
     items: [
-      { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+      { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'], keywords: ['whatsapp', 'campaign', 'message'] },
+      { id: 'narrative', label: 'Narrative Builder', icon: <MessageSquare className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'], keywords: ['talking points', 'key messages', 'pr', 'publicity'] },
       { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
       { id: 'security', label: 'Security Center', icon: <Shield className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
       { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
