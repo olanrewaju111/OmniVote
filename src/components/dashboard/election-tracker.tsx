@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Trophy,
   TrendingUp,
@@ -32,6 +33,7 @@ import {
   Route,
   Landmark,
   Handshake,
+  ChevronRight,
 } from 'lucide-react';
 import {
   BarChart,
@@ -1111,7 +1113,7 @@ function TrackerSkeleton() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function ElectionTracker() {
-  const { tenantId } = useDashboardStore();
+  const { tenantId, setSelectedTab } = useDashboardStore();
 
   // ── Data Fetches ──────────────────────────────────────────────────────────
 
@@ -1405,7 +1407,26 @@ export function ElectionTracker() {
 
       {/* 1b. Path to Victory — full width */}
       {stateBreakdown.length > 0 && (
-        <PathToVictory states={stateBreakdown} projectedWinner={victoryProjection.projectedWinner} />
+        <div>
+          <PathToVictory states={stateBreakdown} projectedWinner={victoryProjection.projectedWinner} />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="flex justify-center mt-3"
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-xs border-amber/30 text-amber hover:bg-amber/5 hover:text-amber"
+              onClick={() => setSelectedTab('victory-roadmap')}
+            >
+              <Trophy className="h-3.5 w-3.5" />
+              Open Full Victory Roadmap
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          </motion.div>
+        </div>
       )}
 
       {/* 2. Party Leaderboard (60%) + Mini Chart (40%) */}

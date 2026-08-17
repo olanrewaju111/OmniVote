@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'osint' | 'ai' | 'media' | 'mobilization' | 'campaigns' | 'security' | 'field-safety' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants' | 'pvt' | 'evidence' | 'flashpoint' | 'honeypot' | 'audit-logs';
+export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'osint' | 'ai' | 'media' | 'mobilization' | 'campaigns' | 'security' | 'field-safety' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants' | 'pvt' | 'evidence' | 'flashpoint' | 'honeypot' | 'audit-logs' | 'victory-roadmap';
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'ANALYST' | 'TRUST_SAFETY' | 'FIELD_AGENT';
 
@@ -25,9 +25,9 @@ export interface UserInfo {
 
 // Role-based tab permissions
 export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
-  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'system', 'tenants'],
-  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'tenants'],
-  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'engagement', 'pvt', 'evidence', 'flashpoint', 'audit-logs', 'my-reports'],
+  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'system', 'tenants', 'victory-roadmap'],
+  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'tenants', 'victory-roadmap'],
+  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'engagement', 'pvt', 'evidence', 'flashpoint', 'audit-logs', 'my-reports', 'victory-roadmap'],
   TRUST_SAFETY: ['alerts', 'osint', 'media', 'ai', 'feed', 'security', 'engagement', 'evidence', 'honeypot', 'audit-logs', 'my-reports'],
   FIELD_AGENT: ['submit', 'my-reports', 'feed'],
 };

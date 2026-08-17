@@ -9,7 +9,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   Activity, Zap, Users, Send, FileText, Server, Building2, Globe, Megaphone, CalendarDays,
   Shield, MapPin, Eye, Flame, Search, ArrowRight, LogOut, Settings,
-  Moon, Sun, Monitor, PanelLeftClose, PanelLeft, Pause, Play,
+  Moon, Sun, Monitor, PanelLeftClose, PanelLeft, Pause, Play, Trophy,
 } from 'lucide-react';
 
 const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; keywords: string[] }[] = [
@@ -26,6 +26,7 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; keywords: st
   { id: 'security', label: 'Security Center', icon: <Shield className="h-4 w-4" />, keywords: ['defense', 'cyber', 'threats', 'protection'] },
   { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-4 w-4" />, keywords: ['safety', 'agents', 'sos', 'emergency', 'welfare'] },
   { id: 'pvt', label: 'PVT / Quick Count', icon: <BarChart3 className="h-4 w-4" />, keywords: ['parallel', 'vote', 'tabulation', 'count', 'results'] },
+  { id: 'victory-roadmap', label: 'Victory Roadmap', icon: <Trophy className="h-4 w-4" />, keywords: ['victory', 'roadmap', 'coalition', 'path', 'win', 'battleground', 'swing'] },
   { id: 'evidence', label: 'Evidence Dossier', icon: <FileText className="h-4 w-4" />, keywords: ['evidence', 'legal', 'documentation', 'proof'] },
   { id: 'flashpoint', label: 'Flashpoint & Wargame', icon: <Flame className="h-4 w-4" />, keywords: ['flashpoint', 'wargame', 'simulation', 'conflict', 'prediction'] },
   { id: 'honeypot', label: 'Honeypot / PWD', icon: <Eye className="h-4 w-4" />, keywords: ['honeypot', 'pwd', 'biometrics', 'decoy', 'entrapment'] },
@@ -171,6 +172,10 @@ export function CommandPalette() {
           <CommandItem onSelect={() => { setSelectedTab('alerts'); setOpen(false); }} className="gap-3">
             <ShieldAlert className="h-4 w-4 text-amber" />
             <span>View critical alerts</span>
+          </CommandItem>
+          <CommandItem onSelect={() => { setSelectedTab('victory-roadmap'); setOpen(false); }} className="gap-3">
+            <Trophy className="h-4 w-4 text-amber" />
+            <span>Victory roadmap</span>
           </CommandItem>
           <CommandItem onSelect={handleToggleLiveFeed} className="gap-3">
             {liveFeedPaused ? <Play className="h-4 w-4 text-cyan" /> : <Pause className="h-4 w-4 text-cyan" />}

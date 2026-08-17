@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap, Megaphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { NotificationBell } from '@/components/dashboard/notification-center';
+import { BroadcastBriefing } from '@/components/dashboard/broadcast-briefing';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface BreadcrumbData {
@@ -233,6 +234,7 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
   const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch, sseConnected } = useDashboardStore();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Password change states
@@ -420,6 +422,19 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
               {kpis?.securityAlerts ? (
                 <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[9px]">{kpis.securityAlerts}</Badge>
               ) : null}
+            </Button>
+          )}
+
+          {/* Broadcast button — admin/analyst roles */}
+          {user && user.role !== 'FIELD_AGENT' && user.role !== 'TRUST_SAFETY' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1.5 bg-amber/5 border-amber/20 text-amber hover:bg-amber/10 hover:text-amber text-xs hidden sm:flex"
+              onClick={() => setBroadcastOpen(true)}
+            >
+              <Megaphone className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden md:inline">Broadcast</span>
             </Button>
           )}
 
@@ -695,6 +710,9 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Broadcast Briefing Dialog */}
+      <BroadcastBriefing open={broadcastOpen} onOpenChange={setBroadcastOpen} />
     </>
   );
 }

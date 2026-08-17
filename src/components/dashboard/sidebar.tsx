@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, Globe, Megaphone, CalendarDays,
-  Shield, MapPin, Eye, Flame, Menu, Settings, X,
+  Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -69,6 +69,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Analysis',
     items: [
       { id: 'pvt', label: 'PVT / Quick Count', icon: <BarChart3 className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
+      { id: 'victory-roadmap', label: 'Victory Roadmap', icon: <Trophy className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
       { id: 'evidence', label: 'Evidence Dossier', icon: <FileText className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
       { id: 'flashpoint', label: 'Flashpoint & Wargame', icon: <Flame className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
       { id: 'honeypot', label: 'Honeypot / PWD', icon: <Eye className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { ExportButton } from '@/components/dashboard/export-button';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +12,11 @@ import {
 import {
   Pause, Play, Filter, MapPin, Clock, User, AlertTriangle,
   ShieldAlert, ShieldCheck, Eye, ChevronDown, Loader2, Radio,
+  Megaphone, ArrowUpRight, MessageCircle, Flag, CheckCircle2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
+import { toast } from 'sonner';
 import type { Incident } from '@/app/page';
 
 interface LiveFeedProps {
@@ -65,6 +67,34 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
     if (incidentFilter.status !== 'ALL' && i.status !== incidentFilter.status) return false;
     return true;
   });
+
+  const handleQuickAction = useCallback((action: string, inc: Incident) => {
+    const location = inc.pollingUnit ? `${inc.pollingUnit.state}/${inc.pollingUnit.lga}` : 'Unknown location';
+    const typeName = inc.type.replace(/_/g, ' ');
+    switch (action) {
+      case 'escalate':
+        toast.warning('Incident escalated', {
+          description: `${typeName} in ${location} escalated for immediate review.`,
+          action: { label: 'View', onClick: () => onIncidentClick?.(inc) },
+        });
+        break;
+      case 'flag':
+        toast.info('Incident flagged', {
+          description: `${typeName} flagged for follow-up. T&S team notified.`,
+        });
+        break;
+      case 'broadcast':
+        toast.success('Broadcast prepared', {
+          description: `Incident briefing for ${location} ready. Open Broadcast to send.`,
+        });
+        break;
+      case 'resolve':
+        toast.success('Incident resolved', {
+          description: `${typeName} in ${location} marked as resolved.`,
+        });
+        break;
+    }
+  }, [onIncidentClick]);
 
   return (
     <div className="h-full flex flex-col">
@@ -204,6 +234,34 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.state}/{inc.pollingUnit.lga}</span>
                           )}
                           <Badge variant="outline" className="text-[10px] h-5">{inc.status}</Badge>
+                        </div>
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/30">
+                          <button
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-amber hover:bg-amber/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleQuickAction('escalate', inc); }}
+                          >
+                            <ArrowUpRight className="h-3 w-3" />Escalate
+                          </button>
+                          <button
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-violet hover:bg-violet/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleQuickAction('flag', inc); }}
+                          >
+                            <Flag className="h-3 w-3" />Flag
+                          </button>
+                          <button
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-cyan hover:bg-cyan/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleQuickAction('broadcast', inc); }}
+                          >
+                            <Megaphone className="h-3 w-3" />Broadcast
+                          </button>
+                          {inc.status === 'PENDING' && (
+                            <button
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-emerald hover:bg-emerald/10 transition-colors ml-auto"
+                              onClick={(e) => { e.stopPropagation(); handleQuickAction('resolve', inc); }}
+                            >
+                              <CheckCircle2 className="h-3 w-3" />Resolve
+                            </button>
+                          )}
                         </div>
                       </motion.div>
                     )}

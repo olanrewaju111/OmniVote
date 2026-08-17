@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Map, BarChart3, ShieldAlert, Lock } from 'lucide-react';
+import { Loader2, Map, BarChart3, ShieldAlert, Lock, Trophy } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { useSSE } from '@/hooks/use-sse';
@@ -34,6 +34,7 @@ const TAB_LABELS: Record<string, string> = {
   'ai': 'AI Insights', 'media': 'Media Gallery', 'mobilization': 'Mobilization',
   'campaigns': 'Campaign Monitor', 'security': 'Security Center',
   'field-safety': 'Field Safety', 'pvt': 'PVT Quick Count',
+  'victory-roadmap': 'Victory Roadmap',
   'evidence': 'Evidence Dossier', 'flashpoint': 'Flashpoint & Wargame',
   'honeypot': 'Honeypot Biometrics', 'audit-logs': 'Audit Logs',
   'submit': 'Submit Report', 'my-reports': 'My Reports',
@@ -46,7 +47,7 @@ const TAB_SECTION: Record<string, string> = {
   'overview': 'Command', 'situation': 'Command', 'map': 'Command', 'feed': 'Command',
   'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
   'mobilization': 'Operations', 'campaigns': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
-  'pvt': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
+  'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
   'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
   'system': 'Admin', 'tenants': 'Admin',
@@ -68,6 +69,7 @@ const TAB_SKELETONS: Record<string, React.ComponentType> = {
   'security': ChartSkeleton,
   'field-safety': () => <CardGridSkeleton cols={2} rows={3} />,
   'pvt': ChartSkeleton,
+  'victory-roadmap': ChartSkeleton,
   'evidence': ListDetailSkeleton,
   'flashpoint': () => <CardGridSkeleton cols={2} rows={3} />,
   'honeypot': () => <CardGridSkeleton cols={2} rows={3} />,
@@ -116,6 +118,7 @@ const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campa
 const SecurityCenter = createDynamic(() => import('@/components/dashboard/security-center').then(m => ({ default: m.SecurityCenter })), 'security');
 const FieldSafety = createDynamic(() => import('@/components/dashboard/field-safety').then(m => ({ default: m.FieldSafety })), 'field-safety');
 const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-quick-count').then(m => ({ default: m.PvtQuickCount })), 'pvt');
+const VictoryRoadmapPanel = createDynamic(() => import('@/components/dashboard/victory-roadmap').then(m => ({ default: m.VictoryRoadmap })), 'victory-roadmap');
 const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evidence-dossier').then(m => ({ default: m.EvidenceDossier })), 'evidence');
 const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })), 'flashpoint');
 const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })), 'honeypot');
@@ -252,7 +255,11 @@ export default function Home() {
               lastToastRef.current[key] = now;
               toast.warning(`${inc.severity}: ${inc.type?.replace(/_/g, ' ') || 'Incident'}`, {
                 description: inc.description?.slice(0, 120) || 'New incident reported',
-                duration: 6000,
+                duration: 8000,
+                action: {
+                  label: 'View',
+                  onClick: () => setSelectedTab('feed'),
+                },
               });
             }
           }
@@ -273,7 +280,11 @@ export default function Home() {
               lastToastRef.current[key] = now;
               toast.error(`Critical ${alert.type?.replace(/_/g, ' ') || 'Alert'}`, {
                 description: alert.title?.slice(0, 120) || 'New critical alert',
-                duration: 8000,
+                duration: 10000,
+                action: {
+                  label: 'View Alerts',
+                  onClick: () => setSelectedTab('alerts'),
+                },
               });
             }
           }
@@ -502,6 +513,13 @@ export default function Home() {
                   </div>
                 </ErrorBoundary>
               )}
+              {activeTab === 'victory-roadmap' && (
+                <ErrorBoundary title="Victory Roadmap">
+                  <div className="h-full">
+                    <VictoryRoadmapPanel />
+                  </div>
+                </ErrorBoundary>
+              )}
               {activeTab === 'evidence' && (
                 <ErrorBoundary title="Evidence Dossier">
                   <div className="h-full">
@@ -606,6 +624,7 @@ function OverviewTab({
     { label: 'Situation Room', tab: 'situation' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-emerald', bg: 'bg-emerald/10', desc: 'Hierarchical results' },
     { label: criticalCount > 0 ? `Critical Alerts (${criticalCount})` : 'Alert Triage', tab: 'alerts' as ViewTab, icon: <ShieldAlert className="h-4 w-4" />, color: criticalCount > 0 ? 'text-rose' : 'text-amber', bg: criticalCount > 0 ? 'bg-rose/10' : 'bg-amber/10', desc: `${dashData.kpis.unreadAlerts} unread` },
     { label: 'Election Tracker', tab: 'pvt' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-violet', bg: 'bg-violet/10', desc: 'Party performance & projections', show: !isFieldAgent },
+    { label: 'Victory Roadmap', tab: 'victory-roadmap' as ViewTab, icon: <Trophy className="h-4 w-4" />, color: 'text-amber', bg: 'bg-amber/10', desc: 'Path-to-victory & coalitions', show: !isFieldAgent },
     { label: 'Generate Social Card', tab: 'mobilization' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: 'Shareable election graphics', show: !isFieldAgent },
   ];
 
@@ -629,7 +648,7 @@ function OverviewTab({
       </div>
 
       {/* Quick action cards — stack on small screens */}
-      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {visibleActions.map((action, idx) => (
           <motion.button
             key={action.tab}
