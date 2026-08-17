@@ -7,7 +7,7 @@ import {
 import { useDashboardStore, ROLE_TABS, type ViewTab } from '@/store/dashboard';
 import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
-  Activity, Zap, Users, Send, FileText, Server, Building2, Globe, Megaphone, CalendarDays,
+  Activity, Zap, Users, Send, FileText, Server, Building2, Globe, Megaphone, MessageSquare, CalendarDays,
   Shield, MapPin, Eye, Flame, Search, ArrowRight, LogOut, Settings,
   Moon, Sun, Monitor, PanelLeftClose, PanelLeft, Pause, Play, Trophy,
 } from 'lucide-react';
@@ -22,6 +22,7 @@ const ALL_NAV: { id: ViewTab; label: string; icon: React.ReactNode; keywords: st
   { id: 'ai', label: 'AI Engine', icon: <Brain className="h-4 w-4" />, keywords: ['machine learning', 'deepfake', 'analysis', 'models'] },
   { id: 'media', label: 'Media Vault', icon: <ImageIcon className="h-4 w-4" />, keywords: ['photos', 'videos', 'images', 'gallery', 'evidence'] },
   { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-4 w-4" />, keywords: ['voters', 'campaign', 'outreach', 'engagement'] },
+  { id: 'narrative', label: 'Narrative Builder', icon: <MessageSquare className="h-4 w-4" />, keywords: ['narrative', 'talking points', 'key messages', 'pr', 'publicity', 'messaging'] },
   { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-4 w-4" />, keywords: ['campaigns', 'events', 'rallies', 'schedule'] },
   { id: 'security', label: 'Security Center', icon: <Shield className="h-4 w-4" />, keywords: ['defense', 'cyber', 'threats', 'protection'] },
   { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-4 w-4" />, keywords: ['safety', 'agents', 'sos', 'emergency', 'welfare'] },

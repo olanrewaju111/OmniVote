@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Map, BarChart3, ShieldAlert, Lock, Trophy } from 'lucide-react';
+import { Loader2, Map, BarChart3, ShieldAlert, Lock, Trophy, Megaphone } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { useSSE } from '@/hooks/use-sse';
@@ -642,6 +642,7 @@ function OverviewTab({
     { label: 'Election Tracker', tab: 'pvt' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-violet', bg: 'bg-violet/10', desc: 'Party performance & projections', show: !isFieldAgent },
     { label: 'Victory Roadmap', tab: 'victory-roadmap' as ViewTab, icon: <Trophy className="h-4 w-4" />, color: 'text-amber', bg: 'bg-amber/10', desc: 'Path-to-victory & coalitions', show: !isFieldAgent },
     { label: 'Generate Social Card', tab: 'mobilization' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: 'Shareable election graphics', show: !isFieldAgent },
+    { label: 'Narrative Builder', tab: 'narrative' as ViewTab, icon: <Megaphone className="h-4 w-4" />, color: 'text-emerald', bg: 'bg-emerald/10', desc: 'Key messages & talking points', show: !isFieldAgent },
   ];
 
   const visibleActions = quickActions.filter(a => a.show !== false);
