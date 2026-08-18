@@ -369,3 +369,35 @@ Stage Summary:
 - Database watcher polls at 3s intervals for new data and broadcasts to connected tenants
 - API routes broadcast immediately on mutation for instant delivery
 - Zero TypeScript errors, successful production build
+
+---
+Task ID: 5-reports
+Agent: Super Z (Main)
+Task: Phase 5b — Reports & Export Center
+
+Work Log:
+- Expanded /api/export from 4 export types (incidents, audit-logs, results, agents) to 14 types
+- Added new export types: pvt, alerts, voter-suppression, osint, security-events, geofence, honeypot, flashpoint, accessibility, election-summary
+- Each new type fetches real data from Prisma with proper includes and aggregations
+- Fixed all field name mismatches to match exact Prisma schema (checked 8 models)
+- Created /api/reports/generate POST endpoint for comprehensive multi-section reports
+- Excel output: 3 sheets (Executive Summary, State Results, Incident Summary) with styled headers and auto-fit columns
+- PDF output: 4-page report with cover page, executive summary table, state-level results, incident severity/type breakdown
+- Created reports-center.tsx — full Reports Center UI component
+- 14 report cards in a filterable grid (categories: comprehensive, data, intelligence, operations)
+- Date range picker for targeted exports
+- Format selector (CSV/Excel/PDF) with one-click export per card
+- Comprehensive Report banner with Excel/PDF generation buttons
+- Export History section showing recent DATA_EXPORTED audit log entries
+- Added 'reports' tab to ViewTab type, ROLE_TABS (SUPER_ADMIN, TENANT_ADMIN, ANALYST, TRUST_SAFETY)
+- Added Reports Center to sidebar navigation under Team section with FileDown icon
+- Added TAB_LABELS, TAB_SECTION, skeleton, dynamic import, and tab rendering in page.tsx
+- Updated ExportButton component with typed ExportType union, all 14 supported types, date range props
+- Verified 0 TypeScript errors, successful Next.js production build
+
+Stage Summary:
+- 2 new files: reports-center.tsx, /api/reports/generate/route.ts
+- 2 major files rewritten: /api/export/route.ts (4→14 types), export-button.tsx (typed)
+- 5 files modified: store/dashboard.ts, sidebar.tsx, page.tsx, header.tsx (implicit)
+- Reports Center tab accessible to SUPER_ADMIN, TENANT_ADMIN, ANALYST, TRUST_SAFETY roles
+- 0 TS errors, clean build

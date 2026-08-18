@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, MessageSquare, Globe, Megaphone, CalendarDays,
-  Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy,
+  Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy, FileDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -83,6 +83,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'agents', label: 'Agent Roster', icon: <Users className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
       { id: 'engagement', label: 'Agent Engagement', icon: <MessageSquareWarning className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
       { id: 'audit-logs', label: 'Audit Logs', icon: <FileText className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
+      { id: 'reports', label: 'Reports Center', icon: <FileDown className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
     ],
   },
   {

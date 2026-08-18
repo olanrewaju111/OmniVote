@@ -13,22 +13,42 @@ import {
 import { useDashboardStore } from '@/store/dashboard';
 import { toast } from 'sonner';
 
+/** All export types supported by the API */
+export type ExportType =
+  | 'incidents' | 'audit-logs' | 'results' | 'agents'
+  | 'pvt' | 'alerts' | 'voter-suppression' | 'osint'
+  | 'security-events' | 'geofence' | 'honeypot' | 'flashpoint'
+  | 'accessibility' | 'election-summary';
+
 interface ExportButtonProps {
   /** Export type — maps to the `type` query param */
-  exportType: 'incidents' | 'alerts' | 'audit-logs' | 'pvt';
+  exportType: ExportType;
   /** Optional label override */
   label?: string;
   /** Size variant */
   size?: 'sm' | 'default';
+  /** Optional date range */
+  startDate?: string;
+  endDate?: string;
 }
 
 type ExportFormat = 'csv' | 'excel' | 'pdf';
 
 const TYPE_LABELS: Record<string, string> = {
   incidents: 'Incidents',
-  alerts: 'Alerts',
   'audit-logs': 'Audit Logs',
+  results: 'Election Results',
+  agents: 'Field Agents',
   pvt: 'PVT Results',
+  alerts: 'Alerts',
+  'voter-suppression': 'Voter Suppression',
+  osint: 'OSINT Report',
+  'security-events': 'Security Events',
+  geofence: 'Geofence Zones',
+  honeypot: 'Honeypot Analysis',
+  flashpoint: 'Flashpoint Forecasts',
+  accessibility: 'Accessibility (PWD)',
+  'election-summary': 'Election Summary',
 };
 
 const FORMAT_CONFIG: {
@@ -37,27 +57,12 @@ const FORMAT_CONFIG: {
   description: string;
   icon: typeof FileText;
 }[] = [
-  {
-    format: 'csv',
-    label: 'CSV Spreadsheet',
-    description: '.csv',
-    icon: FileText,
-  },
-  {
-    format: 'excel',
-    label: 'Excel Workbook',
-    description: '.xlsx',
-    icon: Table,
-  },
-  {
-    format: 'pdf',
-    label: 'PDF Report',
-    description: '.pdf',
-    icon: FileDown,
-  },
+  { format: 'csv', label: 'CSV Spreadsheet', description: '.csv', icon: FileText },
+  { format: 'excel', label: 'Excel Workbook', description: '.xlsx', icon: Table },
+  { format: 'pdf', label: 'PDF Report', description: '.pdf', icon: FileDown },
 ];
 
-export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonProps) {
+export function ExportButton({ exportType, label, size = 'sm', startDate, endDate }: ExportButtonProps) {
   const tenantId = useDashboardStore((s) => s.tenantId);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
 
@@ -67,16 +72,20 @@ export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonPro
       return;
     }
     setExporting(format);
-    const url = `/api/export?type=${exportType}&tenantId=${tenantId}&format=${format}`;
+    const params = new URLSearchParams({
+      type: exportType,
+      tenantId,
+      format,
+    });
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
 
-    fetch(url)
+    fetch(`/api/export?${params.toString()}`)
       .then((res) => {
         if (!res.ok) throw new Error('Export failed');
-
         const cd = res.headers.get('content-disposition');
         const filename =
           cd?.match(/filename="?([^";]+)"?/)?.[1] || `${exportType}.${format}`;
-
         return res.blob().then((blob) => {
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
@@ -85,9 +94,7 @@ export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonPro
           a.click();
           a.remove();
           URL.revokeObjectURL(a.href);
-          toast.success(
-            `Exported ${TYPE_LABELS[exportType]} as ${format.toUpperCase()}`,
-          );
+          toast.success(`Exported ${TYPE_LABELS[exportType] || exportType} as ${format.toUpperCase()}`);
         });
       })
       .catch(() => {
@@ -130,9 +137,7 @@ export function ExportButton({ exportType, label, size = 'sm' }: ExportButtonPro
               )}
               <span className="flex flex-col">
                 <span>{formatLabel}</span>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  {description}
-                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">{description}</span>
               </span>
             </DropdownMenuItem>
           </div>

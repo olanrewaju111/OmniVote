@@ -45,6 +45,7 @@ const TAB_LABELS: Record<string, string> = {
   'agents': 'Agent Roster', 'engagement': 'Agent Engagement',
   'system': 'System Health', 'tenants': 'Tenant Management',
   'narrative': 'Narrative Builder',
+  'reports': 'Reports Center',
 };
 
 // Section grouping for breadcrumbs
@@ -53,7 +54,7 @@ const TAB_SECTION: Record<string, string> = {
   'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
   'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
   'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
-  'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team',
+  'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team', 'reports': 'Team',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
   'system': 'Admin', 'tenants': 'Admin',
 };
@@ -89,6 +90,7 @@ const TAB_SKELETONS: Record<string, React.ComponentType> = {
   'campaign-analytics': () => <CardGridSkeleton cols={2} rows={3} />, 
   'social-cards': () => <CardGridSkeleton cols={1} rows={2} />, 
   'narrative': () => <CardGridSkeleton cols={2} rows={3} />,
+  'reports': () => <CardGridSkeleton cols={2} rows={3} />,
 };
 
 const createDynamic = <T extends React.ComponentType<any>>(
@@ -133,6 +135,7 @@ const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-
 const CampaignAnalyticsPanel = createDynamic(() => import('@/components/dashboard/campaign-analytics').then(m => ({ default: m.default })), 'campaign-analytics');
 const SocialCardsPanel = createDynamic(() => import('@/components/dashboard/social-cards').then(m => ({ default: m.SocialCards })), 'social-cards');
 const NarrativeBuilderPanel = createDynamic(() => import('@/components/dashboard/narrative-builder').then(m => ({ default: m.NarrativeBuilder })), 'narrative');
+const ReportsCenter = createDynamic(() => import('@/components/dashboard/reports-center').then(m => ({ default: m.ReportsCenter })), 'reports');
 const ElectionManagementPanel = createDynamic(() => import('@/components/dashboard/election-management').then(m => ({ default: m.ElectionManagement })), 'system');
 
 // ---- Types ----
@@ -692,6 +695,13 @@ export default function Home() {
                 <ErrorBoundary title="Narrative Builder">
                   <div className="h-full">
                     <NarrativeBuilderPanel />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {activeTab === 'reports' && (
+                <ErrorBoundary title="Reports Center">
+                  <div className="h-full">
+                    <ReportsCenter />
                   </div>
                 </ErrorBoundary>
               )}
