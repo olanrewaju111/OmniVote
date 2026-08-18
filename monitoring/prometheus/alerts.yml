@@ -1,0 +1,98 @@
+# OmniVote Prometheus Alert Rules — Phase 14
+# Based on SRE guide doc 12 alerting requirements
+
+groups:
+  - name: omnivote_alerts
+    interval: 15s
+    rules:
+      # ─── Service Down ────────────────────────────────────────────────
+      - alert: OmnivoteServiceDown
+        expr: up{job="omnivote-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OmniVote service is down"
+          description: "The OmniVote application has been unreachable for over 1 minute."
+          runbook: "https://github.com/your-org/omnivote/runbooks/RB-001"
+
+      # ─── High Error Rate ─────────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(omnivote_http_errors_total[5m]))
+            /
+            sum(rate(omnivote_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "High 5xx error rate (>5%)"
+          description: "Current 5xx rate: {{ $value | humanizePercentage }}"
+
+      # ─── High Latency p95 ─────────────────────────────────────────────
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            rate(omnivote_http_request_duration_seconds_bucket[5m])
+          ) > 3
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "API p95 latency exceeds 3s"
+          description: "Current p95: {{ $value }}s"
+
+      # ─── Memory Warning ──────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: omnivote_process_memory_heap_used_bytes / omnivote_process_memory_heap_total_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 85%"
+          description: "Heap at {{ $value | humanizePercentage }}"
+          runbook: "https://github.com/your-org/omnivote/runbooks/RB-003"
+
+      # ─── SLO Budget Exhausted ─────────────────────────────────────────
+      - alert: SLOBudgetExhausted
+        expr: omnivote_slo_error_budget_remaining < 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SLO error budget exhausted: {{ $labels.slo }}"
+          description: "The {{ $labels.slo }} SLO has burned through its entire error budget."
+
+      # ─── SLO Budget Warning ───────────────────────────────────────────
+      - alert: SLOBudgetWarning
+        expr: omnivote_slo_error_budget_remaining < 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SLO error budget below 50%: {{ $labels.slo }}"
+          description: "{{ $labels.slo }} has {{ $value }}% budget remaining."
+
+      # ─── Zero Active Agents (Business Metric) ────────────────────────
+      - alert: ZeroActiveAgents
+        expr: omnivote_websocket_connections_active == 0
+        for: 5m
+        labels:
+          severity: high
+        annotations:
+          summary: "No active WebSocket connections"
+          description: "All agents appear to be offline simultaneously."
+          runbook: "https://github.com/your-org/omnivote/runbooks/RB-007"
+
+      # ─── Deployment Freeze Active ─────────────────────────────────────
+      - alert: DeploymentFreezeActive
+        expr: |
+          count(omnivote_slo_error_budget_remaining < 50) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Deployment freeze should be active"
+          description: "At least one SLO has less than 50% error budget remaining."

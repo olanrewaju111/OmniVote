@@ -65,3 +65,53 @@ Stage Summary:
 - TimeSeriesComparison supports CSV data export
 - ElectionHeatmap has interactive crosshair hover guides
 - Build: 0 errors, optimizeCss active, all 44 routes compiling
+
+---
+Task ID: 12
+Agent: Super Z (Main)
+Task: Phase 12 — SRE: Observability, SLO Tracking & Runbooks
+
+Work Log:
+- Created `src/lib/sre/slo-tracker.ts`: In-memory SLO tracker with 7 SLO definitions (from SRE guide doc 12), error budget calculation, burn rate, deployment freeze detection, periodic JSON persistence, LRU-style record trimming
+- Created `src/lib/sre/request-logger.ts`: Structured request logging with `logRequest()` and `createRequestTimer()` helpers, Prometheus-style latency histogram per route, request counter (total/4xx/5xx), active connections gauge
+- Created `src/lib/sre/runbooks.ts`: 8 runbooks (RB-001 through RB-008) matching the SRE guide — process crash, DB connection exhaustion, high memory, disk full, DDoS, cert expiry, agent mass disconnect, dead-man's switch false positive
+- Enhanced `/api/health`: Deep health checks (DB query + schema read), version string, WebSocket connection count, SLO deployment freeze status, returns 503 on degradation
+- Created `/api/slo`: Full SLO report with all 7 SLOs, error budgets, burn rates, 1-hour recent metrics summary, election day SLO definitions
+- Created `/api/metrics`: Prometheus text exposition format endpoint with process metrics, HTTP request counters, latency histograms, SLO compliance gauges, error budget gauges, burn rate gauges
+- Created `/api/runbooks` (list) and `/api/runbooks/[id]` (detail) endpoints
+- Enhanced `SystemHealth` component: SLO error budget progress bars with burn rate indicators, deployment freeze banner, 1h error rate KPI card, runbook browser with expand/collapse, WebSocket connection count in service grid
+
+Stage Summary:
+- 7 SLOs tracked with in-memory persistence (api_availability 99.9%, api_latency_p95 99%, api_latency_p99 95%, dashboard_load 95%, realtime_updates 99%, incident_submission 99.99%, data_integrity 100%)
+- Error budget engine with burn rate calculation and deployment freeze detection
+- Prometheus-compatible `/api/metrics` endpoint ready for scraping
+- 8 automated runbooks accessible via API
+- System Health tab now shows SLO compliance visually with budget bars
+- Build: 0 TS errors, 47 routes, clean production build
+
+---
+Task ID: 14
+Agent: Super Z (Main)
+Task: Phase 14 — DevOps: CI/CD, Containerization, Monitoring Stack
+
+Work Log:
+- Enhanced `Dockerfile`: Added `dumb-init` as PID 1 for proper signal handling, security updates on build, non-root user from stage 3, `ca-certificates` for TLS, `HEALTHCHECK` with wget, proper `ENTRYPOINT` pattern
+- Enhanced `docker-compose.yml`: Added PostgreSQL 16 (with health check, WAL-ready), Redis 7 (AOF persistence, password auth), Prometheus v2.54 (with alert rules, 30d retention), Grafana 11.3 (with auto-provisioning), resource limits (memory + CPU) for all services, structured JSON log driver, custom bridge network (172.28.0.0/16)
+- Created `.github/workflows/ci.yml`: 6-job pipeline — lint, typecheck, build, docker (build+push to GHCR), deploy. Concurrency groups, branch-based triggers, manual dispatch with environment selector
+- Created `nginx/conf.d/default.conf`: Rate limiting zones (10r/s API, 2r/s auth, 5r/s general), geo-blocking stub, security headers (X-Frame-Options, CSP, HSTS, Permissions-Policy), aggressive static asset caching (30d), health/metrics endpoint special handling, custom 429 JSON response
+- Updated `nginx/nginx.conf`: JSON log format for Loki integration, connection tuning (keepalive 1000, timeouts), gzip level 4, epoll, multi_accept
+- Created `monitoring/prometheus/prometheus.yml`: 15s scrape interval, alert rules file reference, OmniVote app target
+- Created `monitoring/prometheus/alerts.yml`: 8 alert rules — service down, high error rate >5%, high p95 latency >3s, memory >85%, SLO budget exhausted, SLO budget warning <50%, zero active agents, deployment freeze
+- Created `monitoring/grafana/provisioning/`: Datasource (Prometheus) and dashboard provisioning configs
+- Created `monitoring/grafana/dashboards/omnivote-overview.json`: 7-panel Grafana dashboard — API availability stat, request rate, error rate, p95 latency, request rate time series, memory usage time series, SLO error budget bar gauges
+- Created `scripts/sre/backup.sh`: Full backup script with PostgreSQL (pg_dump -Fc) and SQLite fallback, application data tarball, backup manifest JSON, configurable retention (30d default), dry-run mode
+- Created `scripts/sre/restore.sh`: Restore script with backup validation, manifest display, confirmation prompt, PostgreSQL (pg_restore --clean) and SQLite support
+
+Stage Summary:
+- Production-ready Dockerfile with security hardening (non-root, dumb-init, minimal image)
+- Full observability stack: Prometheus + Grafana + custom alerts
+- CI/CD pipeline with lint → typecheck → build → docker push → deploy stages
+- Nginx with rate limiting, security headers, and JSON logging
+- Backup/restore scripts for disaster recovery
+- 8 Prometheus alert rules covering SRE guide requirements
+- Build: 0 TS errors, 47 routes, clean production build (32.1s compile)
