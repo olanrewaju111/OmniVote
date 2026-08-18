@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -65,6 +68,16 @@ interface ResultsResponse {
 
 type TierFilter = 'ALL' | 'LOCAL' | 'STATE' | 'PRESIDENTIAL';
 type StatusFilter = 'ALL' | 'UPCOMING' | 'ACTIVE' | 'COMPLETED';
+
+// ---- Zod Schema ----
+const electionFormSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200, 'Title must be under 200 characters'),
+  tier: z.string().min(1, 'Select a tier'),
+  date: z.string().min(1, 'Date is required'),
+  status: z.string().min(1, 'Select a status'),
+});
+
+type ElectionFormValues = z.infer<typeof electionFormSchema>;
 
 // ---- Constants ----
 const TIER_BADGE: Record<string, string> = {
@@ -132,11 +145,23 @@ export function ElectionManagement() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingElection, setDeletingElection] = useState<ElectionItem | null>(null);
 
-  // Form state
-  const [formTitle, setFormTitle] = useState('');
-  const [formTier, setFormTier] = useState<string>('');
-  const [formDate, setFormDate] = useState('');
-  const [formStatus, setFormStatus] = useState<string>('');
+  // Form (react-hook-form + zod)
+  const {
+    register: formRegister,
+    handleSubmit: handleFormSubmit,
+    formState: { errors: formErrors },
+    control: formControl,
+    reset: resetForm,
+    setValue: setFormValue,
+  } = useForm<ElectionFormValues>({
+    resolver: zodResolver(electionFormSchema),
+    defaultValues: {
+      title: '',
+      tier: '',
+      date: '',
+      status: '',
+    },
+  });
 
   // ---- Data fetching ----
   const { data: electionsData, isLoading } = useQuery({
@@ -232,59 +257,56 @@ export function ElectionManagement() {
   // ---- Dialog helpers ----
   const openCreateDialog = useCallback(() => {
     setEditingElection(null);
-    setFormTitle('');
-    setFormTier('');
-    setFormDate('');
-    setFormStatus('');
+    resetForm({ title: '', tier: '', date: '', status: '' });
     setDialogOpen(true);
-  }, []);
+  }, [resetForm]);
 
   const openEditDialog = useCallback((election: ElectionItem) => {
     setEditingElection(election);
-    setFormTitle(election.title);
-    setFormTier(election.tier);
     // Format date for input[type=date] = YYYY-MM-DD
+    let formattedDate = '';
     try {
-      const d = new Date(election.date);
-      setFormDate(d.toISOString().split('T')[0]);
+      formattedDate = new Date(election.date).toISOString().split('T')[0];
     } catch {
-      setFormDate('');
+      // keep empty
     }
-    setFormStatus(election.status);
+    resetForm({
+      title: election.title,
+      tier: election.tier,
+      date: formattedDate,
+      status: election.status,
+    });
     setDialogOpen(true);
-  }, []);
+  }, [resetForm]);
 
   const closeDialog = useCallback(() => {
     setDialogOpen(false);
     setEditingElection(null);
-    setFormTitle('');
-    setFormTier('');
-    setFormDate('');
-    setFormStatus('');
-  }, []);
+    resetForm({ title: '', tier: '', date: '', status: '' });
+  }, [resetForm]);
 
-  const handleSave = useCallback(() => {
-    if (!formTitle.trim() || !formDate) {
-      toast.error('Title and date are required');
-      return;
-    }
+  const onFormValid = useCallback((data: ElectionFormValues) => {
     if (editingElection) {
-      const data: { title?: string; tier?: string; date?: string; status?: string } = {
-        title: formTitle.trim(),
-        tier: formTier || undefined,
-        date: formDate,
-        status: formStatus || undefined,
+      const payload: { title?: string; tier?: string; date?: string; status?: string } = {
+        title: data.title.trim(),
+        tier: data.tier || undefined,
+        date: data.date,
+        status: data.status || undefined,
       };
-      updateMutation.mutate({ id: editingElection.id, data });
+      updateMutation.mutate({ id: editingElection.id, data: payload });
     } else {
       createMutation.mutate({
-        title: formTitle.trim(),
-        tier: formTier || 'LOCAL',
-        date: formDate,
-        status: formStatus || 'UPCOMING',
+        title: data.title.trim(),
+        tier: data.tier || 'LOCAL',
+        date: data.date,
+        status: data.status || 'UPCOMING',
       });
     }
-  }, [formTitle, formDate, formTier, formStatus, editingElection, createMutation, updateMutation]);
+  }, [editingElection, createMutation, updateMutation]);
+
+  const handleSave = useCallback(() => {
+    handleFormSubmit(onFormValid)();
+  }, [handleFormSubmit, onFormValid]);
 
   const handleDelete = useCallback(() => {
     if (deletingElection) {
@@ -546,56 +568,80 @@ export function ElectionManagement() {
               <div className="grid gap-2">
                 <Label htmlFor="election-title">Title</Label>
                 <Input
+                  {...formRegister('title')}
                   id="election-title"
                   placeholder="e.g. 2027 General Election"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
+                  className={cn(formErrors.title && "border-rose/50 focus-visible:ring-rose/30")}
                 />
+                {formErrors.title && (
+                  <p className="text-xs text-rose">{formErrors.title.message}</p>
+                )}
               </div>
 
               {/* Tier */}
               <div className="grid gap-2">
                 <Label htmlFor="election-tier">Tier</Label>
-                <Select value={formTier} onValueChange={setFormTier}>
-                  <SelectTrigger id="election-tier">
-                    <SelectValue placeholder="Select tier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIER_SELECT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="tier"
+                  control={formControl}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="election-tier" className={cn(formErrors.tier && "border-rose/50")}>
+                        <SelectValue placeholder="Select tier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIER_SELECT_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {formErrors.tier && (
+                  <p className="text-xs text-rose">{formErrors.tier.message}</p>
+                )}
               </div>
 
               {/* Date */}
               <div className="grid gap-2">
                 <Label htmlFor="election-date">Date</Label>
                 <Input
+                  {...formRegister('date')}
                   id="election-date"
                   type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
+                  className={cn(formErrors.date && "border-rose/50 focus-visible:ring-rose/30")}
                 />
+                {formErrors.date && (
+                  <p className="text-xs text-rose">{formErrors.date.message}</p>
+                )}
               </div>
 
               {/* Status */}
               <div className="grid gap-2">
                 <Label htmlFor="election-status">Status</Label>
-                <Select value={formStatus} onValueChange={setFormStatus}>
-                  <SelectTrigger id="election-status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_SELECT_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="status"
+                  control={formControl}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger id="election-status" className={cn(formErrors.status && "border-rose/50")}>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_SELECT_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {formErrors.status && (
+                  <p className="text-xs text-rose">{formErrors.status.message}</p>
+                )}
               </div>
             </div>
 

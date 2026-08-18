@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/security?tenantId=X&severity=X&eventType=X
 export async function GET(req: NextRequest) {
@@ -116,6 +117,14 @@ export async function POST(req: NextRequest) {
           metadata: JSON.stringify(metadata || {}),
         },
       });
+      void logAudit({
+        userId: authUser.userId,
+        action: 'LOG_SECURITY_EVENT',
+        entityType: 'SecurityEvent',
+        entityId: event.id,
+        metadata: { eventType, severity },
+        ipAddress: extractIp(req),
+      });
       return NextResponse.json({ event }, { status: 201 });
     }
 
@@ -129,6 +138,14 @@ export async function POST(req: NextRequest) {
       if (typeof dataRetentionDays === 'number') updateData.dataRetentionDays = dataRetentionDays;
 
       await db.tenant.update({ where: { id: tenantId }, data: updateData });
+      void logAudit({
+        userId: authUser.userId,
+        action: 'UPDATE_SECURITY_POLICY',
+        entityType: 'Tenant',
+        entityId: tenantId,
+        metadata: updateData,
+        ipAddress: extractIp(req),
+      });
       return NextResponse.json({ success: true });
     }
 
@@ -138,6 +155,13 @@ export async function POST(req: NextRequest) {
       await db.securityEvent.update({
         where: { id: eventId, tenantId },
         data: { resolved: true, resolvedById: resolvedById || null, resolvedAt: new Date() },
+      });
+      void logAudit({
+        userId: authUser.userId,
+        action: 'RESOLVE_SECURITY_EVENT',
+        entityType: 'SecurityEvent',
+        entityId: eventId,
+        ipAddress: extractIp(req),
       });
       return NextResponse.json({ success: true });
     }
@@ -149,6 +173,14 @@ export async function POST(req: NextRequest) {
         where: { id: targetUserId, tenantId },
         data: { isLocked: true, lockedAt: new Date(), lockedReason: reason || 'Manual lock by admin' },
       });
+      void logAudit({
+        userId: authUser.userId,
+        action: 'LOCK_USER',
+        entityType: 'User',
+        entityId: targetUserId,
+        metadata: { reason },
+        ipAddress: extractIp(req),
+      });
       return NextResponse.json({ success: true });
     }
 
@@ -158,6 +190,13 @@ export async function POST(req: NextRequest) {
       await db.user.update({
         where: { id: targetUserId, tenantId },
         data: { isLocked: false, lockedAt: null, lockedReason: null },
+      });
+      void logAudit({
+        userId: authUser.userId,
+        action: 'UNLOCK_USER',
+        entityType: 'User',
+        entityId: targetUserId,
+        ipAddress: extractIp(req),
       });
       return NextResponse.json({ success: true });
     }

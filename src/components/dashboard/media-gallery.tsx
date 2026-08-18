@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
+import { EmptyState } from './empty-state';
 
 interface EvidenceItem {
   id: string;
@@ -313,11 +314,12 @@ export function MediaGallery() {
             ))}
           </div>
           {!isLoading && filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="font-medium text-foreground/60">No media in this category</p>
-              <p className="text-xs mt-1">Evidence will appear here as dossiers are created.</p>
-            </div>
+            <EmptyState
+              icon={ImageIcon}
+              title="No media in this category"
+              description="Evidence will appear here as dossiers are created and linked to incidents."
+              size="sm"
+            />
           )}
         </ScrollArea>
 

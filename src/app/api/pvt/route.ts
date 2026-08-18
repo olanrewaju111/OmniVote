@@ -5,6 +5,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/pvt?tenantId=X — comprehensive PVT dashboard
@@ -266,6 +267,15 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      void logAudit({
+        userId: authUser.userId,
+        action: 'CREATE_PVT_SUBMISSION',
+        entityType: 'PvtSubmission',
+        entityId: submission.id,
+        metadata: { electionId, pollingUnitId, source: source || 'MOBILE' },
+        ipAddress: extractIp(req),
+      });
+
       return NextResponse.json({
         success: true,
         message: 'PVT submission created',
@@ -303,6 +313,15 @@ export async function POST(req: NextRequest) {
           verifiedById,
           verifiedAt: new Date(),
         },
+      });
+
+      void logAudit({
+        userId: authUser.userId,
+        action: 'VERIFY_PVT_SUBMISSION',
+        entityType: 'PvtSubmission',
+        entityId: pvtId,
+        metadata: { verifiedById },
+        ipAddress: extractIp(req),
       });
 
       return NextResponse.json({
@@ -385,6 +404,15 @@ export async function POST(req: NextRequest) {
           isAnomaly,
           anomalyReason,
         },
+      });
+
+      void logAudit({
+        userId: authUser.userId,
+        action: 'RUN_PVT_COMPARISON',
+        entityType: 'ResultComparison',
+        entityId: comparison.id,
+        metadata: { pollingUnitId, electionId, isAnomaly, deltaPct },
+        ipAddress: extractIp(req),
       });
 
       return NextResponse.json({

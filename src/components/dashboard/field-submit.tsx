@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,6 +63,28 @@ const INCIDENT_TYPES = [
   { value: 'OBSERVATION', label: 'General Observation', severity: 'LOW', color: 'muted' },
 ];
 
+// ---- Zod Schemas ----
+const incidentFormSchema = z.object({
+  type: z.string().min(1, 'Select an incident type'),
+  severity: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], {
+    message: 'Severity is required',
+  }),
+  description: z
+    .string()
+    .min(10, 'Provide at least 10 characters describing the incident')
+    .max(5000, 'Description must be under 5,000 characters'),
+  pollingUnitId: z.string().min(1, 'Select a polling unit'),
+});
+
+const resultsFormSchema = z.object({
+  pollingUnitId: z.string().min(1, 'Select a polling unit'),
+  accredited: z.string().min(1, 'Enter the number of accredited voters'),
+  rejectedBallots: z.string().min(1, 'Enter the number of rejected ballots'),
+});
+
+type IncidentFormValues = z.infer<typeof incidentFormSchema>;
+type ResultsFormValues = z.infer<typeof resultsFormSchema>;
+
 type Tab = 'results' | 'statistics' | 'incident';
 
 interface PartyVote {
@@ -77,10 +102,29 @@ export function SubmitReport() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedType, setSubmittedType] = useState('');
 
-  // ---- RESULTS STATE ----
-  const [accredited, setAccredited] = useState('');
-  const [validVotes, setValidVotes] = useState('');
-  const [rejectedBallots, setRejectedBallots] = useState('');
+  // ---- RESULTS FORM (react-hook-form + zod) ----
+  const resultsForm = useForm<ResultsFormValues>({
+    resolver: zodResolver(resultsFormSchema),
+    defaultValues: {
+      pollingUnitId: '',
+      accredited: '',
+      rejectedBallots: '',
+    },
+  });
+  const {
+    register: resRegister,
+    handleSubmit: handleResultsSubmit,
+    formState: { errors: resErrors },
+    watch: resWatch,
+    setValue: setResValue,
+  } = resultsForm;
+
+  const accredited = resWatch('accredited');
+  const rejectedBallots = resWatch('rejectedBallots');
+
+  // validVotes kept for backward compat (not exposed in UI)
+  const validVotes = '';
+  const validVotesNum = 0;
   const [partyVotes, setPartyVotes] = useState<PartyVote[]>(
     (PARTIES_BY_TIER[electionTier] || PARTIES_BY_TIER.PRESIDENTIAL).map(p => ({ party: p.code, votes: '' }))
   );
@@ -92,10 +136,28 @@ export function SubmitReport() {
   const [violenceOccurred, setViolenceOccurred] = useState(false);
   const [statsNotes, setStatsNotes] = useState('');
 
-  // ---- INCIDENT STATE ----
-  const [incType, setIncType] = useState('');
-  const [incSeverity, setIncSeverity] = useState('MEDIUM');
-  const [incDescription, setIncDescription] = useState('');
+  // ---- INCIDENT FORM (react-hook-form + zod) ----
+  const incidentForm = useForm<IncidentFormValues>({
+    resolver: zodResolver(incidentFormSchema),
+    defaultValues: {
+      type: '',
+      severity: 'MEDIUM',
+      description: '',
+      pollingUnitId: '',
+    },
+  });
+  const {
+    register: incRegister,
+    handleSubmit: handleIncidentSubmit,
+    formState: { errors: incErrors },
+    watch: incWatch,
+    setValue: setIncValue,
+    reset: resetIncidentForm,
+  } = incidentForm;
+
+  const incType = incWatch('type');
+  const incSeverity = incWatch('severity');
+
   const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
 
   // ---- OFFLINE QUEUE STATE ----
@@ -180,7 +242,6 @@ export function SubmitReport() {
   // Auto-calculate totals
   const totalVotesCast = partyVotes.reduce((s, p) => s + (parseInt(p.votes) || 0), 0);
   const accreditedNum = parseInt(accredited) || 0;
-  const validVotesNum = parseInt(validVotes) || 0;
   const rejectedNum = parseInt(rejectedBallots) || 0;
 
   // ---- SUBMIT HANDLERS ----
@@ -237,7 +298,7 @@ export function SubmitReport() {
       queryClient.invalidateQueries({ queryKey: ['my-reports'] });
       queryClient.invalidateQueries({ queryKey: ['my-report-counts'] });
       setSubmitted(true); setSubmittedType('incident');
-      setIncDescription(''); setIncType('');
+      resetIncidentForm({ type: '', severity: 'MEDIUM', description: '', pollingUnitId: selectedPU });
       setCapturedPhotos([]);
       setTimeout(() => setSubmitted(false), 4000);
     },
@@ -252,7 +313,7 @@ export function SubmitReport() {
             contentType: 'application/json',
           });
           toast.warning('No network — incident queued for offline sync');
-          setIncDescription(''); setIncType('');
+          resetIncidentForm({ type: '', severity: 'MEDIUM', description: '', pollingUnitId: selectedPU });
           setCapturedPhotos([]);
           refreshQueueCount();
         } catch {
@@ -264,11 +325,8 @@ export function SubmitReport() {
     },
   });
 
-  const handleSubmitResults = () => {
-    if (!user?.id || !selectedPU) {
-      toast.error('Please select a polling unit');
-      return;
-    }
+  const onResultsValid = (data: ResultsFormValues) => {
+    if (!user?.id) return;
     if (partyVotes.every(p => !p.votes)) {
       toast.error('Enter at least one party vote count');
       return;
@@ -284,10 +342,10 @@ export function SubmitReport() {
     setSubmitting(true);
     resultMutation.mutate({
       reporterId: user.id,
-      pollingUnitId: selectedPU,
-      accreditedVoters: accreditedNum,
+      pollingUnitId: data.pollingUnitId,
+      accreditedVoters: parseInt(data.accredited) || 0,
       totalValidVotes: validVotesNum,
-      rejectedBallots: rejectedNum,
+      rejectedBallots: parseInt(data.rejectedBallots) || 0,
       totalVotesCast,
       partyResults: parsedPartyResults,
       bvasUsed, materialsArrivedOnTime: materialsOnTime,
@@ -295,21 +353,29 @@ export function SubmitReport() {
     }, { onSettled: () => setSubmitting(false) });
   };
 
-  const handleSubmitIncident = () => {
-    if (!user?.id) return;
-    if (!incType) { toast.error('Select an incident type'); return; }
-    if (!incDescription.trim()) { toast.error('Describe the incident'); return; }
+  const handleSubmitResults = () => {
+    setResValue('pollingUnitId', selectedPU);
+    handleResultsSubmit(onResultsValid)();
+  };
 
-    const typeConfig = INCIDENT_TYPES.find(t => t.value === incType);
+  const onIncidentValid = (data: IncidentFormValues) => {
+    if (!user?.id) return;
+    const typeConfig = INCIDENT_TYPES.find(t => t.value === data.type);
     setSubmitting(true);
     incidentMutation.mutate({
       reporterId: user.id,
-      pollingUnitId: selectedPU || undefined,
-      type: incType,
-      severity: typeConfig?.severity || incSeverity,
-      description: incDescription.trim(),
+      pollingUnitId: data.pollingUnitId || undefined,
+      type: data.type,
+      severity: typeConfig?.severity || data.severity,
+      description: data.description.trim(),
       photos: capturedPhotos,
     }, { onSettled: () => setSubmitting(false) });
+  };
+
+  const handleSubmitIncident = () => {
+    if (!user?.id) return;
+    setIncValue('pollingUnitId', selectedPU);
+    handleIncidentSubmit(onIncidentValid)();
   };
 
   const selectedPUData = pollingUnits.find(p => p.id === selectedPU);
@@ -350,7 +416,11 @@ export function SubmitReport() {
             <MapPin className="h-3.5 w-3.5 text-emerald" />
             Select Polling Unit
           </label>
-          <Select value={selectedPU} onValueChange={setSelectedPU}>
+          <Select value={selectedPU} onValueChange={(v) => {
+            setSelectedPU(v);
+            incidentForm.setValue('pollingUnitId', v, { shouldValidate: true });
+            resultsForm.setValue('pollingUnitId', v, { shouldValidate: true });
+          }}>
             <SelectTrigger className="h-10">
               <SelectValue placeholder="Choose your assigned polling unit..." />
             </SelectTrigger>
@@ -367,6 +437,12 @@ export function SubmitReport() {
               ))}
             </SelectContent>
           </Select>
+          {resErrors.pollingUnitId && !selectedPU && activeTab === 'results' && (
+            <p className="text-[10px] text-rose mt-1">{resErrors.pollingUnitId.message}</p>
+          )}
+          {incErrors.pollingUnitId && !selectedPU && activeTab === 'incident' && (
+            <p className="text-[10px] text-rose mt-1">{incErrors.pollingUnitId.message}</p>
+          )}
           {selectedPUData && (
             <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
               <Badge variant="outline" className="text-[10px] h-5 border-emerald/30 text-emerald">
@@ -430,26 +506,30 @@ export function SubmitReport() {
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-medium text-muted-foreground">Accredited Voters</label>
                       <Input
+                        {...resRegister('accredited')}
                         type="number" min="0"
                         inputMode="numeric"
                         enterKeyHint="next"
                         placeholder="0"
-                        value={accredited}
-                        onChange={(e) => setAccredited(e.target.value)}
-                        className="h-10 text-sm tabular-nums"
+                        className={cn("h-10 text-sm tabular-nums", resErrors.accredited && "border-rose/50 focus-visible:ring-rose/30")}
                       />
+                      {resErrors.accredited && (
+                        <p className="text-[10px] text-rose mt-1">{resErrors.accredited.message}</p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[11px] font-medium text-muted-foreground">Rejected Ballots</label>
                       <Input
+                        {...resRegister('rejectedBallots')}
                         type="number" min="0"
                         inputMode="numeric"
                         enterKeyHint="next"
                         placeholder="0"
-                        value={rejectedBallots}
-                        onChange={(e) => setRejectedBallots(e.target.value)}
-                        className="h-10 text-sm tabular-nums"
+                        className={cn("h-10 text-sm tabular-nums", resErrors.rejectedBallots && "border-rose/50 focus-visible:ring-rose/30")}
                       />
+                      {resErrors.rejectedBallots && (
+                        <p className="text-[10px] text-rose mt-1">{resErrors.rejectedBallots.message}</p>
+                      )}
                     </div>
                   </div>
 
@@ -649,8 +729,8 @@ export function SubmitReport() {
                         <button
                           key={t.value}
                           onClick={() => {
-                            setIncType(t.value);
-                            setIncSeverity(t.severity);
+                            setIncValue('type', t.value, { shouldValidate: true });
+                            setIncValue('severity', t.severity as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL', { shouldValidate: true });
                           }}
                           className={cn(
                             'px-3 py-2.5 rounded-lg border text-xs font-medium transition-all text-left',
@@ -684,7 +764,7 @@ export function SubmitReport() {
                         {(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const).map(s => (
                           <button
                             key={s}
-                            onClick={() => setIncSeverity(s)}
+                            onClick={() => setIncValue('severity', s, { shouldValidate: true })}
                             className={cn(
                               'px-3 py-2 rounded-lg border text-xs font-medium transition-all text-center',
                               incSeverity === s
@@ -702,16 +782,21 @@ export function SubmitReport() {
                       </div>
                     </div>
                   )}
+                  {incErrors.type && !incType && (
+                    <p className="text-[10px] text-rose mt-1">{incErrors.type.message}</p>
+                  )}
 
                   {/* Description */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Describe what happened</label>
                     <Textarea
-                      value={incDescription}
-                      onChange={(e) => setIncDescription(e.target.value)}
+                      {...incRegister('description')}
                       placeholder="Provide details: who was involved, what happened, time, location within the PU, names if known..."
-                      className="min-h-[120px] bg-background border-border text-sm resize-none"
+                      className={cn("min-h-[120px] bg-background border-border text-sm resize-none", incErrors.description && "border-rose/50 focus-visible:ring-rose/30")}
                     />
+                    {incErrors.description && (
+                      <p className="text-[10px] text-rose mt-1">{incErrors.description.message}</p>
+                    )}
                   </div>
 
                   {/* Media capture */}
@@ -796,7 +881,7 @@ export function SubmitReport() {
                   <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border p-3 sm:static sm:bg-transparent sm:backdrop-blur-none sm:border-t-0 sm:p-0">
                   <Button
                     onClick={handleSubmitIncident}
-                    disabled={submitting || !incType || !incDescription.trim()}
+                    disabled={submitting || !incType || !incWatch('description')?.trim()}
                     className="w-full h-11 bg-emerald hover:bg-emerald/90 text-emerald-950 font-semibold gap-2"
                   >
                     {submitting && submittedType === 'incident' ? (

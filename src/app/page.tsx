@@ -1,35 +1,31 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Map, BarChart3, ShieldAlert, Lock, Trophy, Megaphone } from 'lucide-react';
-import dynamic from 'next/dynamic';
-import { toast } from 'sonner';
-import { useSSE } from '@/hooks/use-sse';
-import { useWebSocket, type WsEvent } from '@/hooks/use-websocket';
+import { Loader2 } from 'lucide-react';
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
 import { AppHeader } from '@/components/dashboard/header';
 import { MobileBottomNav } from '@/components/dashboard/mobile-bottom-nav';
-import { DashboardSkeleton, TableSkeleton, FeedSkeleton, CardGridSkeleton, MapSkeleton, FormSkeleton, ChartSkeleton, ListDetailSkeleton } from '@/components/dashboard/dashboard-skeleton';
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import { CommandPalette } from '@/components/dashboard/command-palette';
 import { KeyboardShortcuts } from '@/components/dashboard/keyboard-shortcuts';
-import { useDashboardStore, ROLE_TABS, type ViewTab, type ElectionInfo } from '@/store/dashboard';
-import { KpiGrid } from '@/components/dashboard/kpi-grid';
-import { PwaRegistration } from '@/components/pwa-registration';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { fetchJson } from '@/lib/api';
-import { cn } from '@/lib/utils';
 import { QuickActionsFab } from '@/components/dashboard/quick-actions-fab';
 import { ElectionTicker } from '@/components/dashboard/election-ticker';
-import { ElectionTracker } from '@/components/dashboard/election-tracker';
-import { ElectionSummaryInfographic } from '@/components/dashboard/election-summary-infographic';
-import { IncidentDetailSlideover } from '@/components/dashboard/incident-detail-slideover';
 import { ChatToggleButton, TeamChatDrawer } from '@/components/dashboard/team-chat';
 import { ToastSoundEnhancer } from '@/components/dashboard/toast-sound-enhancer';
-import { WinProbabilityGauge } from '@/components/dashboard/win-probability-gauge';
+import { PwaRegistration } from '@/components/pwa-registration';
+import { TabContent } from '@/components/dashboard/tab-renderer';
+import { useDashboardWebSocket } from '@/hooks/use-dashboard-websocket';
+import { useDashboardStore, ROLE_TABS, type ViewTab } from '@/store/dashboard';
+import { fetchJson } from '@/lib/api';
+import { cn } from '@/lib/utils';
+import type { DashboardData, Incident, AlertsData } from '@/types/dashboard';
+
+// Re-export types for backward compatibility
+export type { Incident, DashboardData, AlertsData } from '@/types/dashboard';
 
 // Tab display labels for breadcrumbs & toasts
 const TAB_LABELS: Record<string, string> = {
@@ -45,7 +41,7 @@ const TAB_LABELS: Record<string, string> = {
   'agents': 'Agent Roster', 'engagement': 'Agent Engagement',
   'system': 'System Health', 'tenants': 'Tenant Management',
   'narrative': 'Narrative Builder',
-  'reports': 'Reports Center',
+  'reports': 'Reports Center', 'activity-stream': 'Activity Stream',
 };
 
 // Section grouping for breadcrumbs
@@ -56,158 +52,23 @@ const TAB_SECTION: Record<string, string> = {
   'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
   'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team', 'reports': 'Team',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
-  'system': 'Admin', 'tenants': 'Admin',
+  'system': 'Admin', 'tenants': 'Admin', 'activity-stream': 'Command',
 };
-
-// ---- Code-split heavy tab components ----
-
-// Tab-specific loading skeletons for code-split components
-const TAB_SKELETONS: Record<string, React.ComponentType> = {
-  'situation': () => <div className="h-full p-4"><TableSkeleton rows={6} cols={5} /></div>,
-  'map': MapSkeleton,
-  'feed': () => <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden"><FeedSkeleton /></div>,
-  'alerts': () => <div className="h-full p-4"><TableSkeleton rows={5} cols={4} /></div>,
-  'osint': () => <CardGridSkeleton cols={2} rows={3} />,
-  'ai': ChartSkeleton,
-  'media': () => <CardGridSkeleton cols={3} rows={2} />,
-  'mobilization': () => <CardGridSkeleton cols={2} rows={3} />,
-  'campaigns': () => <CardGridSkeleton cols={2} rows={3} />,
-  'security': ChartSkeleton,
-  'field-safety': () => <CardGridSkeleton cols={2} rows={3} />,
-  'pvt': ChartSkeleton,
-  'victory-roadmap': ChartSkeleton,
-  'evidence': ListDetailSkeleton,
-  'flashpoint': () => <CardGridSkeleton cols={2} rows={3} />,
-  'honeypot': () => <CardGridSkeleton cols={2} rows={3} />,
-  'audit-logs': () => <div className="h-full p-4"><TableSkeleton rows={8} cols={5} /></div>,
-  'submit': FormSkeleton,
-  'my-reports': () => <div className="h-full p-4"><TableSkeleton rows={5} cols={4} /></div>,
-  'agents': () => <div className="h-full p-4"><TableSkeleton rows={6} cols={5} /></div>,
-  'engagement': ListDetailSkeleton,
-  'system': () => <CardGridSkeleton cols={2} rows={3} />,
-  'elections': () => <CardGridSkeleton cols={2} rows={3} />,
-  'tenants': () => <div className="h-full p-4"><TableSkeleton rows={4} cols={4} /></div>,
-  'campaign-analytics': () => <CardGridSkeleton cols={2} rows={3} />, 
-  'social-cards': () => <CardGridSkeleton cols={1} rows={2} />, 
-  'narrative': () => <CardGridSkeleton cols={2} rows={3} />,
-  'reports': () => <CardGridSkeleton cols={2} rows={3} />,
-};
-
-const createDynamic = <T extends React.ComponentType<any>>(
-  loader: () => Promise<{ default: T }>,
-  tabKey?: string,
-) =>
-  dynamic(loader, {
-    loading: () => {
-      const Skeleton = tabKey ? TAB_SKELETONS[tabKey] : null;
-      if (Skeleton) return <div className="h-full p-4"><Skeleton /></div>;
-      return (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      );
-    },
-  });
-
-const GeoMapView = createDynamic(() => import('@/components/dashboard/geo-map').then(m => ({ default: m.GeoMapView })), 'map');
-const LiveFeed = createDynamic(() => import('@/components/dashboard/live-feed').then(m => ({ default: m.LiveFeed })), 'feed');
-const AlertTriage = createDynamic(() => import('@/components/dashboard/alert-triage').then(m => ({ default: m.AlertTriage })), 'alerts');
-const AiInsights = createDynamic(() => import('@/components/dashboard/ai-insights').then(m => ({ default: m.AiInsights })), 'ai');
-const MediaGallery = createDynamic(() => import('@/components/dashboard/media-gallery').then(m => ({ default: m.MediaGallery })), 'media');
-const SubmitReport = createDynamic(() => import('@/components/dashboard/field-submit').then(m => ({ default: m.SubmitReport })), 'submit');
-const MyReports = createDynamic(() => import('@/components/dashboard/field-reports').then(m => ({ default: m.MyReports })), 'my-reports');
-const AgentRoster = createDynamic(() => import('@/components/dashboard/agent-roster').then(m => ({ default: m.AgentRoster })), 'agents');
-const SystemHealth = createDynamic(() => import('@/components/dashboard/system-health').then(m => ({ default: m.SystemHealth })), 'system');
-const TenantManagement = createDynamic(() => import('@/components/dashboard/tenant-mgmt').then(m => ({ default: m.TenantManagement })), 'tenants');
-const SituationRoom = createDynamic(() => import('@/components/dashboard/situation-room').then(m => ({ default: m.SituationRoom })), 'situation');
-const AgentEngagement = createDynamic(() => import('@/components/dashboard/agent-engagement').then(m => ({ default: m.AgentEngagement })), 'engagement');
-const OsintMonitor = createDynamic(() => import('@/components/dashboard/osint-monitor').then(m => ({ default: m.OsintMonitor })), 'osint');
-const MobilizationEngine = createDynamic(() => import('@/components/dashboard/mobilization').then(m => ({ default: m.MobilizationEngine })), 'mobilization');
-const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campaign-monitor').then(m => ({ default: m.CampaignMonitor })), 'campaigns');
-const SecurityCenter = createDynamic(() => import('@/components/dashboard/security-center').then(m => ({ default: m.SecurityCenter })), 'security');
-const FieldSafety = createDynamic(() => import('@/components/dashboard/field-safety').then(m => ({ default: m.FieldSafety })), 'field-safety');
-const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-quick-count').then(m => ({ default: m.PvtQuickCount })), 'pvt');
-const VictoryRoadmapPanel = createDynamic(() => import('@/components/dashboard/victory-roadmap').then(m => ({ default: m.VictoryRoadmap })), 'victory-roadmap');
-const EvidenceDossier = createDynamic(() => import('@/components/dashboard/evidence-dossier').then(m => ({ default: m.EvidenceDossier })), 'evidence');
-const FlashpointWargame = createDynamic(() => import('@/components/dashboard/flashpoint-wargame').then(m => ({ default: m.FlashpointWargame })), 'flashpoint');
-const HoneypotBiometrics = createDynamic(() => import('@/components/dashboard/honeypot-biometrics').then(m => ({ default: m.HoneypotBiometrics })), 'honeypot');
-const AuditLogViewer = createDynamic(() => import('@/components/dashboard/audit-log-viewer').then(m => ({ default: m.AuditLogViewer })), 'audit-logs');
-const CampaignAnalyticsPanel = createDynamic(() => import('@/components/dashboard/campaign-analytics').then(m => ({ default: m.default })), 'campaign-analytics');
-const SocialCardsPanel = createDynamic(() => import('@/components/dashboard/social-cards').then(m => ({ default: m.SocialCards })), 'social-cards');
-const NarrativeBuilderPanel = createDynamic(() => import('@/components/dashboard/narrative-builder').then(m => ({ default: m.NarrativeBuilder })), 'narrative');
-const ReportsCenter = createDynamic(() => import('@/components/dashboard/reports-center').then(m => ({ default: m.ReportsCenter })), 'reports');
-const LiveActivityStream = createDynamic(() => import('@/components/dashboard/live-activity-ticker').then(m => ({ default: m.LiveActivityTicker })), 'activity-stream');
-const SituationalKPIPanel = createDynamic(() => import('@/components/dashboard/situational-kpi').then(m => ({ default: m.SituationalKPI })), 'overview');
-const ElectionManagementPanel = createDynamic(() => import('@/components/dashboard/election-management').then(m => ({ default: m.ElectionManagement })), 'system');
-
-// ---- Types ----
-export interface Incident {
-  id: string;
-  type: string;
-  severity: string;
-  status: string;
-  description: string;
-  gpsLat: number | null;
-  gpsLng: number | null;
-  gpsAnomaly: boolean;
-  aiSummary: string | null;
-  aiFlags: string[];
-  isQuarantined: boolean;
-  c2paVerified: boolean;
-  submittedAt: string;
-  reviewedAt: string | null;
-  reporter: { id: string; name: string; role: string } | null;
-  pollingUnit: { id: string; name: string; code: string; state: string; lga: string } | null;
-}
-
-interface MapBoundsData {
-  minLat: number; maxLat: number; minLng: number; maxLng: number; label: string;
-}
-
-interface DashboardData {
-  mapBounds?: MapBoundsData | null;
-  electionInfo: ElectionInfo;
-  kpis: {
-    totalAgents: number; onlineAgents: number; totalIncidents: number;
-    pendingIncidents: number; criticalIncidents: number; quarantinedIncidents: number;
-    securityAlerts: number; operationalAlerts: number; unreadAlerts: number; sosCount: number;
-  };
-  election: {
-    totalPollingUnits: number; openUnits: number; closedUnits: number; flaggedUnits: number;
-    totalRegistered: number; totalVotes: number; avgTurnout: number;
-    stateAgg: Record<string, { units: number; votes: number; registered: number; turnout: number }>;
-  };
-  trends?: {
-    onlineAgents?: { value: number; up: boolean };
-    incidents?: { value: number; up: boolean };
-    turnout?: { value: number; up: boolean };
-  };
-  pollingUnits: {
-    id: string; name: string; code: string; state: string; lga: string;
-    lat: number; lng: number; registered: number; votes: number;
-    turnout: number; status: string;
-  }[];
-}
-
-interface AlertsData {
-  alerts: {
-    id: string; type: 'OPERATIONAL' | 'SECURITY'; category: 'INFO' | 'WARNING' | 'CRITICAL';
-    title: string; description: string; isRead: boolean; createdAt: string;
-    incident: { severity: string; status: string; type: string } | null;
-  }[];
-  unreadCount: number; operationalCount: number; securityCount: number; criticalCount: number;
-}
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId, setSelectedTab, setSseConnected, setWsConnected, setWsOnlineCount } = useDashboardStore();
+  const {
+    isAuthenticated, user, activeTab, setElectionInfo, tenantId,
+    setUnreadAlerts, login, setTenantId, setSelectedTab,
+  } = useDashboardStore();
   const queryClient = useQueryClient();
-  // Track last toast time per severity to avoid toast spam
-  const lastToastRef = useRef<Record<string, number>>({});
 
-  // ── Live data pushed via WebSocket ──
-  const [liveIncidents, setLiveIncidents] = useState<Incident[]>([]);
-  const [livePvtCount, setLivePvtCount] = useState(0);
+  // ── Dashboard WebSocket + SSE ──
+  const { liveIncidents, wsTransport } = useDashboardWebSocket({
+    tenantId: tenantId || '',
+    enabled: isAuthenticated && !!tenantId,
+    userId: user?.id,
+  });
 
   // Sync URL hash with active tab on mount
   useEffect(() => {
@@ -228,7 +89,7 @@ export default function Home() {
     }
   }, [activeTab]);
 
-  // ── Session restoration: check if a valid cookie session exists on mount ──
+  // ── Session restoration ──
   const sessionRestore = useQuery<{
     authenticated: boolean;
     user?: { id: string; email: string; name: string; role: string; tenantId: string; tenantName: string; tenantSlug: string };
@@ -240,7 +101,6 @@ export default function Home() {
     enabled: !isAuthenticated,
   });
 
-  // Auto-restore session from cookie if server confirms authentication
   useEffect(() => {
     if (sessionRestore.data?.authenticated && sessionRestore.data.user && !isAuthenticated) {
       const u = sessionRestore.data.user;
@@ -253,168 +113,9 @@ export default function Home() {
     }
   }, [sessionRestore.data, isAuthenticated, login, setTenantId]);
 
-  // Build URL with tenantId for all API calls
   const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
 
-  // ── SSE Real-Time Connection ──
-  const sseHandlers = useRef({
-    incidents: (data: Record<string, unknown>) => {
-      const { incidents, count } = data as { incidents: unknown[]; count: number };
-      if (incidents && incidents.length > 0) {
-        // Invalidate incidents query to trigger refetch
-        queryClient.invalidateQueries({ queryKey: ['incidents'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        // Show toast for CRITICAL/HIGH severity incidents (max 1 per 5s per severity)
-        const now = Date.now();
-        for (const inc of incidents as Array<{ severity?: string; type?: string; description?: string }>) {
-          if (inc.severity === 'CRITICAL' || inc.severity === 'HIGH') {
-            const key = `${inc.severity}-${inc.type}`;
-            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 5000) {
-              lastToastRef.current[key] = now;
-              toast.warning(`${inc.severity}: ${inc.type?.replace(/_/g, ' ') || 'Incident'}`, {
-                description: inc.description?.slice(0, 120) || 'New incident reported',
-                duration: 8000,
-                action: {
-                  label: 'View',
-                  onClick: () => setSelectedTab('feed'),
-                },
-              });
-            }
-          }
-        }
-      }
-    },
-    alerts: (data: Record<string, unknown>) => {
-      const { alerts, count } = data as { alerts: unknown[]; count: number };
-      if (alerts && alerts.length > 0) {
-        queryClient.invalidateQueries({ queryKey: ['alerts'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        // Toast for CRITICAL alerts
-        const now = Date.now();
-        for (const alert of alerts as Array<{ category?: string; title?: string; type?: string }>) {
-          if (alert.category === 'CRITICAL') {
-            const key = `alert-${alert.type}`;
-            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 8000) {
-              lastToastRef.current[key] = now;
-              toast.error(`Critical ${alert.type?.replace(/_/g, ' ') || 'Alert'}`, {
-                description: alert.title?.slice(0, 120) || 'New critical alert',
-                duration: 10000,
-                action: {
-                  label: 'View Alerts',
-                  onClick: () => setSelectedTab('alerts'),
-                },
-              });
-            }
-          }
-        }
-      }
-    },
-    pvt: () => {
-      queryClient.invalidateQueries({ queryKey: ['pvt'] });
-    },
-  });
-
-  // ── WebSocket Real-Time Connection (Phase 5) ──
-  const wsHandlers = useMemo(() => ({
-    'incident:new': (event: WsEvent) => {
-      const { incidents } = event.data as { incidents: Incident[]; count: number };
-      if (incidents && incidents.length > 0) {
-        setLiveIncidents(prev => {
-          const existingIds = new Set(prev.map(i => i.id));
-          const newOnes = incidents.filter(i => !existingIds.has(i.id));
-          return [...newOnes, ...prev].slice(0, 100);
-        });
-        queryClient.invalidateQueries({ queryKey: ['incidents'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        // Toast for critical/high severity
-        const now = Date.now();
-        for (const inc of incidents) {
-          if (inc.severity === 'CRITICAL' || inc.severity === 'HIGH') {
-            const key = `ws-${inc.severity}-${inc.type}`;
-            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 5000) {
-              lastToastRef.current[key] = now;
-              toast.warning(`${inc.severity}: ${inc.type?.replace(/_/g, ' ') || 'Incident'}`, {
-                description: inc.description?.slice(0, 120) || 'New incident reported via live feed',
-                duration: 8000,
-                action: { label: 'View', onClick: () => setSelectedTab('feed') },
-              });
-            }
-          }
-        }
-      }
-    },
-    'alert:new': (event: WsEvent) => {
-      const { alerts } = event.data as { alerts: unknown[]; count: number };
-      if (alerts && alerts.length > 0) {
-        queryClient.invalidateQueries({ queryKey: ['alerts'] });
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-        const now = Date.now();
-        for (const alert of alerts as Array<{ category?: string; title?: string; type?: string }>) {
-          if (alert.category === 'CRITICAL') {
-            const key = `ws-alert-${alert.type}`;
-            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 8000) {
-              lastToastRef.current[key] = now;
-              toast.error(`Critical ${alert.type?.replace(/_/g, ' ') || 'Alert'}`, {
-                description: alert.title?.slice(0, 120) || 'New critical alert',
-                duration: 10000,
-                action: { label: 'View Alerts', onClick: () => setSelectedTab('alerts') },
-              });
-            }
-          }
-        }
-      }
-    },
-    'pvt:new': (event: WsEvent) => {
-      const { results } = event.data as { results: unknown[]; count: number };
-      if (results) {
-        setLivePvtCount(prev => prev + results.length);
-        queryClient.invalidateQueries({ queryKey: ['pvt'] });
-      }
-    },
-    'chat:new_message': (event: WsEvent) => {
-      const msg = event.data as { id: string; senderId: string; senderName: string; body: string };
-      if (msg && msg.senderId !== user?.id) {
-        queryClient.invalidateQueries({ queryKey: ['chat'] });
-      }
-    },
-    'osint:new': (event: WsEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['osint'] });
-    },
-    'dashboard:kpi_update': (event: WsEvent) => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    },
-    'presence': (event: WsEvent) => {
-      // Online count is handled by the hook internally
-    },
-  }), [queryClient, setSelectedTab, user?.id]);
-
-  const { connected: wsConnected, transport: wsTransport, onlineCount } = useWebSocket(tenantId || null, {
-    handlers: wsHandlers,
-    enabled: isAuthenticated && !!tenantId,
-    onConnectionChange: (connected, transport) => {
-      setWsConnected(connected, transport);
-    },
-  });
-
-  // Sync online count to store
-  useEffect(() => {
-    setWsOnlineCount(onlineCount);
-  }, [onlineCount, setWsOnlineCount]);
-
-  // Keep SSE as fallback when WS is not connected
-  useSSE(tenantId || null, {
-    handlers: sseHandlers.current,
-    enabled: isAuthenticated && !!tenantId && wsTransport !== 'ws',
-    onConnectionChange: (connected) => {
-      if (connected && wsTransport !== 'ws') {
-        setWsConnected(true, 'sse');
-      }
-      setSseConnected(connected);
-    },
-  });
-
-  // Fetch dashboard data (only when authenticated)
-  // Reduced to 30s since SSE handles incremental updates
+  // Fetch dashboard data
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard', tenantId],
     queryFn: () => fetchJson(`/api/dashboard${tenantParam}`),
@@ -422,14 +123,14 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
-  // Sync election info from server (one type per tenant — not user-switchable)
+  // Sync election info from server
   useEffect(() => {
     if (dashData?.electionInfo) {
       setElectionInfo(dashData.electionInfo);
     }
   }, [dashData?.electionInfo, setElectionInfo]);
 
-  // Reduced to 30s — SSE handles real-time increments
+  // Fetch incidents
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
     queryKey: ['incidents', 'all', tenantId],
     queryFn: () => fetchJson(`/api/incidents?limit=50&tenantId=${tenantId}`),
@@ -437,6 +138,7 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
+  // Fetch alerts
   const { data: alertsData, isLoading: alertsLoading } = useQuery<AlertsData>({
     queryKey: ['alerts', 'all', tenantId],
     queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
@@ -444,7 +146,7 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
-  // Sync unread alerts count to store (sidebar badge)
+  // Sync unread alerts count to store
   useEffect(() => {
     if (alertsData) {
       setUnreadAlerts(alertsData.unreadCount);
@@ -468,12 +170,10 @@ export default function Home() {
     );
   }
 
-  // Show login screen if not authenticated and session check is complete
   if (!isAuthenticated) {
     return <LoginScreen />;
   }
 
-  // Show loading state after login
   if (isLoading) {
     return (
       <div className="h-screen flex flex-col bg-background">
@@ -510,7 +210,6 @@ export default function Home() {
         </div>
 
         <main id="main-content" className={cn('flex-1 overflow-hidden', user?.role === 'FIELD_AGENT' && 'pb-14 md:pb-0')} role="main">
-          {/* Screen reader announcement for tab changes */}
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             Switched to {activeTab.replace(/-/g, ' ')} view
           </div>
@@ -525,209 +224,13 @@ export default function Home() {
               role="tabpanel"
               aria-label={`${activeTab.replace(/-/g, ' ')} panel`}
             >
-              {activeTab === 'situation' && (
-                <ErrorBoundary title="Situation Room">
-                  <div className="h-full">
-                    <SituationRoom />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'overview' && (
-                <ErrorBoundary title="Overview">
-                  <OverviewTab
-                    dashData={dashData!}
-                    incidents={incidentsData?.incidents || []}
-                    alertsData={alertsData}
-                    liveIncidents={liveIncidents}
-                  />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'map' && (
-                <ErrorBoundary title="Geo Map">
-                  <div className="h-full p-4">
-                    <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-                      <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} liveIncidents={liveIncidents} />
-                    </div>
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'feed' && (
-                <ErrorBoundary title="Live Feed">
-                  <div className="h-full">
-                    <LiveFeed incidents={incidentsData?.incidents || []} hasMore={incidentsData?.hasMore} liveIncidents={liveIncidents} />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'alerts' && (
-                <ErrorBoundary title="Alert Triage">
-                  <div className="h-full">
-                    <AlertTriage
-                      alerts={alertsData?.alerts || []}
-                      operationalCount={alertsData?.operationalCount || 0}
-                      securityCount={alertsData?.securityCount || 0}
-                      criticalCount={alertsData?.criticalCount || 0}
-                    />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'osint' && (
-                <ErrorBoundary title="OSINT Monitor">
-                  <div className="h-full">
-                    <OsintMonitor />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'ai' && (
-                <ErrorBoundary title="AI Insights">
-                  <AiInsights
-                    incidents={incidentsData?.incidents || []}
-                    stateAgg={dashData?.election.stateAgg || {}}
-                  />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'media' && (
-                <ErrorBoundary title="Media Gallery">
-                  <MediaGallery />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'mobilization' && (
-                <ErrorBoundary title="Mobilization Engine">
-                  <div className="h-full">
-                    <MobilizationEngine />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'campaigns' && (
-                <ErrorBoundary title="Campaign Monitor">
-                  <div className="h-full">
-                    <CampaignMonitor />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'campaign-analytics' && (
-                <ErrorBoundary title="Campaign Analytics">
-                  <div className="h-full">
-                    <CampaignAnalyticsPanel />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'social-cards' && (
-                <ErrorBoundary title="Social Cards">
-                  <div className="h-full">
-                    <SocialCardsPanel />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'security' && (
-                <ErrorBoundary title="Security Center">
-                  <div className="h-full">
-                    <SecurityCenter />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'field-safety' && (
-                <ErrorBoundary title="Field Safety">
-                  <div className="h-full">
-                    <FieldSafety />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'pvt' && (
-                <ErrorBoundary title="PVT Quick Count">
-                  <div className="h-full">
-                    <PvtQuickCount />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'victory-roadmap' && (
-                <ErrorBoundary title="Victory Roadmap">
-                  <div className="h-full">
-                    <VictoryRoadmapPanel />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'evidence' && (
-                <ErrorBoundary title="Evidence Dossier">
-                  <div className="h-full">
-                    <EvidenceDossier />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'flashpoint' && (
-                <ErrorBoundary title="Flashpoint Wargame">
-                  <div className="h-full">
-                    <FlashpointWargame />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'honeypot' && (
-                <ErrorBoundary title="Honeypot Biometrics">
-                  <div className="h-full">
-                    <HoneypotBiometrics />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'audit-logs' && (
-                <ErrorBoundary title="Audit Logs">
-                  <div className="h-full">
-                    <AuditLogViewer />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'submit' && (
-                <ErrorBoundary title="Submit Report">
-                  <SubmitReport />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'my-reports' && (
-                <ErrorBoundary title="My Reports">
-                  <MyReports />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'agents' && (
-                <ErrorBoundary title="Agent Roster">
-                  <AgentRoster />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'engagement' && (
-                <ErrorBoundary title="Agent Engagement">
-                  <AgentEngagement />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'system' && (
-                <ErrorBoundary title="System Health">
-                  <div className="h-full flex flex-col overflow-y-auto">
-                    <ElectionManagementPanel />
-                    <SystemHealth />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'tenants' && (
-                <ErrorBoundary title="Tenant Management">
-                  <TenantManagement />
-                </ErrorBoundary>
-              )}
-              {activeTab === 'narrative' && (
-                <ErrorBoundary title="Narrative Builder">
-                  <div className="h-full">
-                    <NarrativeBuilderPanel />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'reports' && (
-                <ErrorBoundary title="Reports Center">
-                  <div className="h-full">
-                    <ReportsCenter />
-                  </div>
-                </ErrorBoundary>
-              )}
-              {activeTab === 'activity-stream' && (
-                <ErrorBoundary title="Activity Stream">
-                  <div className="h-full">
-                    <LiveActivityStream />
-                  </div>
-                </ErrorBoundary>
-              )}
+              <TabContent
+                activeTab={activeTab}
+                dashData={dashData!}
+                incidents={incidentsData?.incidents || []}
+                alertsData={alertsData}
+                liveIncidents={liveIncidents}
+              />
             </motion.div>
           </AnimatePresence>
         </main>
@@ -742,126 +245,3 @@ export default function Home() {
     </div>
   );
 }
-
-// ---- Overview Tab ----
-function OverviewTab({
-  dashData, incidents, alertsData, liveIncidents,
-}: {
-  dashData: DashboardData;
-  incidents: Incident[];
-  alertsData: AlertsData | undefined;
-  liveIncidents: Incident[];
-}) {
-  const { setSelectedTab, user } = useDashboardStore();
-
-  // Incident detail slideover state (shared with LiveFeed via callback)
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const [slideoverOpen, setSlideoverOpen] = useState(false);
-
-  const handleIncidentClick = useCallback((inc: Incident) => {
-    setSelectedIncident(inc);
-    setSlideoverOpen(true);
-  }, []);
-
-  const handleSlideoverClose = useCallback(() => {
-    setSlideoverOpen(false);
-    setSelectedIncident(null);
-  }, []);
-
-  const criticalCount = incidents.filter(i => i.severity === 'CRITICAL').length;
-  const recentIncidents = incidents.slice(0, 5);
-
-  // Quick actions based on role
-  const isFieldAgent = user?.role === 'FIELD_AGENT';
-  const quickActions = [
-    { label: 'View Map', tab: 'map' as ViewTab, icon: <Map className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: `${dashData.election.openUnits} units active` },
-    { label: 'Situation Room', tab: 'situation' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-emerald', bg: 'bg-emerald/10', desc: 'Hierarchical results' },
-    { label: criticalCount > 0 ? `Critical Alerts (${criticalCount})` : 'Alert Triage', tab: 'alerts' as ViewTab, icon: <ShieldAlert className="h-4 w-4" />, color: criticalCount > 0 ? 'text-rose' : 'text-amber', bg: criticalCount > 0 ? 'bg-rose/10' : 'bg-amber/10', desc: `${dashData.kpis.unreadAlerts} unread` },
-    { label: 'Election Tracker', tab: 'pvt' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-violet', bg: 'bg-violet/10', desc: 'Party performance & projections', show: !isFieldAgent },
-    { label: 'Victory Roadmap', tab: 'victory-roadmap' as ViewTab, icon: <Trophy className="h-4 w-4" />, color: 'text-amber', bg: 'bg-amber/10', desc: 'Path-to-victory & coalitions', show: !isFieldAgent },
-    { label: 'Generate Social Card', tab: 'mobilization' as ViewTab, icon: <BarChart3 className="h-4 w-4" />, color: 'text-cyan', bg: 'bg-cyan/10', desc: 'Shareable election graphics', show: !isFieldAgent },
-    { label: 'Narrative Builder', tab: 'narrative' as ViewTab, icon: <Megaphone className="h-4 w-4" />, color: 'text-emerald', bg: 'bg-emerald/10', desc: 'Key messages & talking points', show: !isFieldAgent },
-  ];
-
-  const visibleActions = quickActions.filter(a => a.show !== false);
-
-  return (
-    <div className="h-full flex flex-col p-4 gap-3 overflow-y-auto">
-      {/* Top: KPI grid */}
-      <div className="shrink-0">
-        <KpiGrid
-          data={dashData.kpis}
-          election={dashData.election}
-          trends={dashData.trends}
-          extraStats={alertsData ? [
-            { label: 'Threats Intercepted', value: dashData.kpis.quarantinedIncidents, color: 'rose' },
-            { label: 'C2PA Verified Media', value: incidents.filter(i => i.c2paVerified).length, color: 'emerald' },
-            { label: 'Active Polling Units', value: dashData.election.openUnits, color: 'cyan' },
-            { label: 'Pending Review', value: dashData.kpis.pendingIncidents, color: 'amber' },
-          ] : undefined}
-        />
-      </div>
-
-      {/* Situational Awareness KPI — Phase 5 */}
-      <div className="shrink-0">
-        <SituationalKPIPanel />
-      </div>
-
-      {/* Quick action cards — stack on small screens */}
-      <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        {visibleActions.map((action, idx) => (
-          <motion.button
-            key={action.tab}
-            onClick={() => setSelectedTab(action.tab)}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: idx * 0.06, ease: 'easeOut' }}
-            className="rounded-lg border border-border/60 bg-card/30 hover:bg-card/50 p-3 text-left transition-all duration-200 card-lift group"
-          >
-            <div className={cn('p-1.5 rounded-md w-fit mb-2 transition-colors', action.bg)}>
-              <span className={action.color}>{action.icon}</span>
-            </div>
-            <p className="text-xs font-medium leading-tight">{action.label}</p>
-            <p className="text-[10px] text-muted-foreground/50 mt-0.5">{action.desc}</p>
-          </motion.button>
-        ))}
-      </div>
-
-      {/* Election Summary Infographic — shareable snapshot */}
-      {!isFieldAgent && (
-        <div className="shrink-0">
-          <ElectionSummaryInfographic />
-        </div>
-      )}
-
-      {/* Election Tracker — political intelligence widget */}
-      {!isFieldAgent && (
-        <div className="shrink-0 overflow-hidden">
-          <ElectionTracker />
-        </div>
-      )}
-
-      {/* Win Probability Gauge — election winning intelligence */}
-      {!isFieldAgent && (
-        <div className="shrink-0">
-          <WinProbabilityGauge />
-        </div>
-      )}
-
-      {/* Feed: takes remaining space */}
-      <div className="flex-1 min-h-0">
-        <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-          <LiveFeed incidents={incidents.slice(0, 25)} onIncidentClick={handleIncidentClick} liveIncidents={liveIncidents.slice(0, 25)} />
-        </div>
-      </div>
-
-      {/* Incident Detail Slideover */}
-      <IncidentDetailSlideover
-        incident={selectedIncident}
-        open={slideoverOpen}
-        onClose={handleSlideoverClose}
-      />
-    </div>
-  );
-}
-

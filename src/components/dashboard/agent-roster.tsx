@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +32,23 @@ import {
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
+// ---- Zod Schemas ----
+const addAgentSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name must be under 100 characters'),
+  email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+  role: z.string().min(1, 'Select a role'),
+});
+
+type AddAgentFormValues = z.infer<typeof addAgentSchema>;
+
+const editAgentSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100, 'Name must be under 100 characters'),
+  phone: z.string().max(20, 'Phone number is too long').optional().or(z.literal('')),
+  role: z.string().min(1, 'Select a role'),
+});
+
+type EditAgentFormValues = z.infer<typeof editAgentSchema>;
+
 import { MobileOnly, DesktopOnly, DataCard } from './mobile-card';
 import { EmptyState } from './empty-state';
 
@@ -57,16 +77,41 @@ export function AgentRoster() {
   const [addOpen, setAddOpen] = useState(false);
   const [reportsPanel, setReportsPanel] = useState<ReportsSlideOver>({ agent: null, open: false });
   const [confirmAction, setConfirmAction] = useState<{ type: string; agent: AgentUser | null }>({ type: '', agent: null });
+  // Edit agent form (react-hook-form + zod)
+  const {
+    register: editRegister,
+    handleSubmit: handleEditSubmit,
+    formState: { errors: editErrors },
+    control: editControl,
+    reset: resetEditForm,
+    setValue: setEditValue,
+  } = useForm<EditAgentFormValues>({
+    resolver: zodResolver(editAgentSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+      role: '',
+    },
+  });
+
   const [editOpen, setEditOpen] = useState(false);
   const [editAgent, setEditAgent] = useState<AgentUser | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
-  const [editRole, setEditRole] = useState('');
 
-  // Add agent form state
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('FIELD_AGENT');
+  // Add agent form (react-hook-form + zod)
+  const {
+    register: addRegister,
+    handleSubmit: handleAddSubmit,
+    formState: { errors: addErrors },
+    control: addControl,
+    reset: resetAddForm,
+  } = useForm<AddAgentFormValues>({
+    resolver: zodResolver(addAgentSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      role: 'FIELD_AGENT',
+    },
+  });
 
   // Fetch agents from proper API
   const { data, isLoading, refetch } = useQuery<{ users: AgentUser[] }>({
@@ -96,7 +141,7 @@ export function AgentRoster() {
       toast.success(`Agent "${data.user?.name}" added successfully`);
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setAddOpen(false);
-      setNewName(''); setNewEmail(''); setNewRole('FIELD_AGENT');
+      resetAddForm({ name: '', email: '', role: 'FIELD_AGENT' });
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to add agent'),
   });
@@ -162,21 +207,23 @@ export function AgentRoster() {
 
   const openEditDialog = (agent: AgentUser) => {
     setEditAgent(agent);
-    setEditName(agent.name);
-    setEditPhone('');
-    setEditRole(agent.role);
+    resetEditForm({ name: agent.name, phone: '', role: agent.role });
     setEditOpen(true);
+  };
+
+  const onEditValid = (data: EditAgentFormValues) => {
+    if (!editAgent) return;
+    editMutation.mutate({
+      id: editAgent.id,
+      name: data.name.trim(),
+      phone: data.phone?.trim() || undefined,
+      role: data.role,
+    });
   };
 
   const handleEditSave = () => {
     if (!editAgent) return;
-    if (!editName.trim()) { toast.error('Name is required'); return; }
-    editMutation.mutate({
-      id: editAgent.id,
-      name: editName.trim(),
-      phone: editPhone.trim() || undefined,
-      role: editRole,
-    });
+    handleEditSubmit(onEditValid)();
   };
 
   // Handle confirm action
@@ -192,16 +239,12 @@ export function AgentRoster() {
   };
 
   // Handle add agent
+  const onAddValid = (data: AddAgentFormValues) => {
+    addMutation.mutate({ name: data.name.trim(), email: data.email.trim(), role: data.role });
+  };
+
   const handleAddAgent = () => {
-    if (!newName.trim() || !newEmail.trim()) {
-      toast.error('Name and email are required');
-      return;
-    }
-    if (!newEmail.includes('@')) {
-      toast.error('Please enter a valid email');
-      return;
-    }
-    addMutation.mutate({ name: newName.trim(), email: newEmail.trim(), role: newRole });
+    handleAddSubmit(onAddValid)();
   };
 
   return (
@@ -576,35 +619,48 @@ export function AgentRoster() {
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Full Name</label>
               <Input
+                {...addRegister('name')}
                 placeholder="e.g. Adebayo Johnson"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="h-9 text-sm"
+                className={cn("h-9 text-sm", addErrors.name && "border-rose/50 focus-visible:ring-rose/30")}
               />
+              {addErrors.name && (
+                <p className="text-[10px] text-rose">{addErrors.name.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Email Address</label>
               <Input
+                {...addRegister('email')}
                 placeholder="e.g. agent@nigeriaelectionwatch.org"
                 type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="h-9 text-sm"
+                className={cn("h-9 text-sm", addErrors.email && "border-rose/50 focus-visible:ring-rose/30")}
               />
+              {addErrors.email && (
+                <p className="text-[10px] text-rose">{addErrors.email.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Role</label>
-              <Select value={newRole} onValueChange={setNewRole}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
-                  <SelectItem value="ANALYST">Analyst</SelectItem>
-                  <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
-                  <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="role"
+                control={addControl}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className={cn("h-9 text-sm", addErrors.role && "border-rose/50")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
+                      <SelectItem value="ANALYST">Analyst</SelectItem>
+                      <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
+                      <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {addErrors.role && (
+                <p className="text-[10px] text-rose">{addErrors.role.message}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -613,7 +669,7 @@ export function AgentRoster() {
             </Button>
             <Button
               onClick={handleAddAgent}
-              disabled={addMutation.isPending || !newName.trim() || !newEmail.trim()}
+              disabled={addMutation.isPending}
               className="bg-emerald hover:bg-emerald/90 text-emerald-950"
             >
               {addMutation.isPending ? (
@@ -685,34 +741,47 @@ export function AgentRoster() {
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Full Name</label>
               <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="h-9 text-sm"
+                {...editRegister('name')}
+                className={cn("h-9 text-sm", editErrors.name && "border-rose/50 focus-visible:ring-rose/30")}
                 placeholder="e.g. Adebayo Johnson"
               />
+              {editErrors.name && (
+                <p className="text-[10px] text-rose">{editErrors.name.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Phone (optional)</label>
               <Input
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-                className="h-9 text-sm"
+                {...editRegister('phone')}
+                className={cn("h-9 text-sm", editErrors.phone && "border-rose/50 focus-visible:ring-rose/30")}
                 placeholder="e.g. +234 801 234 5678"
               />
+              {editErrors.phone && (
+                <p className="text-[10px] text-rose">{editErrors.phone.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">Role</label>
-              <Select value={editRole} onValueChange={setEditRole}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
-                  <SelectItem value="ANALYST">Analyst</SelectItem>
-                  <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
-                  <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="role"
+                control={editControl}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className={cn("h-9 text-sm", editErrors.role && "border-rose/50")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIELD_AGENT">Field Agent</SelectItem>
+                      <SelectItem value="ANALYST">Analyst</SelectItem>
+                      <SelectItem value="TRUST_SAFETY">Trust &amp; Safety</SelectItem>
+                      <SelectItem value="TENANT_ADMIN">Tenant Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {editErrors.role && (
+                <p className="text-[10px] text-rose">{editErrors.role.message}</p>
+              )}
             </div>
             <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground">Email (read-only)</p>
@@ -725,7 +794,7 @@ export function AgentRoster() {
             </Button>
             <Button
               onClick={handleEditSave}
-              disabled={editMutation.isPending || !editName.trim()}
+              disabled={editMutation.isPending}
               className="bg-cyan hover:bg-cyan/90 text-cyan-950"
             >
               {editMutation.isPending ? (

@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/flashpoint?tenantId=X
 export async function GET(req: NextRequest) {
@@ -200,6 +201,15 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      void logAudit({
+        userId: authUser.userId,
+        action: 'CREATE_FLASHPOINT_FORECAST',
+        entityType: 'FlashpointForecast',
+        entityId: created.id,
+        metadata: { state, riskLevel, confidence },
+        ipAddress: extractIp(req),
+      });
+
       return NextResponse.json(
         {
           success: true,
@@ -237,6 +247,15 @@ export async function POST(req: NextRequest) {
       };
 
       const created = await db.wargameScenario.create({ data: data as never });
+
+      void logAudit({
+        userId: authUser.userId,
+        action: 'CREATE_WARGAME_SCENARIO',
+        entityType: 'WargameScenario',
+        entityId: created.id,
+        metadata: { title, currentPlayerRole },
+        ipAddress: extractIp(req),
+      });
 
       return NextResponse.json(
         {
@@ -277,6 +296,15 @@ export async function POST(req: NextRequest) {
           score: score !== undefined ? score : null,
           results: results ? JSON.stringify(results) : existing.results,
         },
+      });
+
+      void logAudit({
+        userId: authUser.userId,
+        action: 'COMPLETE_WARGAME_SCENARIO',
+        entityType: 'WargameScenario',
+        entityId: scenarioId,
+        metadata: { score },
+        ipAddress: extractIp(req),
       });
 
       return NextResponse.json({

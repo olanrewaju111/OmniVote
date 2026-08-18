@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
-import type { Incident } from '@/app/page';
+import type { Incident } from '@/types/dashboard';
 
 // ---- Props ----
 

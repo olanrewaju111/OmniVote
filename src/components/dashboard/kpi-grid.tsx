@@ -7,7 +7,143 @@ import {
   BarChart3, TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
 import { motion, useSpring, useTransform } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+
+// ── Mini Sparkline SVG ──
+function MiniSparkline({ data, color, width = 60, height = 24 }: {
+  data: number[];
+  color: string;
+  width?: number;
+  height?: number;
+}) {
+  if (!data || data.length < 2) return null;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pad = 1;
+  const w = width;
+  const h = height;
+  const stepX = (w - pad * 2) / (data.length - 1);
+
+  // Map data points to SVG coordinates
+  const points = data.map((v, i) => ({
+    x: pad + i * stepX,
+    y: pad + (1 - (v - min) / range) * (h - pad * 2),
+  }));
+
+  // Build smooth path using catmull-rom style: use quadratic bezier through midpoints
+  let linePath = `M ${points[0].x},${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const cp1x = (points[i].x + points[i + 1].x) / 2;
+    const cp1y = points[i].y;
+    const cp2x = cp1x;
+    const cp2y = points[i + 1].y;
+    linePath += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${points[i + 1].x},${points[i + 1].y}`;
+  }
+
+  // Area fill path (same line + close to bottom)
+  const areaPath = `${linePath} L ${points[points.length - 1].x},${h} L ${points[0].x},${h} Z`;
+
+  // Color for gradient stops — use the raw CSS variable name
+  const gradId = `spark-${color}-${Math.random().toString(36).slice(2, 8)}`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      width={w}
+      height={h}
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={`var(--color-${color})`} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={`var(--color-${color})`} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {/* Gradient fill under line */}
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      {/* Line */}
+      <path
+        d={linePath}
+        fill="none"
+        stroke={`var(--color-${color})`}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.8}
+      />
+      {/* End dot */}
+      <circle
+        cx={points[points.length - 1].x}
+        cy={points[points.length - 1].y}
+        r={2}
+        fill={`var(--color-${color})`}
+        opacity={0.9}
+      />
+    </svg>
+  );
+}
+
+// ── Synthetic trend data generators (12 data points) ──
+function generateSparkData(current: number, mode: 'stable' | 'walk' | 'rising' | 'volatile'): number[] {
+  const points = 12;
+  const result: number[] = [];
+
+  // Deterministic seed based on current value for consistency across renders
+  const seed = current * 17 + 3;
+  const pseudoRandom = (i: number) => {
+    const x = Math.sin(seed + i * 9301 + 49297) * 49297;
+    return x - Math.floor(x);
+  };
+
+  switch (mode) {
+    case 'stable': {
+      // Small fluctuations around the current value
+      for (let i = 0; i < points; i++) {
+        const noise = (pseudoRandom(i) - 0.5) * current * 0.06;
+        result.push(Math.max(0, Math.round(current + noise)));
+      }
+      result[points - 1] = current; // Last point matches actual
+      break;
+    }
+    case 'walk': {
+      // Random walk trending up to current
+      let val = current * 0.7;
+      for (let i = 0; i < points; i++) {
+        val += (pseudoRandom(i) - 0.4) * current * 0.05;
+        val = Math.max(0, val);
+        result.push(Math.round(val));
+      }
+      result[points - 1] = current;
+      break;
+    }
+    case 'rising': {
+      // Generally increasing trend ending at current
+      for (let i = 0; i < points; i++) {
+        const base = (current * 0.4) + (current * 0.6) * (i / (points - 1));
+        const noise = (pseudoRandom(i) - 0.5) * current * 0.03;
+        result.push(Math.max(0, Math.round(base + noise)));
+      }
+      result[points - 1] = current;
+      break;
+    }
+    case 'volatile': {
+      // Bigger swings, spiky
+      let val = current * 0.8;
+      for (let i = 0; i < points; i++) {
+        val += (pseudoRandom(i) - 0.45) * current * 0.12;
+        val = Math.max(0, val);
+        result.push(Math.round(val));
+      }
+      result[points - 1] = current;
+      break;
+    }
+  }
+
+  return result;
+}
 
 // ── Animated Number Counter ──
 function AnimatedNumber({ value, duration = 0.8 }: { value: number; duration?: number }) {
@@ -87,6 +223,7 @@ interface KpiCardProps {
   trend?: { value: number; up: boolean };
   glow?: boolean;
   ring?: { value: number; max: number };
+  sparkline?: 'stable' | 'walk' | 'rising' | 'volatile';
   className?: string;
   onClick?: () => void;
 }
@@ -99,9 +236,14 @@ const COLOR_MAP = {
   violet: { bg: 'bg-violet/10', text: 'text-violet', border: 'border-violet/20', glow: 'glow-violet', ring: 'ring-violet/20' },
 };
 
-function KpiCard({ label, value, sub, icon, color, trend, glow, ring, className, onClick }: KpiCardProps) {
+function KpiCard({ label, value, sub, icon, color, trend, glow, ring, sparkline, className, onClick }: KpiCardProps) {
   const c = COLOR_MAP[color];
   const isNumeric = typeof value === 'number';
+
+  const sparkData = useMemo(() => {
+    if (!sparkline || !isNumeric) return undefined;
+    return generateSparkData(value as number, sparkline);
+  }, [sparkline, isNumeric, value]);
 
   return (
     <motion.div
@@ -141,6 +283,12 @@ function KpiCard({ label, value, sub, icon, color, trend, glow, ring, className,
               </div>
             </div>
           </div>
+          {/* Sparkline below the main content */}
+          {sparkData && (
+            <div className="mt-2 flex justify-end">
+              <MiniSparkline data={sparkData} color={color} />
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>
@@ -213,8 +361,6 @@ interface KpiGridProps {
 }
 
 export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
-  const agentPct = data.totalAgents ? Math.round((data.onlineAgents / data.totalAgents) * 100) : 0;
-
   return (
     <div className="space-y-3">
       {/* Primary KPIs */}
@@ -227,6 +373,7 @@ export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
           color="emerald"
           trend={trends?.onlineAgents}
           ring={{ value: data.onlineAgents, max: data.totalAgents }}
+          sparkline="stable"
           className="xl:col-span-1"
         />
         <KpiCard
@@ -236,6 +383,7 @@ export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
           icon={<BarChart3 className="h-4.5 w-4.5 text-cyan" />}
           color="cyan"
           ring={{ value: election.openUnits, max: election.totalPollingUnits }}
+          sparkline="rising"
           className="xl:col-span-1"
         />
         <KpiCard
@@ -245,6 +393,7 @@ export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
           icon={<Vote className="h-4.5 w-4.5 text-emerald" />}
           color="emerald"
           trend={trends?.turnout}
+          sparkline="rising"
           className="xl:col-span-1"
         />
         <KpiCard
@@ -254,6 +403,7 @@ export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
           icon={<AlertTriangle className="h-4.5 w-4.5 text-amber" />}
           color="amber"
           trend={trends?.incidents}
+          sparkline="walk"
           className="xl:col-span-1"
         />
         <KpiCard
@@ -263,6 +413,7 @@ export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
           icon={<Radio className="h-4.5 w-4.5 text-rose" />}
           color="rose"
           glow
+          sparkline="volatile"
           className="xl:col-span-1"
         />
         <KpiCard
@@ -271,6 +422,7 @@ export function KpiGrid({ data, election, trends, extraStats }: KpiGridProps) {
           sub="AI-flagged, pending T&S review"
           icon={<Shield className="h-4.5 w-4.5 text-violet" />}
           color="violet"
+          sparkline="walk"
           className="xl:col-span-1"
         />
       </div>

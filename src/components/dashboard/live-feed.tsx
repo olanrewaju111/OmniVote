@@ -18,7 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
 import { toast } from 'sonner';
-import type { Incident } from '@/app/page';
+import type { Incident } from '@/types/dashboard';
 
 interface LiveFeedProps {
   incidents: Incident[];

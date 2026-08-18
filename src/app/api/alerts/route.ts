@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 export async function GET(req: NextRequest) {
   try {
@@ -86,6 +87,15 @@ export async function PATCH(req: NextRequest) {
     await db.alert.update({
       where: { id: alertId },
       data: { isRead: true },
+    });
+
+    void logAudit({
+      userId: authUser.userId,
+      action: 'UPDATE_ALERT',
+      entityType: 'Alert',
+      entityId: alertId,
+      metadata: { markedAsRead: true },
+      ipAddress: extractIp(req),
     });
 
     return NextResponse.json({ success: true });

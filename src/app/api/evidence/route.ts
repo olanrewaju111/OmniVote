@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 const MANIPULATION_TYPES = [
   'lsb_embedding',
@@ -163,6 +164,14 @@ export async function POST(req: NextRequest) {
             status: 'DRAFT',
           },
         });
+        void logAudit({
+          userId: authUser.userId,
+          action: 'CREATE_EVIDENCE_DOSSIER',
+          entityType: 'EvidenceDossier',
+          entityId: dossier.id,
+          metadata: { title, incidentId },
+          ipAddress: extractIp(req),
+        });
         return NextResponse.json({ success: true, dossier: { ...dossier, evidenceItems: safeParse(dossier.evidenceItems) } }, { status: 201 });
       }
 
@@ -190,6 +199,14 @@ export async function POST(req: NextRequest) {
           where: { id: dossierId },
           data: updateData,
         });
+        void logAudit({
+          userId: authUser.userId,
+          action: 'UPDATE_EVIDENCE_DOSSIER',
+          entityType: 'EvidenceDossier',
+          entityId: dossierId,
+          metadata: { changedFields: Object.keys(updateData) },
+          ipAddress: extractIp(req),
+        });
         return NextResponse.json({ success: true, dossier: { ...updated, evidenceItems: safeParse(updated.evidenceItems) } });
       }
 
@@ -214,6 +231,14 @@ export async function POST(req: NextRequest) {
             reviewedById,
             reviewedAt: new Date(),
           },
+        });
+        void logAudit({
+          userId: authUser.userId,
+          action: 'REVIEW_EVIDENCE_DOSSIER',
+          entityType: 'EvidenceDossier',
+          entityId: dossierId,
+          metadata: { status, reviewedById },
+          ipAddress: extractIp(req),
         });
         return NextResponse.json({ success: true, dossier: { ...reviewed, evidenceItems: safeParse(reviewed.evidenceItems) } });
       }
@@ -279,6 +304,15 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        void logAudit({
+          userId: authUser.userId,
+          action: 'SCAN_STEGO',
+          entityType: 'StegoScanResult',
+          entityId: scan.id,
+          metadata: { fileName, fileType, isManipulated, manipulationType },
+          ipAddress: extractIp(req),
+        });
+
         return NextResponse.json({
           success: true,
           scan: {
@@ -301,6 +335,13 @@ export async function POST(req: NextRequest) {
         }
         await db.stegoScanResult.deleteMany({ where: { evidenceDossierId: dossierId, tenantId } });
         await db.evidenceDossier.delete({ where: { id: dossierId } });
+        void logAudit({
+          userId: authUser.userId,
+          action: 'DELETE_EVIDENCE_DOSSIER',
+          entityType: 'EvidenceDossier',
+          entityId: dossierId,
+          ipAddress: extractIp(req),
+        });
         return NextResponse.json({ success: true, deleted: dossierId });
       }
 

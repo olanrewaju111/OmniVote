@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 export async function GET(req: NextRequest) {
   try {
@@ -235,6 +236,15 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        void logAudit({
+          userId: authUser.userId,
+          action: 'CREATE_HONEYPOT',
+          entityType: 'HoneypotUnit',
+          entityId: honeypot.id,
+          metadata: { name, state, trapType },
+          ipAddress: extractIp(req),
+        });
+
         return NextResponse.json({
           success: true,
           honeypot: {
@@ -323,6 +333,15 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        void logAudit({
+          userId: authUser.userId,
+          action: 'UPDATE_HONEYPOT_RESULTS',
+          entityType: 'HoneypotUnit',
+          entityId: honeypotId,
+          metadata: { deviationPct: Math.round(deviationPct * 100) / 100, deviationDetected, alertTriggered },
+          ipAddress: extractIp(req),
+        });
+
         return NextResponse.json({
           success: true,
           honeypot: {
@@ -397,6 +416,15 @@ export async function POST(req: NextRequest) {
             photoUrl: photoUrl || null,
             notes: notes || '',
           },
+        });
+
+        void logAudit({
+          userId: authUser.userId,
+          action: 'CREATE_ACCESSIBILITY_REPORT',
+          entityType: 'AccessibilityReport',
+          entityId: report.id,
+          metadata: { pollingUnitId, overallScore },
+          ipAddress: extractIp(req),
         });
 
         return NextResponse.json({

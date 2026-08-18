@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/elections — list elections for tenant (or all for SUPER_ADMIN)
 export async function GET(req: NextRequest) {
@@ -94,19 +95,14 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: authUser.userId,
-          action: 'ELECTION_CREATED',
-          entityType: 'Election',
-          entityId: election.id,
-          metadata: JSON.stringify({ title, tier: tier || 'LOCAL', status: status || 'UPCOMING' }),
-        },
-      });
-    } catch {
-      // Non-fatal
-    }
+    void logAudit({
+      userId: authUser.userId,
+      action: 'CREATE_ELECTION',
+      entityType: 'Election',
+      entityId: election.id,
+      metadata: { title, tier: tier || 'LOCAL', status: status || 'UPCOMING' },
+      ipAddress: extractIp(req),
+    });
 
     return NextResponse.json({ success: true, election }, { status: 201 });
   } catch (e: unknown) {

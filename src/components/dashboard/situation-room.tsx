@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
+import { EmptyState } from './empty-state';
 import { useDashboardStore, TIER_SHORT } from '@/store/dashboard';
 import type { ElectionTier } from '@/store/dashboard';
 
@@ -208,10 +209,11 @@ export function SituationRoom() {
                 className="space-y-2"
               >
                 {items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                    <MapPin className="h-8 w-8 mb-2 opacity-40" />
-                    <p className="text-sm">No data at this level</p>
-                  </div>
+                  <EmptyState
+                    icon={ShieldAlert}
+                    title="No data at this level"
+                    description="There are no results available for this level yet. Try navigating back or waiting for data to arrive."
+                  />
                 ) : (
                   items.map((item, idx) => {
                     const nextLevel = canDrillDown(item);

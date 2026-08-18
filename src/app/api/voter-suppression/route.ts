@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/voter-suppression?tenantId=X&reportType=X&state=X&severity=X&status=X
 export async function GET(req: NextRequest) {
@@ -134,6 +135,15 @@ export async function POST(req: NextRequest) {
         aiAnalysis: null,
         reportedById: reportedById || null,
       },
+    });
+
+    void logAudit({
+      userId: authUser.userId,
+      action: 'CREATE_VOTER_SUPPRESSION_REPORT',
+      entityType: 'VoterSuppressionReport',
+      entityId: report.id,
+      metadata: { reportType, title, state, severity },
+      ipAddress: extractIp(req),
     });
 
     return NextResponse.json({ report }, { status: 201 });

@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/results — fetch results for a polling unit or all
 export async function GET(req: NextRequest) {
@@ -130,19 +131,14 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: reporterId,
-          action: 'RESULTS_SUBMITTED',
-          entityType: 'ElectionResult',
-          entityId: result.id,
-          metadata: JSON.stringify({ pollingUnitId, totalVotesCast, accreditedVoters, partyCount: (partyResults || []).length }),
-        },
-      });
-    } catch (e: unknown) {
-      console.error('[results] Non-fatal: failed to create audit log', e instanceof Error ? e.message : e);
-    }
+    void logAudit({
+      userId: reporterId,
+      action: 'CREATE_ELECTION_RESULT',
+      entityType: 'ElectionResult',
+      entityId: result.id,
+      metadata: { pollingUnitId, totalVotesCast, accreditedVoters, partyCount: (partyResults || []).length },
+      ipAddress: extractIp(req),
+    });
 
     // If violence was reported, auto-create an incident
     if (violenceOccurred) {

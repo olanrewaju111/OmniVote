@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/geofence?tenantId=X
 export async function GET(req: NextRequest) {
@@ -145,6 +146,7 @@ export async function POST(req: NextRequest) {
           maxMissedCheckIns: maxMissedCheckIns || 3,
         },
       });
+      void logAudit({ userId: authUser.userId, action: 'CREATE_GEOFENCE_ZONE', entityType: 'GeofenceZone', entityId: zone.id, metadata: { name, state }, ipAddress: extractIp(req) });
       return NextResponse.json({ zone }, { status: 201 });
     }
 
@@ -164,6 +166,7 @@ export async function POST(req: NextRequest) {
           status: isInsideZone ? 'CHECKED_IN' : 'CHECKED_OUT',
         },
       });
+      void logAudit({ userId: authUser.userId, action: 'AGENT_CHECK_IN', entityType: 'AgentCheckIn', entityId: checkIn.id, metadata: { agentId, geofenceZoneId, isInsideZone }, ipAddress: extractIp(req) });
       // Update dead-man's switch
       const existingSwitch = await db.deadMansSwitch.findFirst({
         where: { tenantId, agentId, geofenceZoneId, isActive: true },
@@ -215,6 +218,7 @@ export async function POST(req: NextRequest) {
         where: { id: switchId, tenantId },
         data: { isActive: false, resolvedAt: new Date(), resolvedById: resolvedById || null, resolvedNotes: notes || null },
       });
+      void logAudit({ userId: authUser.userId, action: 'RESOLVE_DEAD_MANS_SWITCH', entityType: 'DeadMansSwitch', entityId: switchId, ipAddress: extractIp(req) });
       return NextResponse.json({ success: true });
     }
 
@@ -225,6 +229,7 @@ export async function POST(req: NextRequest) {
         where: { id: zoneId, tenantId },
         data: { isActive: isActive ?? true },
       });
+      void logAudit({ userId: authUser.userId, action: 'TOGGLE_GEOFENCE_ZONE', entityType: 'GeofenceZone', entityId: zoneId, metadata: { isActive }, ipAddress: extractIp(req) });
       return NextResponse.json({ zone });
     }
 

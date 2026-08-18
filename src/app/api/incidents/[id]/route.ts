@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // PATCH /api/incidents/[id] — update incident status, severity, AI review, quarantine
 export async function PATCH(
@@ -124,23 +125,18 @@ export async function PATCH(
     });
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: authUser.userId,
-          action: 'INCIDENT_UPDATED',
-          entityType: 'Incident',
-          entityId: id,
-          metadata: JSON.stringify({
-            changedFields: Object.keys(updates),
-            previousStatus: existing.status,
-            newStatus: updates.status || existing.status,
-          }),
-        },
-      });
-    } catch {
-      // Non-fatal
-    }
+    void logAudit({
+      userId: authUser.userId,
+      action: 'UPDATE_INCIDENT',
+      entityType: 'Incident',
+      entityId: id,
+      metadata: {
+        changedFields: Object.keys(updates),
+        previousStatus: existing.status,
+        newStatus: updates.status || existing.status,
+      },
+      ipAddress: extractIp(req),
+    });
 
     return NextResponse.json({
       success: true,
@@ -203,19 +199,14 @@ export async function DELETE(
     });
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: authUser.userId,
-          action: 'INCIDENT_DISMISSED',
-          entityType: 'Incident',
-          entityId: id,
-          metadata: JSON.stringify({ previousStatus: existing.status }),
-        },
-      });
-    } catch {
-      // Non-fatal
-    }
+    void logAudit({
+      userId: authUser.userId,
+      action: 'DELETE_INCIDENT',
+      entityType: 'Incident',
+      entityId: id,
+      metadata: { previousStatus: existing.status },
+      ipAddress: extractIp(req),
+    });
 
     return NextResponse.json({ success: true, message: 'Incident dismissed' });
   } catch (e: unknown) {

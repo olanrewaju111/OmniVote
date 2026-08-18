@@ -1,19 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from '@/lib/db';
+import { NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  const [userCount, incidentCount, tenantCount, alertCount] = await Promise.all([
-    db.user.count(),
-    db.incident.count(),
-    db.tenant.count(),
-    db.alert.count(),
-  ]);
+/**
+ * GET /api — Public API info endpoint.
+ *
+ * SECURITY NOTE: This endpoint intentionally does NOT expose any entity counts
+ * (users, incidents, tenants, alerts) as that would leak operational intelligence
+ * to unauthenticated observers. Only public, non-sensitive metadata is returned.
+ */
+export async function GET() {
   return NextResponse.json({
     name: 'OmniVote API',
     version: '1.0.0',
     status: 'operational',
     endpoints: 31,
-    stats: { users: userCount, incidents: incidentCount, tenants: tenantCount, alerts: alertCount },
     timestamp: new Date().toISOString(),
   });
 }

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // PATCH /api/elections/[id] — update election (SUPER_ADMIN, TENANT_ADMIN)
 export async function PATCH(
@@ -61,19 +62,14 @@ export async function PATCH(
     });
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: authUser.userId,
-          action: 'ELECTION_UPDATED',
-          entityType: 'Election',
-          entityId: id,
-          metadata: JSON.stringify({ changedFields: Object.keys(updates) }),
-        },
-      });
-    } catch {
-      // Non-fatal
-    }
+    void logAudit({
+      userId: authUser.userId,
+      action: 'UPDATE_ELECTION',
+      entityType: 'Election',
+      entityId: id,
+      metadata: { changedFields: Object.keys(updates) },
+      ipAddress: extractIp(req),
+    });
 
     return NextResponse.json({ success: true, election: updated });
   } catch (e: unknown) {
@@ -117,19 +113,14 @@ export async function DELETE(
     await db.election.delete({ where: { id } });
 
     // Audit log
-    try {
-      await db.auditLog.create({
-        data: {
-          userId: authUser.userId,
-          action: 'ELECTION_DELETED',
-          entityType: 'Election',
-          entityId: id,
-          metadata: JSON.stringify({ title: existing.title }),
-        },
-      });
-    } catch {
-      // Non-fatal
-    }
+    void logAudit({
+      userId: authUser.userId,
+      action: 'DELETE_ELECTION',
+      entityType: 'Election',
+      entityId: id,
+      metadata: { title: existing.title },
+      ipAddress: extractIp(req),
+    });
 
     return NextResponse.json({ success: true, message: 'Election deleted' });
   } catch (e: unknown) {

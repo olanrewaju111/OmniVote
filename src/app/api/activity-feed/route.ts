@@ -6,7 +6,20 @@ import { requireTenantMatch } from '@/lib/rbac';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/activity-feed?tenantId=...&type=ALL|incident|alert|pvt|osint|security|chat|checkin&limit=50&offset=0
+// Type-safe table mapping — each key maps to the correct Prisma model
+const TABLE_QUERIES: Record<string, (where: Record<string, unknown>, options: object) => Promise<unknown[]>> = {
+  incidents: (w, o) => db.incident.findMany({ where: w, ...o }),
+  alerts: (w, o) => db.alert.findMany({ where: w, ...o }),
+  osintPosts: (w, o) => db.osintPost.findMany({ where: w, ...o }),
+  securityEvents: (w, o) => db.securityEvent.findMany({ where: w, ...o }),
+  pvtSubmissions: (w, o) => db.pvtSubmission.findMany({ where: w, ...o }),
+  chatMessages: (w, o) => db.chatMessage.findMany({ where: w, ...o }),
+  agentCheckIns: (w, o) => db.agentCheckIn.findMany({ where: w, ...o }),
+  honeypotUnits: (w, o) => db.honeypotUnit.findMany({ where: w, ...o }),
+  electionResult: (w, o) => db.electionResult.findMany({ where: w, ...o }),
+};
+
+// GET /api/activity-feed?tenantId=...&type=ALL|incident|alert|pvt|osint|security|chat|checkin|result&limit=50&offset=0
 export async function GET(req: NextRequest) {
   try {
     const { id: tenantId, error } = await resolveTenant(req);
@@ -31,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch from multiple tables and merge by time
     const typesToFetch = type === 'ALL'
-      ? ['incidents', 'alerts', 'osint', 'securityEvents', 'pvtSubmissions', 'chatMessages', 'agentCheckIns', 'honeypotUnits']
+      ? ['incidents', 'alerts', 'osintPosts', 'securityEvents', 'pvtSubmissions', 'chatMessages', 'agentCheckIns', 'honeypotUnits', 'electionResult']
       : {
           incident: ['incidents'],
           alert: ['alerts'],
@@ -41,26 +54,23 @@ export async function GET(req: NextRequest) {
           chat: ['chatMessages'],
           checkin: ['agentCheckIns'],
           honeypot: ['honeypotUnits'],
-          result: ['electionResults', 'pvtSubmissions'],
+          result: ['electionResult', 'pvtSubmissions'],
         }[type] ?? ['incidents'];
 
     for (const table of typesToFetch) {
+      const query = TABLE_QUERIES[table];
+      if (!query) continue; // unknown table — skip safely
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const results: any[] = await (db as any)[table].findMany({
-          where,
-          orderBy: { createdAt: 'desc' },
-          ...fetchWindow,
-        });
+        const results = await query(where, { orderBy: { createdAt: 'desc' }, ...fetchWindow });
         for (const r of results) {
           events.push({
-            ...r,
+            ...(r as Record<string, unknown>),
             _sourceTable: table,
             _eventType: mapTableToType(table),
           });
         }
       } catch {
-        // Table might not exist or query might fail — skip
+        // Query might fail — skip this table gracefully
       }
     }
 
@@ -107,7 +117,7 @@ function mapTableToType(table: string): string {
     chatMessages: 'chat',
     agentCheckIns: 'checkin',
     honeypotUnits: 'honeypot',
-    electionResults: 'result',
+    electionResult: 'result',
   };
   return map[table] ?? 'incident';
 }

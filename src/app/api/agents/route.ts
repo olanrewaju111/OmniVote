@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/agents — list all users with details
 export async function GET(req: NextRequest) {
@@ -92,14 +93,13 @@ export async function POST(req: NextRequest) {
     });
 
     // Audit log
-    await db.auditLog.create({
-      data: {
-        userId: user.id,
-        action: 'USER_CREATED',
-        entityType: 'User',
-        entityId: user.id,
-        metadata: JSON.stringify({ name, email, role }),
-      },
+    void logAudit({
+      userId: authUser.userId,
+      action: 'CREATE_USER',
+      entityType: 'User',
+      entityId: user.id,
+      metadata: { name, email, role },
+      ipAddress: extractIp(req),
     });
 
     return NextResponse.json({ user }, { status: 201 });
@@ -142,6 +142,7 @@ export async function PATCH(req: NextRequest) {
           data: { isOnline: !user.isOnline, lastSeenAt: !user.isOnline ? new Date() : null },
           select: { id: true, email: true, name: true, role: true, isOnline: true },
         });
+        void logAudit({ userId: authUser.userId, action: 'TOGGLE_USER_ONLINE', entityType: 'User', entityId: userId, metadata: { isOnline: !user.isOnline }, ipAddress: extractIp(req) });
         break;
 
       case 'SET_OFFLINE':
@@ -150,6 +151,7 @@ export async function PATCH(req: NextRequest) {
           data: { isOnline: false, lastSeenAt: null },
           select: { id: true, email: true, name: true, role: true, isOnline: true },
         });
+        void logAudit({ userId: authUser.userId, action: 'SET_USER_OFFLINE', entityType: 'User', entityId: userId, ipAddress: extractIp(req) });
         break;
 
       case 'REMOTE_WIPE':
@@ -159,15 +161,7 @@ export async function PATCH(req: NextRequest) {
           data: { isOnline: false, lastSeenAt: null },
           select: { id: true, email: true, name: true, role: true, isOnline: true },
         });
-        await db.auditLog.create({
-          data: {
-            userId,
-            action: 'REMOTE_WIPE',
-            entityType: 'User',
-            entityId: userId,
-            metadata: JSON.stringify({ targetName: user.name, targetEmail: user.email }),
-          },
-        });
+        void logAudit({ userId: authUser.userId, action: 'REMOTE_WIPE', entityType: 'User', entityId: userId, metadata: { targetName: user.name, targetEmail: user.email }, ipAddress: extractIp(req) });
         break;
 
       case 'CHANGE_ROLE':
@@ -179,15 +173,7 @@ export async function PATCH(req: NextRequest) {
           data: { role: body.newRole },
           select: { id: true, email: true, name: true, role: true, isOnline: true },
         });
-        await db.auditLog.create({
-          data: {
-            userId,
-            action: 'ROLE_CHANGED',
-            entityType: 'User',
-            entityId: userId,
-            metadata: JSON.stringify({ from: user.role, to: body.newRole }),
-          },
-        });
+        void logAudit({ userId: authUser.userId, action: 'CHANGE_USER_ROLE', entityType: 'User', entityId: userId, metadata: { from: user.role, to: body.newRole }, ipAddress: extractIp(req) });
         break;
 
       case 'DELETE': {
@@ -209,6 +195,7 @@ export async function PATCH(req: NextRequest) {
         // Delete audit logs first (FK constraint), then the user
         await db.auditLog.deleteMany({ where: { userId } });
         await db.user.delete({ where: { id: userId } });
+        void logAudit({ userId: authUser.userId, action: 'DELETE_USER', entityType: 'User', entityId: userId, metadata: { name: user.name }, ipAddress: extractIp(req) });
         return NextResponse.json({ success: true, message: `Agent "${user.name}" has been removed` });
       }
 

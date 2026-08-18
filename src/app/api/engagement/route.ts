@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // ─── GET /api/engagement ─────────────────────────────────────────────
 // Fetches: idle agents, agents with no data, message history, engagement stats
@@ -252,12 +253,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (sentById) {
-      await db.auditLog.create({
-        data: {
-          userId: sentById, action: 'MESSAGE_SENT',
-          entityType: 'AgentMessage', entityId: message.id,
-          metadata: JSON.stringify({ agentId, channel: ch, triggerType: trig }),
-        },
+      void logAudit({
+        userId: sentById, action: 'SEND_MESSAGE',
+        entityType: 'AgentMessage', entityId: message.id,
+        metadata: { agentId, channel: ch, triggerType: trig },
+        ipAddress: extractIp(req),
       });
     }
 
@@ -300,6 +300,7 @@ export async function PATCH(req: NextRequest) {
           respondedAt: responseText ? new Date() : undefined,
         },
       });
+      void logAudit({ userId: authUser.userId, action: 'MARK_MESSAGE_READ', entityType: 'AgentMessage', entityId: messageId, ipAddress: extractIp(req) });
       return NextResponse.json({ message: updated });
     }
 
@@ -376,6 +377,7 @@ export async function PATCH(req: NextRequest) {
         results.push({ agentId: agent.id, agentName: agent.name, messageId: msg.id, status: msg.status });
       }
 
+      void logAudit({ userId: authUser.userId, action: 'BULK_ENGAGE', entityType: 'AgentMessage', metadata: { targetGroup, channel: ch, engagedCount: results.length }, ipAddress: extractIp(req) });
       return NextResponse.json({ engaged: results.length, targetGroup, channel: ch, results });
     }
 

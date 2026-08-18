@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Search, ChevronLeft, ChevronRight, RefreshCw, Filter, ScrollText } from 'lucide-react';
 import { ExportButton } from '@/components/dashboard/export-button';
+import { EmptyState } from './empty-state';
 
 interface AuditLogEntry {
   id: string;
@@ -202,15 +203,16 @@ export function AuditLogViewer() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
+              <caption className="sr-only">Audit trail log entries showing system activity including user actions, incidents, and data exports.</caption>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[160px]">Timestamp</TableHead>
-                  <TableHead className="w-[130px]">User</TableHead>
-                  <TableHead className="w-[100px]">Role</TableHead>
-                  <TableHead className="w-[170px]">Action</TableHead>
-                  <TableHead className="w-[100px]">Entity</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead className="w-[120px]">IP Address</TableHead>
+                  <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
+                  <TableHead scope="col" className="w-[130px]">User</TableHead>
+                  <TableHead scope="col" className="w-[100px]">Role</TableHead>
+                  <TableHead scope="col" className="w-[170px]">Action</TableHead>
+                  <TableHead scope="col" className="w-[100px]">Entity</TableHead>
+                  <TableHead scope="col">Details</TableHead>
+                  <TableHead scope="col" className="w-[120px]">IP Address</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,16 +228,20 @@ export function AuditLogViewer() {
                   ))
                 ) : filteredLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                      <p>No audit log entries found</p>
+                    <TableCell colSpan={7} className="p-0">
+                      <EmptyState
+                        icon={FileText}
+                        title="No audit log entries found"
+                        description="No activity matches your current filters. Try adjusting your search or clearing filters."
+                        size="sm"
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredLogs.map((log) => (
                     <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setExpandedMeta(expandedMeta === log.id ? null : log.id)}>
-                      <TableCell className="text-xs font-mono text-muted-foreground">
+                      <TableCell scope="row" className="text-xs font-mono text-muted-foreground">
                         {new Date(log.createdAt).toLocaleString('en-NG', {
                           day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
                         })}

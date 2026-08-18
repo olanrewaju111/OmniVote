@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // ─── Seed Data (generic election content, dynamically timestamped) ───
 
@@ -139,6 +140,8 @@ export async function POST(req: Request) {
       data: { tenantId, title, body: messageBody, category, priority, isActive: true, createdBy: authUser.userId },
     });
 
+    void logAudit({ userId: authUser.userId, action: 'CREATE_KEY_MESSAGE', entityType: 'KeyMessage', entityId: message.id, metadata: { title, category, priority }, ipAddress: extractIp(req) });
+
     return NextResponse.json({ success: true, message: { id: message.id, title: message.title, body: message.body, category: message.category, priority: message.priority, isActive: message.isActive, createdAt: message.createdAt.toISOString() } }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to create key message' }, { status: 500 });
@@ -170,6 +173,7 @@ export async function PATCH(req: Request) {
     if (!existing) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
 
     const updated = await db.keyMessage.update({ where: { id: messageId }, data: { isActive } });
+    void logAudit({ userId: authUser.userId, action: 'UPDATE_KEY_MESSAGE', entityType: 'KeyMessage', entityId: messageId, metadata: { isActive }, ipAddress: extractIp(req) });
     return NextResponse.json({ success: true, message: { id: updated.id, title: updated.title, body: updated.body, category: updated.category, priority: updated.priority, isActive: updated.isActive, createdAt: updated.createdAt.toISOString() } });
   } catch {
     return NextResponse.json({ error: 'Failed to update key message' }, { status: 500 });

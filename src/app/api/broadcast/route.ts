@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { logAudit, extractIp } from '@/lib/audit';
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,20 +53,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Audit log
-    await db.auditLog.create({
-      data: {
-        userId: session.userId,
-        action: 'BROADCAST_SENT',
-        entityType: 'AgentMessage',
-        metadata: JSON.stringify({
-          title,
-          priority,
-          targetRole,
-          channel,
-          recipientCount: sentCount,
-        }),
-        createdAt: now,
+    void logAudit({
+      userId: session.userId,
+      action: 'SEND_BROADCAST',
+      entityType: 'AgentMessage',
+      metadata: {
+        title,
+        priority,
+        targetRole,
+        channel,
+        recipientCount: sentCount,
       },
+      ipAddress: extractIp(req),
     });
 
     return NextResponse.json({

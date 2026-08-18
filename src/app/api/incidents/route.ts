@@ -5,6 +5,7 @@ import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { broadcastIncident } from '@/lib/ws-broadcast';
+import { logAudit, extractIp } from '@/lib/audit';
 
 export async function GET(req: NextRequest) {
   try {
@@ -159,19 +160,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Audit log
-    try {
-      await db.auditLog.create({
-      data: {
-        userId: reporterId,
-        action: 'INCIDENT_REPORTED',
-        entityType: 'Incident',
-        entityId: incident.id,
-        metadata: JSON.stringify({ type, severity, hasGpsAnomaly: gpsAnomaly }),
-      },
+    void logAudit({
+      userId: reporterId,
+      action: 'CREATE_INCIDENT',
+      entityType: 'Incident',
+      entityId: incident.id,
+      metadata: { type, severity, hasGpsAnomaly: gpsAnomaly },
+      ipAddress: extractIp(req),
     });
-    } catch {
-      // Non-fatal
-    }
 
     // Broadcast incident via WebSocket to all connected clients
     broadcastIncident(reporter.tenantId, 'new', {

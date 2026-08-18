@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { broadcastChat } from '@/lib/ws-broadcast';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // ─── Seed Messages (auto-seeded once per tenant when chat is empty) ──────
 
@@ -127,6 +128,8 @@ export async function POST(req: Request) {
       data: { tenantId, senderId: authUser.userId, body: messageBody.trim(), isSystem: false },
       include: { sender: { select: { id: true, name: true, role: true } } },
     });
+
+    void logAudit({ userId: authUser.userId, action: 'SEND_CHAT_MESSAGE', entityType: 'ChatMessage', entityId: message.id, ipAddress: extractIp(req) });
 
     const msg = {
       id: message.id, senderId: message.senderId, senderName: message.sender.name,

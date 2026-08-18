@@ -1,6 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
+/**
+ * Parse a comma-separated list of IPs/CIDRs from an env var.
+ * Returns null when the env var is not set (whitelist disabled).
+ */
+function parseIpWhitelist(envValue: string | undefined): Array<{ ip: string; cidr?: number }> | null {
+  if (!envValue) return null;
+  return envValue
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(entry => {
+      const cidrMatch = entry.match(/^(.+)\/(\d{1,3})$/);
+      if (cidrMatch) {
+        return { ip: cidrMatch[1], cidr: parseInt(cidrMatch[2], 10) };
+      }
+      return { ip: entry };
+    });
+}
+
+/**
+ * Check whether a client IP falls within an allowlist entry.
+ * Supports exact IP match and CIDR notation (e.g. 10.0.0.0/8).
+ */
+function isIpAllowed(clientIp: string, allowlist: Array<{ ip: string; cidr?: number }>): boolean {
+  for (const entry of allowlist) {
+    if (!entry.cidr) {
+      // Exact match
+      if (clientIp === entry.ip) return true;
+      continue;
+    }
+    // CIDR match
+    if (matchCidr(clientIp, entry.ip, entry.cidr)) return true;
+  }
+  return false;
+}
+
+/**
+ * IPv4 CIDR matching.
+ */
+function matchCidr(ip: string, network: string, prefix: number): boolean {
+  const ipNum = ipToInt(ip);
+  const netNum = ipToInt(network);
+  if (ipNum === null || netNum === null) return false;
+  const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+  return (ipNum & mask) === (netNum & mask);
+}
+
+function ipToInt(ip: string): number | null {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) return null;
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+/**
+ * Extract the client IP from the request.
+ * Priority: req.ip → x-forwarded-for (first entry) → x-real-ip
+ */
+function getClientIp(req: NextRequest): string | null {
+  // NextRequest doesn't expose req.ip directly in edge runtime,
+  // so we rely on headers.
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) {
+    return realIp.trim();
+  }
+  return null;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is required for middleware. Set it in .env or your deployment config.');
@@ -133,6 +204,31 @@ export async function middleware(req: NextRequest) {
       maxAge: 0,
     });
     return errorResponse;
+  }
+
+  // ─── Session timeout enforcement ────────────────────────────────────────
+  // NOTE: jwtVerify() above already rejects expired tokens via the `exp` claim.
+  // The JWT is issued with a 24h expiry (set in auth.ts). Per-tenant session
+  // timeout (tenant.sessionTimeoutMin) cannot be enforced here because this is
+  // Edge middleware and we cannot perform DB queries. Per-tenant session
+  // timeout enforcement is a future enhancement that will be implemented at
+  // the API route level where DB access is available.
+
+  // ─── IP whitelist enforcement ──────────────────────────────────────────
+  // NOTE: Per-tenant IP whitelists (stored in the DB) cannot be checked in Edge
+  // middleware. As a future enhancement, per-tenant IP enforcement will be added
+  // at the API route level. For now, we support a global IP whitelist via the
+  // IP_WHITELIST env var (comma-separated IPs/CIDRs). When set, ALL API
+  // requests must originate from an allowed IP.
+  const ipWhitelist = parseIpWhitelist(process.env.IP_WHITELIST);
+  if (ipWhitelist) {
+    const clientIp = getClientIp(req);
+    if (!clientIp || !isIpAllowed(clientIp, ipWhitelist)) {
+      return NextResponse.json(
+        { error: 'Forbidden: IP not allowed' },
+        { status: 403, headers: response.headers },
+      );
+    }
   }
 
   // ─── Enforce RBAC ─────────────────────────────────────────────────────

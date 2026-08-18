@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Table,
+  TableCaption,
   TableHeader,
   TableBody,
   TableHead,
@@ -617,14 +618,15 @@ export function PvtQuickCount() {
               <ScrollArea className="min-h-0 flex-1">
                 <div className="overflow-x-auto -mx-4 px-4">
                 <Table>
+                  <TableCaption className="sr-only">Anomalies detected between PVT and official vote counts, sorted by severity.</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs">Polling Unit</TableHead>
-                      <TableHead className="text-xs">State</TableHead>
-                      <TableHead className="text-right text-xs">PVT</TableHead>
-                      <TableHead className="text-right text-xs">Official</TableHead>
-                      <TableHead className="text-center text-xs">Delta</TableHead>
-                      <TableHead className="text-xs">Reason</TableHead>
+                      <TableHead scope="col" className="text-xs">Polling Unit</TableHead>
+                      <TableHead scope="col" className="text-xs">State</TableHead>
+                      <TableHead scope="col" className="text-right text-xs">PVT</TableHead>
+                      <TableHead scope="col" className="text-right text-xs">Official</TableHead>
+                      <TableHead scope="col" className="text-center text-xs">Delta</TableHead>
+                      <TableHead scope="col" className="text-xs">Reason</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -637,7 +639,7 @@ export function PvtQuickCount() {
                     )}
                     {anomalies.map((a) => (
                       <TableRow key={a.id}>
-                        <TableCell className="max-w-[120px] truncate text-xs" title={a.pollingUnit.name}>
+                        <TableCell scope="row" className="max-w-[120px] truncate text-xs" title={a.pollingUnit.name}>
                           {a.pollingUnit.name}
                         </TableCell>
                         <TableCell className="text-xs">{a.pollingUnit.state}</TableCell>
@@ -683,14 +685,15 @@ export function PvtQuickCount() {
             <ScrollArea className="min-h-0 flex-1">
               <div className="overflow-x-auto -mx-4 px-4">
               <Table>
+                <TableCaption className="sr-only">Recent PVT submissions from field agents, showing vote counts and verification status.</TableCaption>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-xs">Time</TableHead>
-                    <TableHead className="text-xs">Polling Unit</TableHead>
-                    <TableHead className="text-xs">State</TableHead>
-                    <TableHead className="text-xs">Source</TableHead>
-                    <TableHead className="text-right text-xs">Total Votes</TableHead>
-                    <TableHead className="text-center text-xs">Status</TableHead>
+                    <TableHead scope="col" className="text-xs">Time</TableHead>
+                    <TableHead scope="col" className="text-xs">Polling Unit</TableHead>
+                    <TableHead scope="col" className="text-xs">State</TableHead>
+                    <TableHead scope="col" className="text-xs">Source</TableHead>
+                    <TableHead scope="col" className="text-right text-xs">Total Votes</TableHead>
+                    <TableHead scope="col" className="text-center text-xs">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -703,7 +706,7 @@ export function PvtQuickCount() {
                   )}
                   {recentSubmissions.map((sub) => (
                     <TableRow key={sub.id}>
-                      <TableCell className="text-xs tabular-nums text-muted-foreground">
+                      <TableCell scope="row" className="text-xs tabular-nums text-muted-foreground">
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
                           {formatTime(sub.submittedAt)}

@@ -34,7 +34,9 @@ import {
   Landmark,
   Handshake,
   ChevronRight,
+  Vote,
 } from 'lucide-react';
+import { EmptyState } from './empty-state';
 import {
   BarChart,
   Bar,
@@ -1385,17 +1387,12 @@ export function ElectionTracker() {
   const hasNoData = partyResults.length === 0 && pvtQuery.data?.partyTotals.length === 0;
   if (hasNoData) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center py-16 text-center"
-      >
-        <div className="p-3 rounded-xl bg-secondary mb-3">
-          <BarChart3 className="h-6 w-6 text-muted-foreground/40" />
-        </div>
-        <p className="text-sm font-medium text-muted-foreground/60">No election data yet</p>
-        <p className="text-xs text-muted-foreground/40 mt-1">Results and PVT submissions will appear here once data is available.</p>
-      </motion.div>
+      <EmptyState
+        icon={Vote}
+        title="No election data yet"
+        description="Results and PVT submissions will appear here once data is available."
+        size="lg"
+      />
     );
   }
 

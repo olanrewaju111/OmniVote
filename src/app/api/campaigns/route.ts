@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // GET /api/campaigns?tenantId=X — list campaigns with contact lists, stats, and contact list info
 export async function GET(req: NextRequest) {
@@ -130,6 +131,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    void logAudit({
+      userId: authUser.userId,
+      action: 'CREATE_CAMPAIGN',
+      entityType: 'Campaign',
+      entityId: campaign.id,
+      metadata: { name, channel: campaign.channel },
+      ipAddress: extractIp(req),
+    });
+
     return NextResponse.json({ campaign }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 });
@@ -244,6 +254,15 @@ export async function PUT(req: NextRequest) {
       data: updateData,
     });
 
+    void logAudit({
+      userId: authUser.userId,
+      action: 'UPDATE_CAMPAIGN',
+      entityType: 'Campaign',
+      entityId: id,
+      metadata: { from: existing.status, to: targetStatus },
+      ipAddress: extractIp(req),
+    });
+
     return NextResponse.json({ campaign });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to update campaign' }, { status: 500 });
@@ -279,6 +298,15 @@ export async function DELETE(req: NextRequest) {
     // Delete messages first, then campaign
     await db.campaignMessage.deleteMany({ where: { campaignId: id } });
     await db.campaign.delete({ where: { id } });
+
+    void logAudit({
+      userId: authUser.userId,
+      action: 'DELETE_CAMPAIGN',
+      entityType: 'Campaign',
+      entityId: id,
+      metadata: { name: existing.name },
+      ipAddress: extractIp(req),
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {
