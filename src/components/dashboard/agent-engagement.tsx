@@ -358,7 +358,7 @@ export function AgentEngagement() {
       </div>
 
       {/* ─── Stats Cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 shrink-0">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 shrink-0">
         <StatCard icon={<Users className="h-4 w-4" />} label="Total Agents" value={stats.totalAgents || 0} color="text-foreground" />
         <StatCard icon={<Wifi className="h-3.5 w-3.5" />} label="Online" value={stats.onlineAgents || 0} color="text-emerald" />
         <StatCard icon={<Clock className="h-3.5 w-3.5" />} label="Idle" value={stats.idleAgents || 0} color="text-amber" />
@@ -865,7 +865,7 @@ function AgentGroupCard({
                       {agent.incidents[0].type.replace(/_/g, ' ')}
                     </Badge>
                   )}
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => onSendMessage(agent)} aria-label="Send message">
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 min-h-[44px] sm:min-h-0 sm:w-6 sm:h-6" onClick={() => onSendMessage(agent)} aria-label="Send message">
                     <Send className="h-3 w-3" />
                   </Button>
                 </div>
@@ -1142,7 +1142,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
   return (
     <Card className="bg-card/40 border-border shrink-0">
       <CardContent className="px-4 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
               <MessageCircle className="h-5 w-5 text-green-400" />
@@ -1207,7 +1207,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
 
         {/* QR Code display */}
         {isQRReady && qrCode && (
-          <div className="mt-3 flex items-center gap-4 p-3 bg-background/50 rounded-lg border border-border">
+          <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-4 p-3 bg-background/50 rounded-lg border border-border">
             <div className="w-32 h-32 bg-white rounded-md flex items-center justify-center border border-border shrink-0 p-2">
               {mode === 'MOCK' ? (
                 <div className="text-center">
@@ -1233,7 +1233,7 @@ function WhatsAppPanel({ tenantId }: { tenantId: string }) {
 
         {/* Connected info */}
         {isConnected && (
-          <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {phone}</span>
             <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-400" /> Bridge Active</span>
             <span>Messages sent via WhatsApp will use this number. Agent replies are auto-recorded.</span>

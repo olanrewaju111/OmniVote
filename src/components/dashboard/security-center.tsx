@@ -472,7 +472,7 @@ function EventLogTab({ data, resolveMutation }: {
       {/* Filter row */}
       <div className="flex items-center gap-3 shrink-0 flex-wrap">
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
-          <SelectTrigger className="w-[160px] h-8 text-xs">
+          <SelectTrigger className="w-[130px] sm:w-[160px] h-8 text-xs">
             <SelectValue placeholder="Severity" />
           </SelectTrigger>
           <SelectContent>
@@ -483,7 +483,7 @@ function EventLogTab({ data, resolveMutation }: {
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px] h-8 text-xs">
+          <SelectTrigger className="w-[150px] sm:w-[180px] h-8 text-xs">
             <SelectValue placeholder="Event Type" />
           </SelectTrigger>
           <SelectContent>
@@ -500,6 +500,7 @@ function EventLogTab({ data, resolveMutation }: {
 
       {/* Table */}
       <div className="flex-1 overflow-y-auto rounded-lg border border-border">
+        <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -641,6 +642,7 @@ function EventLogTab({ data, resolveMutation }: {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );
@@ -684,6 +686,7 @@ function UsersTab({ data, userMutation }: {
         </div>
 
         <div className="flex-1 overflow-y-auto rounded-lg border border-border">
+          <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -801,6 +804,7 @@ function UsersTab({ data, userMutation }: {
               )}
             </TableBody>
           </Table>
+          </div>
         </div>
 
         {/* Confirm Dialog */}
@@ -1103,7 +1107,7 @@ function PoliciesTab({ data, policyMutation }: {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-rose opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-rose opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity min-h-[44px] sm:min-h-0 sm:w-6 sm:h-6"
                     onClick={() => handleRemoveIp(ip)}
                   >
                     <Trash2 className="h-3 w-3" />

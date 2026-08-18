@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     });
 
     // In a real app, would send an email with the invite link containing the token
-    return NextResponse.json({ success: true, message: 'Invitation sent' });
+    return NextResponse.json({ success: true, message: 'Invitation sent', inviteToken });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Failed to create invitation';
     return NextResponse.json({ error: msg }, { status: 500 });

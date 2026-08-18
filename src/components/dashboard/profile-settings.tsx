@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Mail, Building2, Shield, Loader2, Eye, EyeOff, Volume2, VolumeX, User, Bell, MessageSquare, AlertTriangle, BarChart3, Settings } from 'lucide-react';
+import { Mail, Building2, Shield, Loader2, Eye, EyeOff, Volume2, VolumeX, User, Bell, MessageSquare, AlertTriangle, BarChart3, Settings, Smartphone, Copy, Check, KeyRound } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -403,6 +403,11 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
                     </div>
                     <Switch checked={soundEnabled} onCheckedChange={handleSoundToggle} />
                   </div>
+
+                  <Separator className="bg-border/60" />
+
+                  {/* ─── Two-Factor Authentication ─── */}
+                  <TwoFactorSection />
                 </div>
               </motion.div>
             </TabsContent>
@@ -493,5 +498,282 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
         </Tabs>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Two-Factor Authentication Section
+// ═══════════════════════════════════════════════════════════════════════════
+
+function TwoFactorSection() {
+  const [tfaEnabled, setTfaEnabled] = useState<boolean | null>(null);
+  const [tfaLoading, setTfaLoading] = useState(true);
+  const [enrolling, setEnrolling] = useState(false);
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpUri, setTotpUri] = useState('');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [disableCode, setDisableCode] = useState('');
+  const [showDisable, setShowDisable] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Fetch 2FA status on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/2fa');
+        if (res.ok) {
+          const data = await res.json();
+          setTfaEnabled(data.enabled);
+        }
+      } catch { /* ignore */ }
+      setTfaLoading(false);
+    })();
+  }, []);
+
+  // Start enrollment
+  const handleStartEnroll = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/auth/2fa', { method: 'POST' });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to start enrollment');
+        return;
+      }
+      const data = await res.json();
+      setTotpSecret(data.secret);
+      setTotpUri(data.uri);
+      setVerifyCode('');
+      setEnrolling(true);
+    } catch {
+      toast.error('Failed to start 2FA enrollment');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Verify and enable
+  const handleVerify = async () => {
+    if (!verifyCode || verifyCode.length !== 6) {
+      toast.error('Enter a valid 6-digit code');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/auth/2fa', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: verifyCode, secret: totpSecret }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || 'Verification failed');
+        return;
+      }
+      setTfaEnabled(true);
+      setEnrolling(false);
+      toast.success('Two-factor authentication enabled');
+    } catch {
+      toast.error('Failed to verify code');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Disable 2FA
+  const handleDisable = async () => {
+    if (!disableCode || disableCode.length !== 6) {
+      toast.error('Enter your current 2FA code');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/auth/2fa', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: disableCode }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to disable');
+        return;
+      }
+      setTfaEnabled(false);
+      setShowDisable(false);
+      setDisableCode('');
+      toast.success('Two-factor authentication disabled');
+    } catch {
+      toast.error('Failed to disable 2FA');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCopySecret = () => {
+    navigator.clipboard.writeText(totpSecret);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCancelEnroll = () => {
+    setEnrolling(false);
+    setTotpSecret('');
+    setTotpUri('');
+    setVerifyCode('');
+  };
+
+  if (tfaLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <KeyRound className="h-4 w-4 text-violet" />
+          <p className="text-sm font-semibold">Two-Factor Authentication</p>
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <KeyRound className="h-4 w-4 text-violet" />
+          <div>
+            <p className="text-sm font-semibold">Two-Factor Authentication</p>
+            <p className="text-[11px] text-muted-foreground">Add an extra layer of security to your account</p>
+          </div>
+        </div>
+        {tfaEnabled && !enrolling && (
+          <Badge className="bg-emerald/15 text-emerald border-emerald/25 text-[10px]">
+            <Check className="h-3 w-3 mr-1" /> Active
+          </Badge>
+        )}
+      </div>
+
+      {enrolling ? (
+        /* ── Enrollment Flow ── */
+        <div className="rounded-lg border border-violet/20 bg-violet/5 p-4 space-y-4">
+          <div className="flex items-start gap-3">
+            <Smartphone className="h-5 w-5 text-violet mt-0.5 shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Set up your authenticator app</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                1. Install Google Authenticator or Authy on your phone<br />
+                2. Add a new account and scan the link below, or enter the secret manually
+              </p>
+            </div>
+          </div>
+
+          {/* Secret key — copyable */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground/80">Secret Key</Label>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-md bg-background/80 border border-border/60 px-3 py-2 text-xs font-mono tracking-wider text-foreground select-all">
+                {totpSecret}
+              </code>
+              <Button
+                variant="outline" size="sm"
+                className="shrink-0 h-9 w-9 p-0"
+                onClick={handleCopySecret}
+                aria-label="Copy secret"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-emerald" /> : <Copy className="h-3.5 w-3.5" />}
+              </Button>
+            </div>
+          </div>
+
+          {/* URI link */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground/80">Authenticator URI</Label>
+            <a
+              href={totpUri}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-md bg-background/80 border border-border/60 px-3 py-2 text-[11px] font-mono text-cyan hover:bg-cyan/5 hover:border-cyan/30 transition-colors truncate"
+            >
+              {totpUri}
+            </a>
+          </div>
+
+          {/* Verification code input */}
+          <div className="space-y-1.5">
+            <Label htmlFor="tfa-verify-code" className="text-xs font-medium text-muted-foreground/80">
+              Verification Code
+            </Label>
+            <Input
+              id="tfa-verify-code"
+              value={verifyCode}
+              onChange={(e) => setVerifyCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+              className="h-9 bg-background/60 border-border/60 text-sm text-center tracking-[0.3em] font-mono focus-visible:border-violet/40"
+              placeholder="000000"
+              maxLength={6}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 h-9 text-xs" onClick={handleCancelEnroll}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 h-9 text-xs bg-violet hover:bg-violet/90 text-white"
+              disabled={verifyCode.length !== 6 || actionLoading}
+              onClick={handleVerify}
+            >
+              {actionLoading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Check className="h-3.5 w-3.5 mr-1.5" />}
+              Verify &amp; Enable
+            </Button>
+          </div>
+        </div>
+      ) : showDisable ? (
+        /* ── Disable Flow ── */
+        <div className="rounded-lg border border-rose/20 bg-rose/5 p-4 space-y-3">
+          <p className="text-sm font-medium text-rose">Disable Two-Factor Authentication</p>
+          <p className="text-[11px] text-muted-foreground">Enter your current 2FA code to confirm. This will make your account less secure.</p>
+          <div className="space-y-1.5">
+            <Input
+              value={disableCode}
+              onChange={(e) => setDisableCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+              className="h-9 bg-background/60 border-border/60 text-sm text-center tracking-[0.3em] font-mono focus-visible:border-rose/40"
+              placeholder="Current code"
+              maxLength={6}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 h-9 text-xs" onClick={() => { setShowDisable(false); setDisableCode(''); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1 h-9 text-xs"
+              disabled={disableCode.length !== 6 || actionLoading}
+              onClick={handleDisable}
+            >
+              {actionLoading && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              Disable 2FA
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* ── Default State ── */
+        <Button
+          variant={tfaEnabled ? 'outline' : 'default'}
+          className={cn(
+            'w-full h-9 text-xs',
+            !tfaEnabled && 'bg-violet hover:bg-violet/90 text-white'
+          )}
+          disabled={actionLoading}
+          onClick={tfaEnabled ? () => setShowDisable(true) : handleStartEnroll}
+        >
+          {actionLoading ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <Smartphone className="h-3.5 w-3.5 mr-2" />}
+          {tfaEnabled ? 'Disable Two-Factor Auth' : 'Enable Two-Factor Auth'}
+        </Button>
+      )}
+    </div>
   );
 }

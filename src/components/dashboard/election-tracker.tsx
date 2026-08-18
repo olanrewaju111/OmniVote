@@ -800,7 +800,7 @@ function SwingStatesGrid({ states }: { states: SwingState[] }) {
           {states.length} critical
         </Badge>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         {states.map((s) => (
           <SwingStateCard key={s.name} state={s} />
         ))}
@@ -1012,7 +1012,7 @@ function SentimentPulse({ sentiment }: {
         </div>
         <span className="text-sm font-semibold">Sentiment Pulse</span>
       </motion.div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
       {chips.map((chip) => (
         <motion.div
           key={chip.label}
@@ -1088,7 +1088,7 @@ function TrackerSkeleton() {
       {/* Coalition math skeleton */}
       <div className="h-16 rounded-lg border skeleton" />
       {/* Swing states skeleton */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="h-20 rounded-lg skeleton" />
         ))}
@@ -1101,7 +1101,7 @@ function TrackerSkeleton() {
         ))}
       </div>
       {/* Sentiment skeleton */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-14 rounded-lg skeleton" />
         ))}

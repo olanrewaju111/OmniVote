@@ -454,7 +454,7 @@ export function MobilizationEngine() {
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0 px-1">
+      <div className="flex items-center justify-between shrink-0 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-lg bg-emerald/10 border border-emerald/20">
             <Megaphone className="h-5 w-5 text-emerald" />
@@ -477,7 +477,7 @@ export function MobilizationEngine() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-4 gap-3 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
         {kpis.map((kpi) => (
           <motion.div
             key={kpi.label}

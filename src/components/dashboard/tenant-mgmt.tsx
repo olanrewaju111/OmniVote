@@ -15,6 +15,7 @@ import {
   Building2, Users, Settings, Shield, Vote, Loader2, MapPin, Save,
   RotateCcw, Plus, Trash2, UserPlus, Mail, ChevronRight, Globe,
   Eye, UserCheck, Radio, AlertTriangle, Pencil, AlertCircle,
+  Send, Copy, Check as CheckIcon, Link,
 } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -124,6 +125,14 @@ export function TenantManagement() {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<string>('FIELD_AGENT');
+
+  // Invite user dialog
+  const [inviteUserOpen, setInviteUserOpen] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<string>('FIELD_AGENT');
+  const [inviteToken, setInviteToken] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   // User role change dialog
   const [roleChangeOpen, setRoleChangeOpen] = useState(false);
@@ -236,6 +245,22 @@ export function TenantManagement() {
       toast.success('User added successfully');
     },
     onError: (err) => toast.error(err?.message || 'Failed to add user'),
+  });
+
+  // Invite user
+  const inviteUserMutation = useMutation({
+    mutationFn: (data: { email: string; name: string; role: string; tenantId: string }) =>
+      fetchJson<{ success?: boolean; message?: string; inviteToken?: string }>('/api/auth/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (data) => {
+      setInviteToken(data.inviteToken || 'Generated successfully');
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      queryClient.invalidateQueries({ queryKey: ['tenant-users'] });
+    },
+    onError: (err) => toast.error(err?.message || 'Failed to send invitation'),
   });
 
   // Change user role
@@ -408,6 +433,7 @@ export function TenantManagement() {
                 tenantUsers={tenantUsers}
                 userRole={user?.role || ''}
                 onOpenUserDialog={() => setAddUserOpen(true)}
+                onOpenInviteDialog={() => setInviteUserOpen(true)}
                 onRoleChange={(u) => { setRoleChangeUser(u); setNewRole(u.role); setRoleChangeOpen(true); }}
                 onDeleteUser={(u) => setDeleteConfirm({ type: 'user', item: { id: u.id, name: u.name } })}
                 onOpenMapConfig={() => { setSubTab('map'); setTimeout(() => setMapConfigOpen(true), 100); }}
@@ -428,6 +454,7 @@ export function TenantManagement() {
               tenantUsers={tenantUsers}
               userRole={user?.role || ''}
               onOpenUserDialog={() => setAddUserOpen(true)}
+              onOpenInviteDialog={() => setInviteUserOpen(true)}
               onRoleChange={(u) => { setRoleChangeUser(u); setNewRole(u.role); setRoleChangeOpen(true); }}
               onDeleteUser={(u) => setDeleteConfirm({ type: 'user', item: { id: u.id, name: u.name } })}
               onOpenMapConfig={() => setMapConfigOpen(true)}
@@ -611,6 +638,84 @@ export function TenantManagement() {
               Add User
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== INVITE USER DIALOG ===== */}
+      <Dialog open={inviteUserOpen} onOpenChange={(open) => { setInviteUserOpen(open); if (!open) { setInviteToken(''); setInviteName(''); setInviteEmail(''); setInviteRole('FIELD_AGENT'); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-violet" />
+              Invite User
+            </DialogTitle>
+            <DialogDescription>
+              Send an invitation link. The user will set their own password.
+            </DialogDescription>
+          </DialogHeader>
+          {!inviteToken ? (
+            <>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Full Name</label>
+                  <Input placeholder="e.g. Adebayo Johnson" value={inviteName} onChange={(e) => setInviteName(e.target.value)} className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Email Address</label>
+                  <Input type="email" placeholder="e.g. agent@omnivote.ng" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="h-9 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Role</label>
+                  <Select value={inviteRole} onValueChange={setInviteRole}>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {VALID_ROLES.filter(r => r !== 'SUPER_ADMIN').map(r => (
+                        <SelectItem key={r} value={r} className="text-xs">{r.replace(/_/g, ' ')}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setInviteUserOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={() => inviteUserMutation.mutate({ email: inviteEmail, name: inviteName, role: inviteRole, tenantId })}
+                  disabled={inviteUserMutation.isPending || !inviteName || !inviteEmail}
+                  className="bg-violet hover:bg-violet/90 text-white gap-1.5 text-xs"
+                >
+                  {inviteUserMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                  Send Invite
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="py-2 space-y-4">
+              <div className="flex items-center gap-2 text-emerald">
+                <CheckIcon className="h-5 w-5" />
+                <p className="text-sm font-medium">Invitation created!</p>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Share this link with the user to complete registration:</p>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Invite Token</label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded-md bg-background/80 border border-border/60 px-3 py-2 text-[11px] font-mono text-violet select-all break-all">
+                    {inviteToken}
+                  </code>
+                  <Button
+                    variant="outline" size="sm"
+                    className="shrink-0 h-9 w-9 p-0"
+                    onClick={() => { navigator.clipboard.writeText(inviteToken); setInviteCopied(true); setTimeout(() => setInviteCopied(false), 2000); }}
+                    aria-label="Copy token"
+                  >
+                    {inviteCopied ? <CheckIcon className="h-3.5 w-3.5 text-emerald" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setInviteUserOpen(false)}>Done</Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -818,6 +923,7 @@ function TenantUsersView({
   tenantUsers,
   userRole,
   onOpenUserDialog,
+  onOpenInviteDialog,
   onRoleChange,
   onDeleteUser,
   onOpenMapConfig,
@@ -826,6 +932,7 @@ function TenantUsersView({
   tenantUsers: { id: string; email: string; name: string; role: string; phone?: string; isOnline: boolean; lastSeenAt?: string; createdAt: string }[];
   userRole: string;
   onOpenUserDialog: () => void;
+  onOpenInviteDialog: () => void;
   onRoleChange: (u: { id: string; name: string; role: string }) => void;
   onDeleteUser: (u: { id: string; name: string }) => void;
   onOpenMapConfig: () => void;
@@ -869,6 +976,9 @@ function TenantUsersView({
                 </Button>
                 <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={onOpenUserDialog}>
                   <UserPlus className="h-3 w-3" /> Add User
+                </Button>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 text-violet border-violet/30 hover:bg-violet/10" onClick={onOpenInviteDialog}>
+                  <Send className="h-3 w-3" /> Invite
                 </Button>
               </div>
             )}

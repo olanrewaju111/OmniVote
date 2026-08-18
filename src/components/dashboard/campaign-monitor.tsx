@@ -732,7 +732,7 @@ function EventsTab({
   return (
     <>
       {/* KPI Row */}
-      <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
         <KpiCard label="Total Events" value={counts.total} icon={<Megaphone className="h-3.5 w-3.5" />} color="text-emerald" />
         <KpiCard label="This Week" value={weekCount} icon={<Calendar className="h-3.5 w-3.5" />} color="text-cyan" />
         <KpiCard label="Hate Speech Flags" value={counts.hateSpeechFlags} icon={<Flag className="h-3.5 w-3.5" />} color="text-rose" />
@@ -742,7 +742,7 @@ function EventsTab({
       {/* Filters + Actions */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0 flex-wrap">
         <Select value={partyFilter} onValueChange={setPartyFilter}>
-          <SelectTrigger size="sm" className="w-28 text-[11px]">
+          <SelectTrigger size="sm" className="w-24 sm:w-28 text-[11px]">
             <SelectValue placeholder="Party" />
           </SelectTrigger>
           <SelectContent>
@@ -753,7 +753,7 @@ function EventsTab({
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger size="sm" className="w-36 text-[11px]">
+          <SelectTrigger size="sm" className="w-32 sm:w-36 text-[11px]">
             <SelectValue placeholder="Event Type" />
           </SelectTrigger>
           <SelectContent>
@@ -927,7 +927,7 @@ function SuppressionTab({
   return (
     <>
       {/* KPI Row */}
-      <div className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
         <KpiCard label="Total Reports" value={counts.total} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="text-rose" />
         <KpiCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-3.5 w-3.5" />} color="text-emerald" />
         <KpiCard label="Pending" value={pendingCount} icon={<Eye className="h-3.5 w-3.5" />} color="text-amber" />
@@ -937,7 +937,7 @@ function SuppressionTab({
       {/* Filters + Actions */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0 flex-wrap">
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger size="sm" className="w-36 text-[11px]">
+          <SelectTrigger size="sm" className="w-32 sm:w-36 text-[11px]">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -948,7 +948,7 @@ function SuppressionTab({
           </SelectContent>
         </Select>
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
-          <SelectTrigger size="sm" className="w-28 text-[11px]">
+          <SelectTrigger size="sm" className="w-24 sm:w-28 text-[11px]">
             <SelectValue placeholder="Severity" />
           </SelectTrigger>
           <SelectContent>
@@ -959,7 +959,7 @@ function SuppressionTab({
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger size="sm" className="w-32 text-[11px]">
+          <SelectTrigger size="sm" className="w-28 sm:w-32 text-[11px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -1051,7 +1051,7 @@ function SuppressionTab({
                             {formatTime(report.createdAt)}
                           </td>
                           <td className="py-2 px-3 text-center">
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" aria-label="View event details">
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground min-h-[44px] sm:min-h-0 sm:w-6 sm:h-6" aria-label="View event details">
                               <Eye className="h-3 w-3" />
                             </Button>
                           </td>
@@ -1097,14 +1097,14 @@ function BillboardsTab({
   return (
     <>
       {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 px-4 py-3 border-b border-border shrink-0 bg-card/30">
         <KpiCard label="Total Tracked" value={billboards.length} icon={<ImageIcon className="h-3.5 w-3.5" />} color="text-emerald" />
         <KpiCard label="Parties Covered" value={Object.keys(byParty).length} icon={<TrendingUp className="h-3.5 w-3.5" />} color="text-cyan" />
         <KpiCard label="States Covered" value={states.length} icon={<MapPin className="h-3.5 w-3.5" />} color="text-amber" />
       </div>
 
       {/* Party Breakdown */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0 flex-wrap">
         <span className="text-[10px] text-muted-foreground font-medium">By Party:</span>
         {Object.entries(byParty).map(([party, count]) => (
           <Badge key={party} className={cn('text-[9px] h-5 border', PARTY_COLORS[party] || 'border-muted text-muted-foreground')}>
