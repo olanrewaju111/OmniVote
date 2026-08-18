@@ -25,6 +25,7 @@ import {
   CalendarDays,
   Eye,
   EyeOff,
+  Download,
 } from 'lucide-react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -357,8 +358,36 @@ export function TimeSeriesComparison({
     },
     [dateFormatter],
   );
-
   const visibleList = filteredSeries.filter((s) => visibleSeries.has(s.id));
+
+  // Phase 13: CSV export
+  const handleCsvExport = useCallback(() => {
+    const headers = ['Date', ...visibleList.map(s => s.name)];
+    const dateSet = new Set<string>();
+    filteredSeries.forEach(s => {
+      if (visibleSeries.has(s.id)) {
+        s.data.forEach(pt => dateSet.add(pt.date));
+      }
+    });
+    const dates = Array.from(dateSet).sort();
+    const rows = dates.map(date => {
+      const row: Record<string, string> = { Date: date };
+      filteredSeries.forEach(s => {
+        if (visibleSeries.has(s.id)) {
+          const pt = s.data.find(d => d.date === date);
+          row[s.name] = pt ? String(pt.value) : '';
+        }
+      });
+      return row;
+    });
+    const csvContent = [headers.join(','), ...rows.map(r => headers.map(h => r[h] || '').join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `timeseries_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }, [filteredSeries, visibleSeries, visibleList]);
 
   // Shared axis props
   const xAxisProps = {
@@ -395,6 +424,11 @@ export function TimeSeriesComparison({
                 </Button>
               ))}
             </div>
+            {/* Phase 13: CSV Export */}
+            <Button variant="ghost" size="sm" onClick={handleCsvExport} className="h-6 px-2 text-[10px] gap-1">
+              <Download className="h-3 w-3" />
+              CSV
+            </Button>
             {/* Period selector */}
             <div className="flex items-center gap-1">
               <CalendarDays className="h-3 w-3 text-muted-foreground" />

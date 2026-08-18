@@ -123,9 +123,9 @@ export function RealtimeStreamChart({
 
   // Synthetic data feed (when no external source)
   useEffect(() => {
-    if (onChange) {
+    if (onDataChange) {
       // External data source
-      const remove = onChange((point) => callbackRef.current?.(point));
+      const remove = onDataChange((point) => callbackRef.current?.(point));
       return remove;
     }
 
@@ -142,7 +142,7 @@ export function RealtimeStreamChart({
     }, 1500);
 
     return () => clearInterval(interval);
-  }, [onChange]);
+  }, [onDataChange]);
 
   const toggleLive = useCallback(() => setIsLive(p => !p), []);
   const zoomIn = useCallback(() => setZoomLevel(z => Math.min(8, z * 1.5)), []);

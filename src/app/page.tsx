@@ -27,6 +27,7 @@ import { useDashboardWebSocket } from '@/hooks/use-dashboard-websocket';
 import { useDashboardStore, ROLE_TABS, type ViewTab } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useMemoizedCallback } from '@/hooks/use-memoized-callback';
 import type { DashboardData, Incident, AlertsData } from '@/types/dashboard';
 
 // Re-export types for backward compatibility

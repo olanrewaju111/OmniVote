@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import {
-  ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ZAxis,
+  ScatterChart, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer, ZAxis, ReferenceLine,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -116,11 +116,13 @@ export function ElectionHeatmap({
   xAxisLabel = 'Time Period',
   yAxisLabel = 'Region',
   height = 340,
-  colorRange = ['#064e3b', '#fbbf24', '#ef4444'] as const [string, string],
+  colorRange = ['#064e3b', '#fbbf24', '#ef4444'],
   valueFormatter,
   onCellClick,
 }: ElectionHeatmapProps) {
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+  const [hoverX, setHoverX] = useState<string | null>(null);
+  const [hoverY, setHoverY] = useState<string | null>(null);
 
   // Compute min/max for color scaling
   const { min, max, coloredData } = useMemo(() => {
@@ -199,18 +201,21 @@ export function ElectionHeatmap({
                   />
                 }
               />
+              {/* Phase 13: Crosshair guides */}
+              {hoverX && <ReferenceLine x={hoverX} stroke="oklch(0.5 0 0)" strokeDasharray="3 3" strokeOpacity={0.3} />}
+              {hoverY && <ReferenceLine y={hoverY} stroke="oklch(0.5 0 0)" strokeDasharray="3 3" strokeOpacity={0.3} />}
               <Scatter
                 data={coloredData}
                 shape="square"
-                onMouseEnter={(entry) => setHoveredCell(`${entry.x}-${entry.y}`)}
-                onMouseLeave={() => setHoveredCell(null)}
+                onMouseEnter={(entry) => { setHoveredCell(`${entry.x}-${entry.y}`); setHoverX(String(entry.x)); setHoverY(String(entry.y)); }}
+                onMouseLeave={() => { setHoveredCell(null); setHoverX(null); setHoverY(null); }}
                 onClick={(entry) => onCellClick?.(entry)}
                 style={{ cursor: onCellClick ? 'pointer' : 'default' }}
               />
             </ScatterChart>
           </ResponsiveContainer>
         )}
-        <HeatmapLegend min={min} max={max} colorRange={[lowColor, highColor]} />
+        <HeatmapLegend min={min} max={max} colorRange={[colorRange?.[0] || '#064e3b', colorRange?.[colorRange.length - 1] || '#fbbf24'] as [string, string]} />
       </CardContent>
     </Card>
   );

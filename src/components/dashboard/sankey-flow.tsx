@@ -63,7 +63,10 @@ function computeSankeyLayout(
     return { layoutNodes: [], layoutLinks: [] };
   }
 
-  const nodeMap = new Map(nodes.map((n, i) => ({ ...n, color: n.color || FLOW_COLORS[i % FLOW_COLORS.length] })));
+  const nodeMap = new Map<string, LayoutNode>();
+  nodes.forEach((n, i) => {
+    nodeMap.set(n.id, { ...n, color: n.color || FLOW_COLORS[i % FLOW_COLORS.length], x: 0, y: 0, height: 0, column: 0 });
+  });
 
   // Determine columns (topological ordering)
   const targets = new Set(links.map(l => l.target));
@@ -155,12 +158,12 @@ export function SankeyFlow({
   onNodeHover,
 }: SankeyFlowProps) {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const svgRef = React.useRef<SVGSVGElement>(null);
+  const divRef = React.useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 600, height });
 
   // Measure container
   React.useEffect(() => {
-    const el = svgRef.current?.parentElement;
+    const el = divRef.current;
     if (!el) return;
     const ro = new ResizeObserver(entries => {
       const { width } = entries[0].contentRect;
@@ -207,7 +210,7 @@ export function SankeyFlow({
             <p className="text-xs mt-1 opacity-60">Connect nodes with links to visualize voter flow</p>
           </div>
         ) : (
-          <div ref={svgRef}>
+          <div ref={divRef}>
             <svg width="100%" viewBox={`0 0 ${dimensions.width} ${dimensions.height}`} className="overflow-visible">
               {/* Links */}
               {layoutLinks.map((link, i) => (

@@ -19,6 +19,7 @@ import { RadarOverview, type RadarSeries } from '@/components/dashboard/radar-ov
 import { RealtimeStreamChart, type StreamDataPoint } from '@/components/dashboard/realtime-stream-chart';
 import { SankeyFlow } from '@/components/dashboard/sankey-flow';
 import { EmptyState } from './empty-state';
+import { DashboardExport } from '@/components/dashboard/dashboard-export';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Types
@@ -160,6 +161,7 @@ export function DataExplorer() {
   const { tenantId, electionInfo } = useDashboardStore();
   const [drillTab, setDrillTab] = useState('votes');
   const [activeViz, setActiveViz] = useState('drill');
+  const exportContainerRef = useRef<HTMLDivElement>(null);
 
   // Ref for realtime chart to push synthetic incident data
   const streamHandlersRef = useRef<Set<(point: StreamDataPoint) => void>>(new Set());
@@ -264,7 +266,15 @@ export function DataExplorer() {
   }
 
   return (
-    <div className="h-full flex flex-col p-4 gap-4 overflow-y-auto">
+    <div ref={exportContainerRef} className="h-full flex flex-col p-4 gap-4 overflow-y-auto">
+      {/* Phase 13: Export button */}
+      <div className="flex items-center justify-end">
+        <DashboardExport
+          containerRef={exportContainerRef}
+          title="OmniVote Data Explorer"
+          size="sm"
+        />
+      </div>
       {/* Status row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatusIndicator status="online" label="Data Feed" count={situationData?.levels?.items?.length || 0} />

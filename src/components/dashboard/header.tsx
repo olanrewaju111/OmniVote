@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useCallback, useRef, useEffect, useMemo, type RefObject } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
 import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap, Megaphone, Users } from 'lucide-react';
@@ -239,7 +241,7 @@ function getPasswordStrength(pw: string) {
   return { score, label: labels[score], color: colors[score] };
 }
 
-export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
+export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
   const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch, sseConnected } = useDashboardStore();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -745,4 +747,4 @@ export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
       <ProfileSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   );
-}
+})

@@ -32,7 +32,12 @@ export interface DrillDownChartProps {
   height?: number;
   colorPalette?: string[];
   onDrillDown?: (level: DrillDownLevel, path: DrillDownLevel[]) => void;
+  onBreadcrumbNavigate?: (path: DrillDownLevel[]) => void;
   valueFormatter?: (v: number) => string;
+  /** Show aggregate summary stats below the chart */
+  showSummary?: boolean;
+  /** Maximum drill-down depth (default: 3) */
+  maxDepth?: number;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -169,7 +174,10 @@ export function DrillDownChart({
   height = 350,
   colorPalette = DEFAULT_PALETTE,
   onDrillDown,
+  onBreadcrumbNavigate,
   valueFormatter,
+  showSummary = true,
+  maxDepth = 3,
 }: DrillDownChartProps) {
   const [drillPath, setDrillPath] = useState<DrillDownLevel[]>([]);
 
@@ -206,16 +214,21 @@ export function DrillDownChart({
     (entry: { _ref: DrillDownLevel }) => {
       const item = entry._ref;
       if (!item.children || item.children.length === 0) return;
+      if (drillPath.length >= maxDepth - 1) return;
       const newPath = [...drillPath, item];
       setDrillPath(newPath);
       onDrillDown?.(item, newPath);
     },
-    [drillPath, onDrillDown],
+    [drillPath, onDrillDown, maxDepth],
   );
 
   const handleBreadcrumb = useCallback((index: number) => {
-    setDrillPath((prev) => prev.slice(0, index + 1));
-  }, []);
+    setDrillPath((prev) => {
+      const newPath = prev.slice(0, index + 1);
+      onBreadcrumbNavigate?.(newPath);
+      return newPath;
+    });
+  }, [onBreadcrumbNavigate]);
 
   const handleBackToTop = useCallback(() => {
     setDrillPath([]);
@@ -332,6 +345,24 @@ export function DrillDownChart({
             <span className="font-medium tabular-nums">
               Total: {format(totalValue)}
             </span>
+          </div>
+        )}
+
+        {/* Phase 13: Aggregate summary stats */}
+        {showSummary && chartData.length > 1 && (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="rounded-md border border-border/40 bg-muted/20 px-2.5 py-1.5 text-center">
+              <p className="text-[10px] text-muted-foreground">Average</p>
+              <p className="text-sm font-bold tabular-nums">{format(Math.round(totalValue / chartData.length))}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-muted/20 px-2.5 py-1.5 text-center">
+              <p className="text-[10px] text-muted-foreground">Maximum</p>
+              <p className="text-sm font-bold tabular-nums">{format(Math.max(...chartData.map(d => d.value)))}</p>
+            </div>
+            <div className="rounded-md border border-border/40 bg-muted/20 px-2.5 py-1.5 text-center">
+              <p className="text-[10px] text-muted-foreground">Items</p>
+              <p className="text-sm font-bold tabular-nums">{chartData.length}</p>
+            </div>
           </div>
         )}
       </CardContent>

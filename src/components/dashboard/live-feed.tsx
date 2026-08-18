@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { useMemoizedCallback } from '@/hooks/use-memoized-callback';
 import { ExportButton } from '@/components/dashboard/export-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

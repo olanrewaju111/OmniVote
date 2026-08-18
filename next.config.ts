@@ -6,6 +6,14 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  // Phase 10: Compression & bundle optimization
+  compress: true,
+  poweredByHeader: false,
+  reactProductionProfiling: false,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+  },
   // Phase 10: Optimize package imports for libraries that export many sub-modules.
   // This replaces barrel-file imports with direct deep imports, reducing initial JS bundle.
   experimental: {
@@ -16,6 +24,7 @@ const nextConfig: NextConfig = {
       'date-fns',
       '@radix-ui/react-icons',
     ],
+    optimizeCss: true,
   },
 };
 
