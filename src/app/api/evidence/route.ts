@@ -36,10 +36,18 @@ export async function GET(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
+    const { searchParams } = new URL(req.url);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500);
+    const filterIncidentId = searchParams.get('incidentId');
+
+    // Build where clause
+    const whereClause: Record<string, unknown> = { tenantId };
+    if (filterIncidentId) whereClause.incidentId = filterIncidentId;
+
     const [dossiers, stegoScans, totalCount, statusCounts, c2paSignedCount, manipulatedCount, manipulationTypeRows, allDossiersForAvg] =
       await Promise.all([
         db.evidenceDossier.findMany({
-          where: { tenantId },
+          where: whereClause,
           orderBy: { createdAt: 'desc' },
           take: 100,
         }),

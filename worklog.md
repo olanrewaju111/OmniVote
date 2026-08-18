@@ -422,3 +422,37 @@ Work Log:
 Stage Summary:
 - 2 new frontend components, 3 new API routes, 1 component rewrite, 1 seed script
 - 0 TypeScript errors, clean production build
+
+---
+Task ID: 6-cleanup
+Agent: Super Z (Main)
+Task: Fix all partially completed, not wired, missing/broken items from codebase audit
+
+Work Log:
+- Fixed .env: added JWT_SECRET, WS_PORT, NEXT_PUBLIC_APP_URL, WHATSAPP_BRIDGE_URL, SMTP placeholders
+- Added campaign-analytics and social-cards to ViewTab union type and ROLE_TABS for SUPER_ADMIN, TENANT_ADMIN, ANALYST
+- Added sidebar nav entries for Campaign Analytics (PieChart icon) and Social Cards (Share2 icon) under Operations
+- Added TAB_LABELS and TAB_SECTION entries for both new tabs
+- Added render blocks in page.tsx for campaign-analytics and social-cards tabs
+- Fixed social-cards.tsx: added missing tenantId/electionName declarations, added export default
+- Deleted dead files: field-safety-map.tsx, connection-indicator.tsx
+- Removed redundant shadcn Toaster from layout.tsx (kept only SonnerToaster)
+- Created ScheduledReport Prisma model with indexes, Tenant relation
+- Rewrote /api/scheduled-reports with full DB persistence (GET/POST/PATCH/DELETE)
+- Created /api/campaign-analytics/timeseries — real daily sent/response aggregates from CampaignMessage
+- Replaced mock generateTimeSeries() with generateTimeSeriesFromApi() using real DB data
+- Implemented Linked Evidence section in incident-detail-slideover.tsx with useQuery, evidence API filtering
+- Added incidentId filter support to /api/evidence GET route
+- Removed 8 unused npm packages: react-markdown, @mdxeditor/editor, react-syntax-highlighter, @hookform/resolvers, @reactuses/core, @tanstack/react-table, uuid, z-ai-web-dev-sdk
+- Moved @types/leaflet from dependencies to devDependencies
+- Replaced hardcoded Nigeria-specific narrative seed data with generic, dynamically-timestamped content
+- Fixed field-safety.tsx: replaced broken AgentMiniMap dynamic import with inline placeholder
+- Verified 0 TypeScript errors, successful Next.js production build
+
+Stage Summary:
+- 1 new Prisma model (ScheduledReport), 1 new API route (campaign-analytics/timeseries)
+- 3 files deleted (field-safety-map, connection-indicator, toaster import)
+- 7 files modified (page.tsx, layout.tsx, sidebar.tsx, store/dashboard.ts, social-cards.tsx, field-safety.tsx, incident-detail-slideover.tsx)
+- 3 API routes rewritten (scheduled-reports, narrative, evidence)
+- 8 npm packages removed, 1 moved to devDependencies
+- 0 TS errors, clean production build

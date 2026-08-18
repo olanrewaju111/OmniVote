@@ -146,20 +146,28 @@ function pct(num: number, den: number): string {
   return `${Math.round((num / den) * 100)}%`;
 }
 
-// ─── Helper: generate mock time-series from campaigns ─────────────
+// ─── Helper: generate time-series from real DB data ────────────────
 
-function generateTimeSeries(campaigns: CampaignAnalytics[]): TimeSeriesPoint[] {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+function generateTimeSeriesFromApi(
+  apiData: TimeSeriesPoint[],
+  campaigns: CampaignAnalytics[],
+): TimeSeriesPoint[] {
+  // If the API returned real data, use it directly
+  if (apiData.length > 0 && apiData.some(p => p.sent > 0)) {
+    return apiData;
+  }
+  // Fallback: distribute campaign totals evenly across the API day slots
   const totalSent = campaigns.reduce((s, c) => s + c.sentCount, 0);
   const totalResp = campaigns.reduce((s, c) => s + c.responseCount, 0);
-
-  // Distribute across 7 days with some variation
-  const weights = [0.10, 0.14, 0.18, 0.15, 0.20, 0.12, 0.11];
-  return days.map((day, i) => ({
-    date: day,
-    sent: Math.round(totalSent * weights[i] * (0.85 + Math.random() * 0.3)),
-    responded: Math.round(totalResp * weights[i] * (0.8 + Math.random() * 0.4)),
-  }));
+  const count = apiData.length || 7;
+  const perDay = count > 0 ? 1 / count : 0;
+  return apiData.length > 0
+    ? apiData.map(p => ({
+        ...p,
+        sent: Math.round(totalSent * perDay),
+        responded: Math.round(totalResp * perDay),
+      }))
+    : [];
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -195,6 +203,17 @@ export function CampaignAnalyticsPanel() {
       ),
     enabled: !!tenantId,
     refetchInterval: 30_000,
+  });
+
+  // Real time-series from DB
+  const timeseriesQuery = useQuery({
+    queryKey: ['campaign-timeseries', tenantId],
+    queryFn: () =>
+      fetchJson<{ timeseries: TimeSeriesPoint[] }>(
+        `/api/campaign-analytics/timeseries?tenantId=${tenantId}&days=7`,
+      ),
+    enabled: !!tenantId,
+    refetchInterval: 60_000,
   });
 
   const osintQuery = useQuery({
@@ -292,7 +311,7 @@ export function CampaignAnalyticsPanel() {
     [channelDistribution],
   );
 
-  const timeSeries = useMemo(() => generateTimeSeries(campaigns), [campaigns]);
+  const timeSeries = useMemo(() => generateTimeSeriesFromApi(timeseriesQuery.data?.timeseries ?? [], campaigns), [timeseriesQuery.data, campaigns]);
 
   const sentimentSummary = useMemo(() => {
     const pos = sentimentCounts['POSITIVE'] || 0;

@@ -36,7 +36,7 @@ const TAB_LABELS: Record<string, string> = {
   'overview': 'Overview', 'situation': 'Situation Room', 'map': 'Geo Map',
   'feed': 'Live Feed', 'alerts': 'Alert Triage', 'osint': 'OSINT Monitor',
   'ai': 'AI Insights', 'media': 'Media Gallery', 'mobilization': 'Mobilization',
-  'campaigns': 'Campaign Monitor', 'security': 'Security Center',
+  'campaigns': 'Campaign Monitor', 'campaign-analytics': 'Campaign Analytics', 'social-cards': 'Social Cards', 'security': 'Security Center',
   'field-safety': 'Field Safety', 'pvt': 'PVT Quick Count',
   'victory-roadmap': 'Victory Roadmap',
   'evidence': 'Evidence Dossier', 'flashpoint': 'Flashpoint & Wargame',
@@ -52,7 +52,7 @@ const TAB_LABELS: Record<string, string> = {
 const TAB_SECTION: Record<string, string> = {
   'overview': 'Command', 'situation': 'Command', 'map': 'Command', 'feed': 'Command',
   'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
-  'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
+  'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'campaign-analytics': 'Operations', 'social-cards': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
   'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
   'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team', 'reports': 'Team',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
@@ -601,6 +601,20 @@ export default function Home() {
                 <ErrorBoundary title="Campaign Monitor">
                   <div className="h-full">
                     <CampaignMonitor />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {activeTab === 'campaign-analytics' && (
+                <ErrorBoundary title="Campaign Analytics">
+                  <div className="h-full">
+                    <CampaignAnalyticsPanel />
+                  </div>
+                </ErrorBoundary>
+              )}
+              {activeTab === 'social-cards' && (
+                <ErrorBoundary title="Social Cards">
+                  <div className="h-full">
+                    <SocialCardsPanel />
                   </div>
                 </ErrorBoundary>
               )}

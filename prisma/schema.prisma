@@ -70,6 +70,7 @@ model Tenant {
   chatMessages             ChatMessage[]
   keyMessages              KeyMessage[]
   narrativeTimelines       NarrativeTimeline[]
+  scheduledReports         ScheduledReport[]
 }
 
 model User {
@@ -796,4 +797,29 @@ model RateLimitRecord {
   attemptCount   Int       @default(1)
   firstAttempt   DateTime  @default(now())
   lockedUntil    DateTime?
+}
+
+// ============================================================
+// MODULE 13: Scheduled Reports (Phase 6)
+// ============================================================
+
+model ScheduledReport {
+  id              String   @id @default(cuid())
+  tenantId        String
+  templateId      String
+  templateName    String
+  schedule        String   @default("HOURLY") // EVERY_30MIN, HOURLY, EVERY_2HOURS, EVERY_4HOURS, EVERY_6HOURS, DAILY
+  format          String   @default("PDF") // PDF, EXCEL, CSV
+  isActive        Boolean  @default(true)
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  // JSON filters: { severity: 'ALL', status: 'PENDING', ... }
+  filters         String   @default("{}")
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId, isActive])
+  @@index([tenantId, schedule])
 }

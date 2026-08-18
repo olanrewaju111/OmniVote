@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -10,10 +10,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   X, ShieldAlert, AlertTriangle, Eye, MapPin, User, Clock,
   ShieldCheck, ShieldOff, Sparkles, ArrowUpCircle, CheckCircle2,
-  Loader2, Image as ImageIcon, FileQuestion,
+  Loader2, Image as ImageIcon, FileQuestion, FileText, ExternalLink,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
 import type { Incident } from '@/app/page';
@@ -450,22 +450,8 @@ export function IncidentDetailSlideover({
 
                 <Separator />
 
-                {/* Linked Evidence (placeholder) */}
-                <section>
-                  <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
-                    <ImageIcon className="h-3 w-3" />
-                    Linked Evidence
-                  </h4>
-                  <div className="rounded-lg border border-dashed border-border bg-card/30 p-6 flex flex-col items-center justify-center gap-2">
-                    <FileQuestion className="h-8 w-8 text-muted-foreground/30" />
-                    <p className="text-xs text-muted-foreground/60">
-                      No linked evidence yet
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/40">
-                      Evidence will appear here once attached to this incident.
-                    </p>
-                  </div>
-                </section>
+                {/* Linked Evidence */}
+                <LinkedEvidenceSection incidentId={incident.id} tenantId={useDashboardStore.getState().tenantId} />
 
               </div>
             </ScrollArea>
@@ -543,5 +529,100 @@ export function IncidentDetailSlideover({
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+// ─── Linked Evidence Sub-Component ───────────────────────────────────────
+
+function LinkedEvidenceSection({ incidentId, tenantId }: { incidentId: string; tenantId: string }) {
+  const { data, isLoading } = useQuery<{
+    dossiers: Array<{
+      id: string;
+      title: string;
+      status: string;
+      c2paSigned: boolean;
+      createdAt: string;
+      evidenceItems: string;
+    }>;
+  }>({
+    queryKey: ['evidence-for-incident', incidentId],
+    queryFn: () =>
+      fetchJson(`/api/evidence?tenantId=${tenantId}&incidentId=${incidentId}&limit=10`),
+    enabled: !!incidentId && !!tenantId,
+  });
+
+  const dossiers = data?.dossiers || [];
+
+  if (isLoading) {
+    return (
+      <section>
+        <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+          <ImageIcon className="h-3 w-3" />
+          Linked Evidence
+        </h4>
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+        <ImageIcon className="h-3 w-3" />
+        Linked Evidence
+        {dossiers.length > 0 && (
+          <Badge variant="secondary" className="text-[9px] h-4 ml-auto px-1.5">
+            {dossiers.length}
+          </Badge>
+        )}
+      </h4>
+      {dossiers.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-card/30 p-4 flex flex-col items-center justify-center gap-1.5">
+          <FileQuestion className="h-6 w-6 text-muted-foreground/30" />
+          <p className="text-[11px] text-muted-foreground/60">No linked evidence</p>
+          <p className="text-[10px] text-muted-foreground/40">Evidence attached to this incident will appear here</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {dossiers.map((d) => {
+            let itemCount = 0;
+            try { itemCount = JSON.parse(d.evidenceItems || '[]').length; } catch { /* ignore */ }
+            const statusCls = d.status === 'CERTIFIED'
+              ? 'text-emerald border-emerald/30'
+              : d.status === 'REVIEWED'
+                ? 'text-cyan border-cyan/30'
+                : 'text-muted-foreground border-border';
+            return (
+              <div
+                key={d.id}
+                className="flex items-center gap-2.5 p-2.5 rounded-lg border border-border bg-card/50 hover:bg-card/80 transition-colors cursor-pointer group"
+                onClick={() => useDashboardStore.getState().setSelectedTab('evidence')}
+              >
+                <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-foreground truncate">{d.title}</p>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                    <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
+                    <span className="text-border">·</span>
+                    <span className={statusCls}>{d.status}</span>
+                    {d.c2paSigned && (
+                      <>
+                        <span className="text-border">·</span>
+                        <span className="text-emerald">C2PA</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <ExternalLink className="h-3 w-3 text-muted-foreground/0 group-hover:text-muted-foreground transition-colors shrink-0" />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

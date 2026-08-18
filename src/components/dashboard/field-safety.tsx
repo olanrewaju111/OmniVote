@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
-import dynamic from 'next/dynamic';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -428,7 +428,12 @@ export function FieldSafety() {
                     <span className="hidden sm:flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground" /> Offline</span>
                   </div>
                 </div>
-                <AgentMiniMap data={data} />
+                <div className="h-[250px] md:h-56 rounded-lg bg-muted/50 border border-border flex items-center justify-center">
+                  <div className="text-center space-y-1">
+                    <MapPin className="h-5 w-5 text-muted-foreground/40 mx-auto" />
+                    <p className="text-xs text-muted-foreground/60">Agent positions will appear on the map tab</p>
+                  </div>
+                </div>
               </Card>
             </div>
           </div>
@@ -742,8 +747,4 @@ function KpiCard({ label, value, icon, accent, delay }: {
   );
 }
 
-// ── Leaflet Mini-Map for Agent Positions (dynamically loaded) ──
-const AgentMiniMap = dynamic(() => import('./field-safety-map').then(m => ({ default: m.AgentMiniMap })), {
-  ssr: false,
-  loading: () => <div className="h-[250px] md:h-56 flex items-center justify-center text-xs text-muted-foreground animate-pulse">Loading map...</div>,
-});
+// Agent positions are shown on the main Geo Map tab with live incident markers.

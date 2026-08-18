@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'osint' | 'ai' | 'media' | 'mobilization' | 'campaigns' | 'security' | 'field-safety' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants' | 'pvt' | 'evidence' | 'flashpoint' | 'honeypot' | 'audit-logs' | 'victory-roadmap' | 'narrative' | 'reports' | 'activity-stream';
+export type ViewTab = 'overview' | 'situation' | 'map' | 'feed' | 'alerts' | 'osint' | 'ai' | 'media' | 'mobilization' | 'campaigns' | 'campaign-analytics' | 'social-cards' | 'security' | 'field-safety' | 'agents' | 'engagement' | 'submit' | 'my-reports' | 'system' | 'tenants' | 'pvt' | 'evidence' | 'flashpoint' | 'honeypot' | 'audit-logs' | 'victory-roadmap' | 'narrative' | 'reports' | 'activity-stream';
 
 export type UserRole = 'SUPER_ADMIN' | 'TENANT_ADMIN' | 'ANALYST' | 'TRUST_SAFETY' | 'FIELD_AGENT';
 
@@ -25,9 +25,9 @@ export interface UserInfo {
 
 // Role-based tab permissions
 export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
-  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'system', 'tenants', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
-  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'tenants', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
-  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'engagement', 'pvt', 'evidence', 'flashpoint', 'audit-logs', 'my-reports', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
+  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'campaign-analytics', 'social-cards', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'system', 'tenants', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
+  TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'campaign-analytics', 'social-cards', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'tenants', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
+  ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'engagement', 'pvt', 'evidence', 'flashpoint', 'audit-logs', 'campaign-analytics', 'my-reports', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
   TRUST_SAFETY: ['alerts', 'osint', 'media', 'ai', 'feed', 'security', 'engagement', 'evidence', 'honeypot', 'audit-logs', 'my-reports', 'reports', 'activity-stream'],
   FIELD_AGENT: ['submit', 'my-reports', 'feed'],
 };

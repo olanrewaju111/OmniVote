@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BarChart3, Map, Radio, ShieldAlert, Brain, Image as ImageIcon,
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, MessageSquare, Globe, Megaphone, CalendarDays,
-  Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy, FileDown,
+  Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy, FileDown, Share2, PieChart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -62,6 +62,8 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'mobilization', label: 'Mobilization', icon: <Megaphone className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'], keywords: ['whatsapp', 'campaign', 'message'] },
       { id: 'narrative', label: 'Narrative Builder', icon: <MessageSquare className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'], keywords: ['talking points', 'key messages', 'pr', 'publicity'] },
       { id: 'campaigns', label: 'Campaign Monitor', icon: <CalendarDays className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
+      { id: 'campaign-analytics', label: 'Campaign Analytics', icon: <PieChart className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'], keywords: ['roi', 'funnel', 'engagement', 'analytics'] },
+      { id: 'social-cards', label: 'Social Cards', icon: <Share2 className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'], keywords: ['shareable', 'graphics', 'image', 'social media'] },
       { id: 'security', label: 'Security Center', icon: <Shield className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'] },
       { id: 'field-safety', label: 'Field Safety', icon: <MapPin className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
     ],

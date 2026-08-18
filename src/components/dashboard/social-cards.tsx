@@ -1006,7 +1006,6 @@ export function SocialCards() {
   const { tenantId, electionTier } = useDashboardStore();
   const electionName = TIER_SHORT[electionTier];
 
-  // State
   const [template, setTemplate] = useState<TemplateType>('results');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('story');
   const [title, setTitle] = useState(TEMPLATE_CONFIG.results.defaultTitle);
@@ -1598,3 +1597,5 @@ export function SocialCards() {
     </div>
   );
 }
+
+export default SocialCards;

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
 import { Providers } from "@/components/providers";
 import { OfflineBar } from "@/components/pwa-registration";
@@ -53,7 +52,6 @@ export default function RootLayout({
           </a>
           <OfflineBar />
           {children}
-          <Toaster />
           <SonnerToaster
             position="top-right"
             richColors
