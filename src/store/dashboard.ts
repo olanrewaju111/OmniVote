@@ -81,9 +81,14 @@ interface DashboardState {
   setUnreadAlerts: (n: number) => void;
   setGlobalSearch: (q: string) => void;
 
-  // SSE connection state
+  // SSE/WebSocket connection state
   sseConnected: boolean;
+  wsConnected: boolean;
+  wsTransport: 'ws' | 'sse' | 'none';
+  wsOnlineCount: number;
   setSseConnected: (v: boolean) => void;
+  setWsConnected: (v: boolean, transport: 'ws' | 'sse' | 'none') => void;
+  setWsOnlineCount: (n: number) => void;
 }
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
@@ -154,7 +159,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   setUnreadAlerts: (n) => set({ unreadAlerts: n }),
   setGlobalSearch: (q) => set({ globalSearch: q }),
 
-  // SSE connection state
+  // SSE/WebSocket connection state
   sseConnected: false,
+  wsConnected: false,
+  wsTransport: 'none' as 'ws' | 'sse' | 'none',
+  wsOnlineCount: 0,
   setSseConnected: (v) => set({ sseConnected: v }),
+  setWsConnected: (v, transport) => set({ wsConnected: v, wsTransport: transport }),
+  setWsOnlineCount: (n) => set({ wsOnlineCount: n }),
 }));

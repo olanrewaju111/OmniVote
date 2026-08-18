@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { ExportButton } from '@/components/dashboard/export-button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import {
   Pause, Play, Filter, MapPin, Clock, User, AlertTriangle,
   ShieldAlert, ShieldCheck, Eye, ChevronDown, Loader2, Radio,
   Megaphone, ArrowUpRight, MessageCircle, Flag, CheckCircle2,
+  Zap, Wifi, WifiOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
@@ -25,6 +26,8 @@ interface LiveFeedProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   onIncidentClick?: (incident: Incident) => void;
+  /** New incidents received via WebSocket push */
+  liveIncidents?: Incident[];
 }
 
 function severityColor(s: string) {
@@ -57,16 +60,37 @@ function formatTime(date: string | Date) {
   return `${Math.floor(diff / 60)}h ${diff % 60}m ago`;
 }
 
-export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentClick }: LiveFeedProps) {
-  const { liveFeedPaused, toggleLiveFeed, incidentFilter, setIncidentFilter } = useDashboardStore();
+export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentClick, liveIncidents }: LiveFeedProps) {
+  const { liveFeedPaused, toggleLiveFeed, incidentFilter, setIncidentFilter, wsConnected, wsTransport } = useDashboardStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(0);
 
-  const filtered = incidents.filter(i => {
+  // Merge live push incidents with initial incidents (dedup by id)
+  const allIncidents = liveIncidents && liveIncidents.length > 0
+    ? (() => {
+        const existingIds = new Set(incidents.map(i => i.id));
+        const newOnes = liveIncidents.filter(i => !existingIds.has(i.id));
+        return [...newOnes, ...incidents];
+      })()
+    : incidents;
+
+  // Auto-scroll to top when new incidents arrive
+  useEffect(() => {
+    if (allIncidents.length > prevCountRef.current && !liveFeedPaused) {
+      scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    prevCountRef.current = allIncidents.length;
+  }, [allIncidents.length, liveFeedPaused]);
+
+  const filtered = allIncidents.filter(i => {
     if (incidentFilter.type !== 'ALL' && i.type !== incidentFilter.type) return false;
     if (incidentFilter.severity !== 'ALL' && i.severity !== incidentFilter.severity) return false;
     if (incidentFilter.status !== 'ALL' && i.status !== incidentFilter.status) return false;
     return true;
   });
+
+  const newCount = liveIncidents?.length || 0;
 
   const handleQuickAction = useCallback((action: string, inc: Incident) => {
     const location = inc.pollingUnit ? `${inc.pollingUnit.state}/${inc.pollingUnit.lga}` : 'Unknown location';
@@ -105,6 +129,17 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
             <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-dot" />
             <h3 className="text-sm font-semibold">Live Incident Feed</h3>
             <Badge variant="secondary" className="text-[10px] h-5">{filtered.length}</Badge>
+            {/* Live indicator showing push connection */}
+            {wsConnected && wsTransport === 'ws' && (
+              <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30 gap-1">
+                <Zap className="h-2.5 w-2.5" />LIVE
+              </Badge>
+            )}
+            {wsConnected && wsTransport === 'sse' && (
+              <Badge className="text-[10px] h-5 bg-amber/15 text-amber border-amber/30 gap-1">
+                <Wifi className="h-2.5 w-2.5" />SSE
+              </Badge>
+            )}
           </div>
           <Button
             variant="ghost"
@@ -145,130 +180,147 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
       </div>
 
       {/* Feed */}
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
         <div className="p-3 space-y-2">
+          {/* New incidents banner */}
+          {newCount > 0 && !liveFeedPaused && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-lg bg-emerald/5 border border-emerald/20 px-3 py-2 flex items-center gap-2 text-xs text-emerald"
+            >
+              <Zap className="h-3 w-3" />
+              <span>{newCount} new incident{newCount > 1 ? 's' : ''} pushed in real-time</span>
+            </motion.div>
+          )}
+
           <AnimatePresence mode="popLayout">
-            {filtered.map((inc, idx) => (
-              <motion.div
-                key={inc.id}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 12 }}
-                transition={{ delay: idx * 0.02, duration: 0.2 }}
-                className={cn(
-                  'rounded-lg border p-3 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  inc.isQuarantined
-                    ? 'bg-violet/5 border-violet/25 hover:bg-violet/10'
-                    : inc.severity === 'CRITICAL'
-                    ? 'bg-rose/5 border-rose/20 hover:bg-rose/10'
-                    : 'bg-card/60 border-border hover:bg-card/80'
-                )}
-                onClick={() => {
-                  if (onIncidentClick) {
-                    onIncidentClick(inc);
-                  } else {
-                    setExpandedId(expandedId === inc.id ? null : inc.id);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
+            {filtered.map((inc, idx) => {
+              const isLive = liveIncidents?.some(li => li.id === inc.id);
+              return (
+                <motion.div
+                  key={inc.id}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ delay: idx * 0.02, duration: 0.2 }}
+                  className={cn(
+                    'rounded-lg border p-3 cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    isLive && 'ring-1 ring-emerald/30',
+                    inc.isQuarantined
+                      ? 'bg-violet/5 border-violet/25 hover:bg-violet/10'
+                      : inc.severity === 'CRITICAL'
+                      ? 'bg-rose/5 border-rose/20 hover:bg-rose/10'
+                      : 'bg-card/60 border-border hover:bg-card/80'
+                  )}
+                  onClick={() => {
                     if (onIncidentClick) {
                       onIncidentClick(inc);
                     } else {
                       setExpandedId(expandedId === inc.id ? null : inc.id);
                     }
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-expanded={expandedId === inc.id}
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className="mt-0.5 shrink-0">{typeIcon(inc.type)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Badge className={cn('text-[10px] h-5 border', severityColor(inc.severity))}>
-                        {inc.severity}
-                      </Badge>
-                      <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground border-border">
-                        {inc.type.replace(/_/g, ' ')}
-                      </Badge>
-                      {inc.gpsAnomaly && (
-                        <Badge className="text-[10px] h-5 bg-amber/15 text-amber border-amber/30">
-                          <MapPin className="h-2.5 w-2.5 mr-1" />GEO ANOMALY
-                        </Badge>
-                      )}
-                      {inc.isQuarantined && (
-                        <Badge className="text-[10px] h-5 bg-violet/15 text-violet border-violet/30">
-                          <ShieldAlert className="h-2.5 w-2.5 mr-1" />QUARANTINED
-                        </Badge>
-                      )}
-                      {inc.c2paVerified && (
-                        <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30">
-                          <ShieldCheck className="h-2.5 w-2.5 mr-1" />C2PA
-                        </Badge>
-                      )}
-                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
-                        {formatTime(inc.submittedAt)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-foreground/80 line-clamp-2">{inc.description}</p>
-                    {expandedId === inc.id && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        className="mt-2 pt-2 border-t border-border/50 space-y-2"
-                      >
-                        {inc.aiSummary && (
-                          <div className="bg-cyan/5 border border-cyan/15 rounded-md p-2">
-                            <p className="text-[10px] font-medium text-cyan mb-1 flex items-center gap-1">
-                              <ShieldCheck className="h-3 w-3" /> AI ANALYSIS
-                            </p>
-                            <p className="text-[11px] text-foreground/70">{inc.aiSummary}</p>
-                          </div>
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (onIncidentClick) { onIncidentClick(inc); } else { setExpandedId(expandedId === inc.id ? null : inc.id); }
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-expanded={expandedId === inc.id}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 shrink-0">{typeIcon(inc.type)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        {isLive && (
+                          <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30 gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />LIVE
+                          </Badge>
                         )}
-                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                          <span className="flex items-center gap-1"><User className="h-3 w-3" />{inc.reporter?.name || 'Unknown'}</span>
-                          {inc.pollingUnit && (
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.state}/{inc.pollingUnit.lga}</span>
+                        <Badge className={cn('text-[10px] h-5 border', severityColor(inc.severity))}>
+                          {inc.severity}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground border-border">
+                          {inc.type.replace(/_/g, ' ')}
+                        </Badge>
+                        {inc.gpsAnomaly && (
+                          <Badge className="text-[10px] h-5 bg-amber/15 text-amber border-amber/30">
+                            <MapPin className="h-2.5 w-2.5 mr-1" />GEO ANOMALY
+                          </Badge>
+                        )}
+                        {inc.isQuarantined && (
+                          <Badge className="text-[10px] h-5 bg-violet/15 text-violet border-violet/30">
+                            <ShieldAlert className="h-2.5 w-2.5 mr-1" />QUARANTINED
+                          </Badge>
+                        )}
+                        {inc.c2paVerified && (
+                          <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30">
+                            <ShieldCheck className="h-2.5 w-2.5 mr-1" />C2PA
+                          </Badge>
+                        )}
+                        <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                          {formatTime(inc.submittedAt)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-foreground/80 line-clamp-2">{inc.description}</p>
+                      {expandedId === inc.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          className="mt-2 pt-2 border-t border-border/50 space-y-2"
+                        >
+                          {inc.aiSummary && (
+                            <div className="bg-cyan/5 border border-cyan/15 rounded-md p-2">
+                              <p className="text-[10px] font-medium text-cyan mb-1 flex items-center gap-1">
+                                <ShieldCheck className="h-3 w-3" /> AI ANALYSIS
+                              </p>
+                              <p className="text-[11px] text-foreground/70">{inc.aiSummary}</p>
+                            </div>
                           )}
-                          <Badge variant="outline" className="text-[10px] h-5">{inc.status}</Badge>
-                        </div>
-                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/30">
-                          <button
-                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-amber hover:bg-amber/10 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); handleQuickAction('escalate', inc); }}
-                          >
-                            <ArrowUpRight className="h-3 w-3" />Escalate
-                          </button>
-                          <button
-                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-violet hover:bg-violet/10 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); handleQuickAction('flag', inc); }}
-                          >
-                            <Flag className="h-3 w-3" />Flag
-                          </button>
-                          <button
-                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-cyan hover:bg-cyan/10 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); handleQuickAction('broadcast', inc); }}
-                          >
-                            <Megaphone className="h-3 w-3" />Broadcast
-                          </button>
-                          {inc.status === 'PENDING' && (
+                          <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                            <span className="flex items-center gap-1"><User className="h-3 w-3" />{inc.reporter?.name || 'Unknown'}</span>
+                            {inc.pollingUnit && (
+                              <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.state}/{inc.pollingUnit.lga}</span>
+                            )}
+                            <Badge variant="outline" className="text-[10px] h-5">{inc.status}</Badge>
+                          </div>
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-border/30">
                             <button
-                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-emerald hover:bg-emerald/10 transition-colors ml-auto"
-                              onClick={(e) => { e.stopPropagation(); handleQuickAction('resolve', inc); }}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-amber hover:bg-amber/10 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); handleQuickAction('escalate', inc); }}
                             >
-                              <CheckCircle2 className="h-3 w-3" />Resolve
+                              <ArrowUpRight className="h-3 w-3" />Escalate
                             </button>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
+                            <button
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-violet hover:bg-violet/10 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); handleQuickAction('flag', inc); }}
+                            >
+                              <Flag className="h-3 w-3" />Flag
+                            </button>
+                            <button
+                              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-cyan hover:bg-cyan/10 transition-colors"
+                              onClick={(e) => { e.stopPropagation(); handleQuickAction('broadcast', inc); }}
+                            >
+                              <Megaphone className="h-3 w-3" />Broadcast
+                            </button>
+                            {inc.status === 'PENDING' && (
+                              <button
+                                className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-emerald hover:bg-emerald/10 transition-colors ml-auto"
+                                onClick={(e) => { e.stopPropagation(); handleQuickAction('resolve', inc); }}
+                              >
+                                <CheckCircle2 className="h-3 w-3" />Resolve
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
 
           {!loading && filtered.length === 0 && (
@@ -285,7 +337,7 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
               {incidents.length === 0 && (
                 <div className="flex items-center justify-center gap-2 mt-4 text-[10px] text-emerald/60">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse-dot" />
-                  Listening for incoming reports...
+                  {wsConnected ? 'Connected — listening for incoming reports...' : 'Connecting to live feed...'}
                 </div>
               )}
             </div>

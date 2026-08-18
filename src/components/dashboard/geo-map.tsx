@@ -4,7 +4,9 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { ZoomIn, ZoomOut, Maximize2, MapPin, Crosshair } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ZoomIn, ZoomOut, Maximize2, MapPin, Crosshair, Zap } from 'lucide-react';
+import { useDashboardStore } from '@/store/dashboard';
 
 // ---- Configurable Map Area ----
 interface MapBounds {
@@ -38,9 +40,23 @@ interface MapPoint {
   status: string;
 }
 
+interface LiveIncident {
+  id: string;
+  type: string;
+  severity: string;
+  description: string;
+  gpsLat: number | null;
+  gpsLng: number | null;
+  status: string;
+  submittedAt: string;
+  pollingUnit?: { state: string; lga: string } | null;
+}
+
 interface GeoMapViewProps {
   points: MapPoint[];
   bounds?: MapBounds;
+  /** Live incidents pushed via WebSocket */
+  liveIncidents?: LiveIncident[];
 }
 
 // ---- Helpers ----
@@ -60,27 +76,42 @@ function getStatusColor(status: string) {
 }
 
 // ---- Map header + info bar (non-Leaflet, always renders) ----
-function MapHeader({ area, pointCount, selectedPoint, onDeselect }: {
+function MapHeader({ area, pointCount, selectedPoint, onDeselect, liveIncidentCount }: {
   area: MapBounds;
   pointCount: number;
   selectedPoint: MapPoint | null;
   onDeselect: () => void;
+  liveIncidentCount: number;
 }) {
+  const { wsConnected, wsTransport } = useDashboardStore();
   return (
     <>
       <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-4">
-          <h3 className="text-sm font-semibold">{area.label} — Polling Unit Map</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">{area.label} — Polling Unit Map</h3>
+            {wsConnected && wsTransport === 'ws' && (
+              <Badge className="text-[10px] h-5 bg-emerald/15 text-emerald border-emerald/30 gap-1">
+                <Zap className="h-2.5 w-2.5" />LIVE
+              </Badge>
+            )}
+          </div>
           <div className="hidden sm:flex items-center gap-3 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald" /> Open</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber" /> Pending</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose" /> Flagged</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted-foreground/40" /> Closed</span>
+            {liveIncidentCount > 0 && (
+              <span className="flex items-center gap-1.5 text-rose"><span className="w-2.5 h-2.5 rounded-full bg-rose animate-pulse" /> {liveIncidentCount} incidents</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-muted-foreground hidden sm:inline">{pointCount} units</span>
-          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] bg-card/60 border-border text-muted-foreground">Live</span>
+          <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] bg-card/60 border-border text-muted-foreground gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald animate-pulse" />
+            Live
+          </span>
         </div>
       </div>
       {selectedPoint && (
@@ -116,17 +147,10 @@ const LeafletMapInner = dynamic(() => import('./geo-map-inner').then(m => ({ def
 });
 
 // ---- Main Component ----
-export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
+export function GeoMapView({ points, bounds: propBounds, liveIncidents }: GeoMapViewProps) {
   const area = propBounds || DEFAULT_MAP_BOUNDS;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedPoint = selectedId ? points.find(p => p.id === selectedId) : null;
-
-  // Fix Leaflet default marker icon (prevent console warning)
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // no-op: we use CircleMarker, not default Marker
-    }
-  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -135,6 +159,7 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
         pointCount={points.length}
         selectedPoint={selectedPoint ?? null}
         onDeselect={() => setSelectedId(null)}
+        liveIncidentCount={liveIncidents?.filter(i => i.gpsLat && i.gpsLng)?.length || 0}
       />
       <div className="flex-1 relative overflow-hidden">
         <LeafletMapInner
@@ -142,6 +167,7 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
           area={area}
           selectedId={selectedId}
           onSelectPoint={setSelectedId}
+          liveIncidents={liveIncidents}
         />
         {/* Turnout heatmap legend */}
         <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2.5 space-y-1.5 z-[1000] pointer-events-none">
@@ -152,10 +178,10 @@ export function GeoMapView({ points, bounds: propBounds }: GeoMapViewProps) {
                 <div key={t} className="w-4 h-2.5 rounded-sm" style={{ backgroundColor: getTurnoutColor(t) }} />
               ))}
             </div>
-            <span className="text-[10px] text-muted-foreground">Low → High</span>
+            <span className="text-[10px] text-muted-foreground">Low to High</span>
           </div>
         </div>
-        <div className="absolute bottom-3 left-3 text-[9px] text-muted-foreground/40 z-[1000] pointer-events-none">
+        <div className="absolute bottom-3 left-3 text-[9px] text-muted-foreground/40 z-[999] pointer-events-none">
           Scroll to zoom · Drag to pan · Click marker for details
         </div>
       </div>

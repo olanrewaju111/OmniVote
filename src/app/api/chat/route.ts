@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { broadcastChat } from '@/lib/ws-broadcast';
 
 // ─── Seed Messages (auto-seeded once per tenant when chat is empty) ──────
 
@@ -127,11 +128,16 @@ export async function POST(req: Request) {
       include: { sender: { select: { id: true, name: true, role: true } } },
     });
 
-    return NextResponse.json({ success: true, message: {
+    const msg = {
       id: message.id, senderId: message.senderId, senderName: message.sender.name,
       senderRole: message.sender.role, body: message.body,
       createdAt: message.createdAt.toISOString(), isSystem: message.isSystem,
-    } }, { status: 201 });
+    };
+
+    // Broadcast via WebSocket for real-time delivery
+    broadcastChat(tenantId, 'new_message', msg).catch(() => {});
+
+    return NextResponse.json({ success: true, message: msg }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
   }

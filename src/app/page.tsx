@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Map, BarChart3, ShieldAlert, Lock, Trophy, Megaphone } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { useSSE } from '@/hooks/use-sse';
+import { useWebSocket, type WsEvent } from '@/hooks/use-websocket';
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
@@ -194,10 +195,14 @@ interface AlertsData {
 
 // ---- Main Page ----
 export default function Home() {
-  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId, setSelectedTab, setSseConnected } = useDashboardStore();
+  const { isAuthenticated, user, activeTab, setElectionInfo, tenantId, setUnreadAlerts, login, setTenantId, setSelectedTab, setSseConnected, setWsConnected, setWsOnlineCount } = useDashboardStore();
   const queryClient = useQueryClient();
   // Track last toast time per severity to avoid toast spam
   const lastToastRef = useRef<Record<string, number>>({});
+
+  // ── Live data pushed via WebSocket ──
+  const [liveIncidents, setLiveIncidents] = useState<Incident[]>([]);
+  const [livePvtCount, setLivePvtCount] = useState(0);
 
   // Sync URL hash with active tab on mount
   useEffect(() => {
@@ -304,10 +309,103 @@ export default function Home() {
     },
   });
 
+  // ── WebSocket Real-Time Connection (Phase 5) ──
+  const wsHandlers = useMemo(() => ({
+    'incident:new': (event: WsEvent) => {
+      const { incidents } = event.data as { incidents: Incident[]; count: number };
+      if (incidents && incidents.length > 0) {
+        setLiveIncidents(prev => {
+          const existingIds = new Set(prev.map(i => i.id));
+          const newOnes = incidents.filter(i => !existingIds.has(i.id));
+          return [...newOnes, ...prev].slice(0, 100);
+        });
+        queryClient.invalidateQueries({ queryKey: ['incidents'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        // Toast for critical/high severity
+        const now = Date.now();
+        for (const inc of incidents) {
+          if (inc.severity === 'CRITICAL' || inc.severity === 'HIGH') {
+            const key = `ws-${inc.severity}-${inc.type}`;
+            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 5000) {
+              lastToastRef.current[key] = now;
+              toast.warning(`${inc.severity}: ${inc.type?.replace(/_/g, ' ') || 'Incident'}`, {
+                description: inc.description?.slice(0, 120) || 'New incident reported via live feed',
+                duration: 8000,
+                action: { label: 'View', onClick: () => setSelectedTab('feed') },
+              });
+            }
+          }
+        }
+      }
+    },
+    'alert:new': (event: WsEvent) => {
+      const { alerts } = event.data as { alerts: unknown[]; count: number };
+      if (alerts && alerts.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['alerts'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        const now = Date.now();
+        for (const alert of alerts as Array<{ category?: string; title?: string; type?: string }>) {
+          if (alert.category === 'CRITICAL') {
+            const key = `ws-alert-${alert.type}`;
+            if (!lastToastRef.current[key] || now - lastToastRef.current[key] > 8000) {
+              lastToastRef.current[key] = now;
+              toast.error(`Critical ${alert.type?.replace(/_/g, ' ') || 'Alert'}`, {
+                description: alert.title?.slice(0, 120) || 'New critical alert',
+                duration: 10000,
+                action: { label: 'View Alerts', onClick: () => setSelectedTab('alerts') },
+              });
+            }
+          }
+        }
+      }
+    },
+    'pvt:new': (event: WsEvent) => {
+      const { results } = event.data as { results: unknown[]; count: number };
+      if (results) {
+        setLivePvtCount(prev => prev + results.length);
+        queryClient.invalidateQueries({ queryKey: ['pvt'] });
+      }
+    },
+    'chat:new_message': (event: WsEvent) => {
+      const msg = event.data as { id: string; senderId: string; senderName: string; body: string };
+      if (msg && msg.senderId !== user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['chat'] });
+      }
+    },
+    'osint:new': (event: WsEvent) => {
+      queryClient.invalidateQueries({ queryKey: ['osint'] });
+    },
+    'dashboard:kpi_update': (event: WsEvent) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+    'presence': (event: WsEvent) => {
+      // Online count is handled by the hook internally
+    },
+  }), [queryClient, setSelectedTab, user?.id]);
+
+  const { connected: wsConnected, transport: wsTransport, onlineCount } = useWebSocket(tenantId || null, {
+    handlers: wsHandlers,
+    enabled: isAuthenticated && !!tenantId,
+    onConnectionChange: (connected, transport) => {
+      setWsConnected(connected, transport);
+    },
+  });
+
+  // Sync online count to store
+  useEffect(() => {
+    setWsOnlineCount(onlineCount);
+  }, [onlineCount, setWsOnlineCount]);
+
+  // Keep SSE as fallback when WS is not connected
   useSSE(tenantId || null, {
     handlers: sseHandlers.current,
-    enabled: isAuthenticated && !!tenantId,
-    onConnectionChange: setSseConnected,
+    enabled: isAuthenticated && !!tenantId && wsTransport !== 'ws',
+    onConnectionChange: (connected) => {
+      if (connected && wsTransport !== 'ws') {
+        setWsConnected(true, 'sse');
+      }
+      setSseConnected(connected);
+    },
   });
 
   // Fetch dashboard data (only when authenticated)
@@ -435,6 +533,7 @@ export default function Home() {
                     dashData={dashData!}
                     incidents={incidentsData?.incidents || []}
                     alertsData={alertsData}
+                    liveIncidents={liveIncidents}
                   />
                 </ErrorBoundary>
               )}
@@ -442,7 +541,7 @@ export default function Home() {
                 <ErrorBoundary title="Geo Map">
                   <div className="h-full p-4">
                     <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-                      <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} />
+                      <GeoMapView points={dashData?.pollingUnits || []} bounds={dashData?.mapBounds || undefined} liveIncidents={liveIncidents} />
                     </div>
                   </div>
                 </ErrorBoundary>
@@ -450,7 +549,7 @@ export default function Home() {
               {activeTab === 'feed' && (
                 <ErrorBoundary title="Live Feed">
                   <div className="h-full">
-                    <LiveFeed incidents={incidentsData?.incidents || []} hasMore={incidentsData?.hasMore} />
+                    <LiveFeed incidents={incidentsData?.incidents || []} hasMore={incidentsData?.hasMore} liveIncidents={liveIncidents} />
                   </div>
                 </ErrorBoundary>
               )}
@@ -613,11 +712,12 @@ export default function Home() {
 
 // ---- Overview Tab ----
 function OverviewTab({
-  dashData, incidents, alertsData,
+  dashData, incidents, alertsData, liveIncidents,
 }: {
   dashData: DashboardData;
   incidents: Incident[];
   alertsData: AlertsData | undefined;
+  liveIncidents: Incident[];
 }) {
   const { setSelectedTab, user } = useDashboardStore();
 
@@ -713,7 +813,7 @@ function OverviewTab({
       {/* Feed: takes remaining space */}
       <div className="flex-1 min-h-0">
         <div className="h-full rounded-xl border border-border bg-card/40 overflow-hidden">
-          <LiveFeed incidents={incidents.slice(0, 25)} onIncidentClick={handleIncidentClick} />
+          <LiveFeed incidents={incidents.slice(0, 25)} onIncidentClick={handleIncidentClick} liveIncidents={liveIncidents.slice(0, 25)} />
         </div>
       </div>
 

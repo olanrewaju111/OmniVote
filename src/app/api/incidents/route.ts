@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { broadcastIncident } from '@/lib/ws-broadcast';
 
 export async function GET(req: NextRequest) {
   try {
@@ -171,6 +172,24 @@ export async function POST(req: NextRequest) {
     } catch {
       // Non-fatal
     }
+
+    // Broadcast incident via WebSocket to all connected clients
+    broadcastIncident(reporter.tenantId, 'new', {
+      incidents: [{
+        id: incident.id,
+        type: incident.type,
+        severity: incident.severity,
+        status: incident.status,
+        description: incident.description,
+        gpsLat: incident.gpsLatitude,
+        gpsLng: incident.gpsLongitude,
+        gpsAnomaly,
+        isQuarantined: gpsAnomaly,
+        submittedAt: incident.submittedAt,
+        reporter: { id: reporterId, name: '', role: '' },
+      }],
+      count: 1,
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

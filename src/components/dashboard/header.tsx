@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap, Megaphone } from 'lucide-react';
+import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap, Megaphone, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -145,15 +145,14 @@ function LastSync() {
   );
 }
 
-// Connection quality indicator
+// Connection quality + real-time transport indicator
 function ConnectionIndicator() {
-  const [quality, setQuality] = useState<'good' | 'degraded' | 'offline'>('good');
+  const { wsConnected, wsTransport, wsOnlineCount, sseConnected } = useDashboardStore();
   const [latency, setLatency] = useState<number | null>(null);
 
   useEffect(() => {
     const check = async () => {
       if (!navigator.onLine) {
-        setQuality('offline');
         setLatency(null);
         return;
       }
@@ -162,9 +161,7 @@ function ConnectionIndicator() {
         await fetch('/api/health', { method: 'HEAD', cache: 'no-store' });
         const ms = Math.round(performance.now() - start);
         setLatency(ms);
-        setQuality(ms < 300 ? 'good' : ms < 1000 ? 'degraded' : 'degraded');
       } catch {
-        setQuality('degraded');
         setLatency(null);
       }
     };
@@ -173,11 +170,14 @@ function ConnectionIndicator() {
     return () => clearInterval(id);
   }, []);
 
-  if (quality === 'offline') {
+  const isConnected = wsConnected || sseConnected;
+  const isWs = wsConnected && wsTransport === 'ws';
+
+  if (!isConnected && !sseConnected) {
     return (
-      <div className="flex items-center gap-1.5 px-2 h-7 rounded-md bg-amber/10 border border-amber/20 text-amber text-[10px] font-medium">
+      <div className="hidden md:flex items-center gap-1.5 px-2 h-7 rounded-md bg-amber/10 border border-amber/20 text-amber text-[10px] font-medium">
         <WifiOff className="h-3 w-3" />
-        <span className="hidden xl:inline">Offline</span>
+        <span className="hidden xl:inline">Connecting...</span>
       </div>
     );
   }
@@ -185,15 +185,19 @@ function ConnectionIndicator() {
   return (
     <div className={cn(
       'hidden md:flex items-center gap-1.5 px-2 h-7 rounded-md border text-[10px] font-medium transition-colors',
-      quality === 'good'
-        ? 'bg-emerald/5 border-emerald/15 text-emerald/70'
+      isWs
+        ? 'bg-emerald/10 border-emerald/20 text-emerald/80'
         : 'bg-amber/5 border-amber/15 text-amber/70'
     )}>
-      {quality === 'good'
-        ? <Wifi className="h-3 w-3" />
-        : <Signal className="h-3 w-3" />
-      }
-      {latency !== null && <span className="tabular-nums">{latency}ms</span>}
+      {isWs ? <Zap className="h-3 w-3" /> : <Radio className="h-3 w-3" />}
+      <span className="hidden xl:inline">{isWs ? 'Live' : 'SSE'}</span>
+      {latency !== null && <span className="tabular-nums text-[9px] opacity-60">{latency}ms</span>}
+      {wsOnlineCount > 1 && (
+        <span className="hidden lg:inline flex items-center gap-0.5 opacity-70">
+          <Users className="h-2.5 w-2.5" />{wsOnlineCount}
+        </span>
+      )}
+      <span className="w-1.5 h-1.5 rounded-full animate-pulse-dot bg-current" />
     </div>
   );
 }

@@ -335,3 +335,37 @@ Stage Summary:
 - 4 existing files mobile-responsive: pvt-quick-count.tsx, osint-monitor.tsx, field-safety.tsx, field-safety-map.tsx
 - 0 TypeScript errors, clean dev server boot
 
+
+---
+Task ID: 5
+Agent: Super Z (Main)
+Task: Phase 5 — Real-Time Live Monitoring (WebSocket infrastructure, live feeds, live map, real-time KPIs, live chat)
+
+Work Log:
+- Installed `ws` + `@types/ws` for native WebSocket, `concurrently` + `tsx` for multi-process dev
+- Created `src/lib/ws-server.ts` — Full WebSocket server on port 3003 with JWT auth, tenant rooms, DB watcher (3s poll), internal broadcast endpoint, health check, graceful shutdown
+- Created `src/lib/ws-broadcast.ts` — HTTP bridge for API routes to push events via POST to ws-server, fire-and-forget with 1s timeout, shared-secret auth
+- Created `src/hooks/use-websocket.ts` — React hook: auto-fetch JWT token, connect to WS, event dispatch (type:action pattern), auto-reconnect with backoff, tab visibility pause, SSE fallback
+- Created `src/app/api/ws-token/route.ts` — POST endpoint returning 30-second JWT for WS handshake, looks up user name from DB
+- Updated `src/store/dashboard.ts` — Added wsConnected, wsTransport, wsOnlineCount state fields
+- Updated `src/components/dashboard/live-feed.tsx` — Enhanced with live push indicator (LIVE badge), live incident merging with dedup, auto-scroll on new items, real-time count banner
+- Updated `src/components/dashboard/geo-map.tsx` — Added liveIncidents prop, live incident count in header, WebSocket LIVE badge
+- Updated `src/components/dashboard/geo-map-inner.tsx` — Added IncidentMarker (color-coded, sized by severity), PulseRing for critical, layer toggle, incident count legend
+- Updated `src/components/dashboard/header.tsx` — Replaced ConnectionIndicator with WS-aware version showing Live/SSE transport, latency, online user count
+- Created `src/components/dashboard/connection-indicator.tsx` — Standalone connection status component (not yet used in header directly, header has its own)
+- Updated `src/app/page.tsx` — Integrated useWebSocket hook, SSE fallback when WS unavailable, liveIncidents state, WS event handlers for incidents/alerts/pvt/chat/osint/dashboard, passed liveIncidents to LiveFeed, GeoMapView, and OverviewTab
+- Updated `src/app/api/incidents/route.ts` — Added broadcastIncident() call on POST to push new incidents via WS
+- Updated `src/app/api/chat/route.ts` — Added broadcastChat() call on POST to push new messages via WS
+- Updated `package.json` — Added dev:ws, dev:all, start:ws scripts
+- Updated `.env` — Added WS_PORT=3003
+
+Stage Summary:
+- WebSocket server runs on port 3003 alongside Next.js on port 3000
+- Clients auto-connect with JWT auth, fall back to SSE if WS unavailable
+- New incidents, alerts, PVT results, chat messages, OSINT posts all pushed in real-time
+- Live incident markers appear on the map with severity-based coloring and critical pulse rings
+- Live feed shows LIVE badges on push-received incidents with auto-scroll
+- Header shows connection transport (Live WebSocket vs SSE fallback), latency, online user count
+- Database watcher polls at 3s intervals for new data and broadcasts to connected tenants
+- API routes broadcast immediately on mutation for instant delivery
+- Zero TypeScript errors, successful production build
