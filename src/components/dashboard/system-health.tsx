@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -89,7 +89,7 @@ interface RunbookSummary {
 
 // ─── Component ────────────────────────────────────────────────────────
 
-export function SystemHealth() {
+function SystemHealthInner() {
   const { tenantId } = useDashboardStore();
   const [showRunbooks, setShowRunbooks] = useState(false);
 
@@ -515,3 +515,5 @@ export function SystemHealth() {
     </div>
   );
 }
+
+export const SystemHealth = React.memo(SystemHealthInner);

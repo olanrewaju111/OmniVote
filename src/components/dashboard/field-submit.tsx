@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -92,7 +92,7 @@ interface PartyVote {
   votes: string; // string for input, parsed on submit
 }
 
-export function SubmitReport() {
+function SubmitReportInner() {
   const { user, electionTier, tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -961,3 +961,5 @@ export function SubmitReport() {
     </div>
   );
 }
+
+export const SubmitReport = React.memo(SubmitReportInner);

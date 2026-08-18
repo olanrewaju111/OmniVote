@@ -1,50 +1,69 @@
+# ─── OmniVote .dockerignore ──────────────────────────────────────
+# Task ID: 6 — Phase 14: Deployment & DevOps
+# ─────────────────────────────────────────────────────────────────────────
+
 # Dependencies
 node_modules
+
+# Build output
 .next
+
+# Version control
 .git
 .gitignore
 
-# Build artifacts
-*.tsbuildinfo
-*.log
-dev.log
-server.log
+# Documentation
+*.md
+LICENSE*
 
-# Database (mounted as volume in container)
-db/
-*.db
-*.db-shm
-*.db-wal
-
-# Tool results (debug artifacts)
-tool-results/
-
-# Docker
-.docker/
-docker-compose*.yml
+# Docker files (avoid recursive builds)
 Dockerfile
+docker-compose*.yml
+.dockerignore
 
-# IDE
-.vscode/
-.idea/
-
-# Environment files (secrets injected at runtime)
+# Environment files (injected at runtime)
 .env
 .env.*
 !.env.example
 
+# Prisma migrations (included via prisma generate in build)
+prisma/migrations
+
+# Test files & coverage
+coverage
+src/**/*.test.ts
+src/**/*.test.tsx
+src/**/__tests__
+
+# Development & tooling
+skills
+download
+agent-ctx
+examples
+whatsapp-bridge
+*.bak
+
+# Monitoring (not needed in app image)
+monitoring
+nginx
+
+# CI/CD
+.github
+
+# IDE
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
 # Misc
-*.md
-LICENSE
-scripts/keepalive-*.sh
-scripts/adversarial-*.ts
-scripts/adversarial-*.py
-scripts/adversarial-*.sh
-scripts/e2e-*.sh
-scripts/e2e-*.ts
-scripts/migrate-*.sh
-scripts/seed-*.ts
-scripts/deploy-and-verify.sh
-scripts/start-production.sh
-nginx/
-.github/
+Caddyfile
+bun.lock
+package-lock.json
+start-bridge.sh

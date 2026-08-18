@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { m, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,7 +55,7 @@ interface Breadcrumb {
   filter: string;
 }
 
-export function SituationRoom() {
+function SituationRoomInner() {
   const { electionTier, tenantId } = useDashboardStore();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [initialLevel, setInitialLevel] = useState<string | null>(null);
@@ -326,6 +326,8 @@ export function SituationRoom() {
     </div>
   );
 }
+
+export const SituationRoom = React.memo(SituationRoomInner);
 
 function MiniStat({
   icon, label, value, color, sub,

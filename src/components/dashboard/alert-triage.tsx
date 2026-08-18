@@ -160,7 +160,7 @@ const AlertCard = React.memo(function AlertCard({ alert, idx, onMarkRead, onUpda
   );
 });
 
-export function AlertTriage({ alerts, operationalCount, securityCount, criticalCount }: AlertTriageProps) {
+function AlertTriageInner({ alerts, operationalCount, securityCount, criticalCount }: AlertTriageProps) {
   const { alertFilter, setAlertFilter, tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
   const unreadCount = alerts.filter(a => !a.isRead).length;
@@ -317,3 +317,5 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
     </div>
   );
 }
+
+export const AlertTriage = React.memo(AlertTriageInner);

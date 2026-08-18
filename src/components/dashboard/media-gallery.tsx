@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -145,7 +145,7 @@ function getGradient(id: string) {
   return gradients[Math.abs(hash)];
 }
 
-export function MediaGallery() {
+function MediaGalleryInner() {
   const { tenantId } = useDashboardStore();
   const [filter, setFilter] = useState<string>('ALL');
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
@@ -423,3 +423,5 @@ export function MediaGallery() {
     </div>
   );
 }
+
+export const MediaGallery = React.memo(MediaGalleryInner);

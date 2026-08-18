@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Map, BarChart3, ShieldAlert, Trophy, Megaphone, Loader2 } from 'lucide-react';
 
@@ -31,7 +31,7 @@ const WinProbabilityGauge = dynamic(
   { loading: () => <div className="h-48 flex items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>, ssr: false },
 );
 
-export function OverviewTab({
+function OverviewTabInner({
   dashData, incidents, alertsData, liveIncidents,
 }: {
   dashData: DashboardData;
@@ -152,3 +152,5 @@ export function OverviewTab({
     </div>
   );
 }
+
+export const OverviewTab = React.memo(OverviewTabInner);

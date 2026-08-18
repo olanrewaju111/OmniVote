@@ -46,6 +46,11 @@ export async function GET(req: Request) {
       db.alert.count({ where: { tenantId, isRead: false } }),
       db.pollingUnit.findMany({
         where: activeElection ? { electionId: activeElection.id } : {},
+        select: {
+          id: true, name: true, code: true, state: true, lga: true, ward: true,
+          latitude: true, longitude: true, registeredVoters: true, totalVotes: true,
+          turnout: true, status: true,
+        },
       }),
       db.incident.count({ where: { tenantId, type: 'VIOLENCE', severity: 'CRITICAL' } }),
     ]);

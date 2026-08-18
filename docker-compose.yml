@@ -1,18 +1,11 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# OmniVote Monitor v2.1 — Production Docker Compose Stack
-# Phase 14: Enhanced with PostgreSQL, Redis, Grafana, Prometheus, backup
-# ──────────────────────────────────────────────────────────────────────────────
+# OmniVote — Development & Base Docker Compose
+# Task ID: 6 — Phase 14: Deployment & DevOps
 #
-# Quick Start:
+# Usage:
 #   cp .env.example .env   # Edit with your secrets
 #   docker compose up -d    # Start all services
 #   docker compose logs -f  # Follow logs
-#
-# Production Scaling:
-#   docker compose up -d --scale app=3   # 3 app replicas behind nginx
-#
-# Required env vars (set in .env):
-#   JWT_SECRET, OMNIVOTE_ENCRYPTION_KEY, DATABASE_URL (PostgreSQL)
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
@@ -22,17 +15,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: omnivote-app
-    restart: unless-stopped
     ports:
       - "${APP_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-postgresql://omnivote:omnivote@postgres:5432/omnivote?schema=public}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
-      - OMNIVOTE_ENCRYPTION_KEY=${OMNIVOTE_ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-OmniVote}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:3001}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - app-data:/app/data
@@ -40,35 +30,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
     networks:
       - omnivote-net
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '2'
-        reservations:
-          memory: 256M
-          cpus: '0.5'
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
 
-  # ─── PostgreSQL ─────────────────────────────────────────────────────────
+  # ─── PostgreSQL 16 ───────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: omnivote-postgres
-    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-omnivote}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omnivote}
@@ -86,97 +54,27 @@ services:
       start_period: 30s
     networks:
       - omnivote-net
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-    # Backup command: docker compose exec postgres pg_dump -U omnivote omnivote > backup.sql
 
-  # ─── Redis ───────────────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: omnivote-redis
-    restart: unless-stopped
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --appendonly yes --requirepass ${REDIS_PASSWORD:-omnivote-redis}
-    volumes:
-      - redis-data:/data
+  # ─── WebSocket Server ───────────────────────────────────────────────────
+  ws:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: omnivote-ws
+    entrypoint: ["dumb-init", "--"]
+    command: ["npx", "tsx", "src/lib/ws-server.ts"]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-omnivote-redis}", "ping"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
-    networks:
-      - omnivote-net
-    deploy:
-      resources:
-        limits:
-          memory: 192M
-
-  # ─── Prometheus (Metrics Scraping) ───────────────────────────────────────
-  prometheus:
-    image: prom/prometheus:v2.54.1-alpine
-    container_name: omnivote-prometheus
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - prometheus-data:/prometheus
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.retention.time=30d'
-      - '--storage.tsdb.retention.size=2GB'
-      - '--web.enable-lifecycle'
-    networks:
-      - omnivote-net
-    depends_on:
-      - app
-
-  # ─── Grafana (Dashboards) ────────────────────────────────────────────────
-  grafana:
-    image: grafana/grafana:11.3.0-alpine
-    container_name: omnivote-grafana
-    restart: unless-stopped
+      - "${WS_PORT:-3001}:3001"
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-omnivote-grafana}
-      - GF_INSTALL_PLUGINS=grafana-clock-panel
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana-data:/var/lib/grafana
-    ports:
-      - "${GRAFANA_PORT:-3001}:3000"
-    networks:
-      - omnivote-net
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://omnivote:omnivote@postgres:5432/omnivote?schema=public}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - WS_PORT=${WS_PORT:-3001}
     depends_on:
-      - prometheus
-
-  # ─── Nginx Reverse Proxy ─────────────────────────────────────────────────
-  nginx:
-    image: nginx:alpine
-    container_name: omnivote-nginx
-    restart: unless-stopped
-    ports:
-      - "${NGINX_HTTP_PORT:-80}:80"
-      - "${NGINX_HTTPS_PORT:-443}:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - nginx-certs:/etc/nginx/certs
-      - nginx-logs:/var/log/nginx
-    depends_on:
-      app:
+      postgres:
         condition: service_healthy
     networks:
       - omnivote-net
-    deploy:
-      resources:
-        limits:
-          memory: 128M
 
 volumes:
   app-data:
@@ -185,20 +83,7 @@ volumes:
     driver: local
   postgres-data:
     driver: local
-  redis-data:
-    driver: local
-  prometheus-data:
-    driver: local
-  grafana-data:
-    driver: local
-  nginx-certs:
-    driver: local
-  nginx-logs:
-    driver: local
 
 networks:
   omnivote-net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16

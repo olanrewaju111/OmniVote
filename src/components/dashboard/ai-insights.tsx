@@ -10,7 +10,7 @@ import {
   FileWarning, Fingerprint, Network, Layers, Loader2,
 } from 'lucide-react';
 import { m, AnimatePresence } from 'framer-motion';
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
@@ -62,7 +62,7 @@ function eventTypeToModule(eventType: string): string {
   return 'SYS';
 }
 
-export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
+function AiInsightsInner({ incidents, stateAgg }: AiInsightsProps) {
   const { tenantId } = useDashboardStore();
 
   // Derive real module statuses from incident data
@@ -311,3 +311,5 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
     </div>
   );
 }
+
+export const AiInsights = React.memo(AiInsightsInner);

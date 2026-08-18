@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -129,7 +129,7 @@ function formatDate(dateStr: string): string {
 }
 
 // ---- Main Component ----
-export function ElectionManagement() {
+function ElectionManagementInner() {
   const { tenantId, setSelectedTab } = useDashboardStore();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -695,3 +695,5 @@ export function ElectionManagement() {
     </div>
   );
 }
+
+export const ElectionManagement = React.memo(ElectionManagementInner);

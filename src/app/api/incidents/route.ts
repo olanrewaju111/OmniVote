@@ -36,7 +36,12 @@ export async function GET(req: NextRequest) {
     const [incidents, total] = await Promise.all([
       db.incident.findMany({
         where,
-        include: {
+        select: {
+          id: true, type: true, severity: true, status: true, description: true,
+          gpsLatitude: true, gpsLongitude: true, gpsAnomaly: true,
+          aiSummary: true, aiFlags: true, isQuarantined: true, c2paVerified: true,
+          submittedAt: true, reviewedAt: true,
+          reportedById: true, pollingUnitId: true,
           reporter: { select: { id: true, name: true, role: true } },
           pollingUnit: { select: { id: true, name: true, code: true, state: true, lga: true } },
         },

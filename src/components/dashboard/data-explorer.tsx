@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -157,7 +157,7 @@ const FLOW_PALETTE = ['#008751', '#1E88E5', '#E53935', '#FDD835', '#8E24AA', '#F
 // Data Explorer Tab
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function DataExplorer() {
+function DataExplorerInner() {
   const { tenantId, electionInfo } = useDashboardStore();
   const [drillTab, setDrillTab] = useState('votes');
   const [activeViz, setActiveViz] = useState('drill');
@@ -446,3 +446,5 @@ export function DataExplorer() {
     </div>
   );
 }
+
+export const DataExplorer = React.memo(DataExplorerInner);

@@ -1,122 +1,187 @@
 # ──────────────────────────────────────────────────────────────────────
-# OmniVote CI/CD Pipeline — Phase 14
+# OmniVote CI Pipeline — Task ID: 6, Phase 14
 # ──────────────────────────────────────────────────────────────────────────────
 # Triggers:
-#   - Push to main/develop
-#   - Pull requests to main
-#   - Manual dispatch
+#   - Push to main
+#   - Pull request to main
 #
 # Jobs:
-#   1. lint    — ESLint
-#   2. typecheck — TypeScript strict check
-#   3. test    — Unit tests (future)
-#   4. build   — Production build
-#   5. docker  — Build & push Docker image
-#   6. deploy  — Deploy to production (main only)
+#   1. lint-and-typecheck — ESLint + TypeScript
+#   2. test              — Vitest with coverage upload
+#   3. build             — Next.js production build
+#   4. docker            — Build & push to GHCR (main only)
 # ──────────────────────────────────────────────────────────────────────────────
 
-name: OmniVote CI/CD
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
-    inputs:
-      deploy_environment:
-        description: 'Deployment target'
-        required: false
-        default: 'staging'
-        type: choice
-        options:
-          - staging
-          - production
 
 env:
-  NODE_VERSION: '24'
+  NODE_VERSION: '20'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}/omnivote
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # ─── Lint ─────────────────────────────────────────────────────────────────
-  lint:
-    name: Lint
+  # ─── Lint & Type Check ────────────────────────────────────────────────
+  lint-and-typecheck:
+    name: Lint & TypeCheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
-      - run: npx eslint . --max-warnings=0
-        name: ESLint check
 
-  # ─── Type Check ────────────────────────────────────────────────────────────
-  typecheck:
-    name: TypeScript Check
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'bun.lock') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-node.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run ESLint
+        run: npx eslint . --max-warnings=0
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+  # ─── Test ─────────────────────────────────────────────────────────────
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npx tsc --noEmit --strict
-        name: TypeScript strict mode check
 
-  # ─── Build ────────────────────────────────────────────────────────────────
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'bun.lock') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        if: steps.cache-node.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run tests with coverage
+        run: npx vitest run --coverage
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+  # ─── Build ────────────────────────────────────────────────────────────
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [lint-and-typecheck, test]
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npx next build
-        name: Next.js production build
+
+      - name: Cache .next build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .next
+            node_modules
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json', 'bun.lock', 'src/**/*.ts', 'src/**/*.tsx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build Next.js
+        run: npx next build
         env:
           DATABASE_URL: file:/tmp/test.db
           JWT_SECRET: ci-test-secret-for-build-only
           OMNIVOTE_ENCRYPTION_KEY: ci-test-encryption-key-32-chars!!
 
-  # ─── Docker Build & Push ──────────────────────────────────────────────────
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: |
+            .next/standalone
+            .next/static
+          retention-days: 7
+
+  # ─── Docker (main branch only) ───────────────────────────────────────
   docker:
     name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: [build]
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
+
+      - name: Extract metadata
         id: meta
+        uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
             type=sha,prefix=
+            type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
-      - uses: docker/build-push-action@v5
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -124,19 +189,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # ─── Deploy (main branch only) ───────────────────────────────────────────
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    needs: [docker]
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    steps:
-      - name: Deploy to production
-        run: |
-          echo "Deploying OmniVote to production..."
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          # In a real setup, this would SSH to the server and run:
-          # docker compose pull && docker compose up -d
-          echo "Deployment placeholder — configure SSH/deploy action for your server"

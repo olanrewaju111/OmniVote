@@ -198,7 +198,7 @@ function renderVirtualRow({ log, isExpanded, onToggle }: { log: AuditLogEntry; i
   );
 }
 
-export function AuditLogViewer() {
+function AuditLogViewerInner() {
   const { tenantId } = useDashboardStore();
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -470,3 +470,5 @@ export function AuditLogViewer() {
     </div>
   );
 }
+
+export const AuditLogViewer = React.memo(AuditLogViewerInner);

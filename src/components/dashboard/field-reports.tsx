@@ -121,7 +121,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 // ---- Main Component ----
-export function MyReports() {
+function MyReportsInner() {
   const { user, tenantId } = useDashboardStore();
   const [expandedResult, setExpandedResult] = useState<string | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<string>('all');
@@ -555,6 +555,8 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
     </>
   );
 }
+
+export const MyReports = React.memo(MyReportsInner);
 
 // ---- Mini Stat ----
 function MiniStat({ label, value, color }: { label: string; value: number | string; color?: string }) {

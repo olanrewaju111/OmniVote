@@ -189,7 +189,7 @@ const IncidentCard = React.memo(function IncidentCard({ inc, idx, isLive, isExpa
   );
 });
 
-export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentClick, liveIncidents }: LiveFeedProps) {
+function LiveFeedInner({ incidents, loading, onLoadMore, hasMore, onIncidentClick, liveIncidents }: LiveFeedProps) {
   const { liveFeedPaused, toggleLiveFeed, incidentFilter, setIncidentFilter, wsConnected, wsTransport } = useDashboardStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -384,3 +384,5 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
     </div>
   );
 }
+
+export const LiveFeed = React.memo(LiveFeedInner);

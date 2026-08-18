@@ -1,46 +1,57 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# OmniVote – Deploy to Remote Server via Docker + SSH
-# ──────────────────────────────────────────────────────────────────────────────
+# OmniVote — Deployment Pipeline
+# Task ID: 6 — Phase 14: Deployment & DevOps
 #
 # Triggers:
+#   - Manual dispatch with environment selector (staging/production)
 #   - Push to main branch
-#   - Manual dispatch (for rollbacks or hotfixes)
 #
-# Prerequisites (GitHub repo Settings → Secrets and variables → Actions):
-#   SSH_PRIVATE_KEY      — Private key for SSH access to the remote server
-#   DEPLOY_HOST          — Remote server IP or hostname (e.g. 203.0.113.50)
-#   DEPLOY_USER          — SSH user on the remote server (e.g. deploy)
-#   DEPLOY_PATH          — App directory on the remote server (e.g. /opt/omnivote)
-#   JWT_SECRET           — Strong random string for JWT signing
-#   OMNIVOTE_ENCRYPTION_KEY — 32+ char encryption key
+# Prerequisites (GitHub Settings → Secrets → Actions):
+#   SSH_PRIVATE_KEY        — Private key for server access
+#   DEPLOY_HOST            — Remote server IP/hostname
+#   DEPLOY_USER            — SSH user on the remote server
+#   DEPLOY_PATH            — App directory on remote server
+#   DEPLOY_STAGING_HOST    — Staging server host (optional)
+#   DEPLOY_STAGING_PATH    — Staging directory (optional)
 #
+# Rollback: To rollback, manually run this workflow with the previous
+# commit SHA in the 'ref' input, or SSH to the server and run:
+#   docker compose pull ghcr.io/owner/omnivote:<previous-sha>
+#   docker compose up -d
 # ──────────────────────────────────────────────────────────────────────────────
 
-name: Deploy to Server
+name: Deploy
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
       ref:
-        description: 'Branch, tag, or SHA to deploy'
+        description: 'Branch, tag, or SHA to deploy (for rollbacks)'
         required: false
         default: 'main'
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/omnivote
+  IMAGE_NAME: ${{ github.repository }}/omnivote
 
 jobs:
-  # ─── Build & Push Docker Image ────────────────────────────────────────────
+  # ─── Build & Push ────────────────────────────────────────────────────
   build:
     name: Build & Push Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,7 +61,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -66,6 +77,7 @@ jobs:
             type=sha,prefix=
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.environment || 'production' }},enable=${{ github.event_name == 'push' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -76,89 +88,61 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_TELEMETRY_DISABLED=1
 
-  # ─── Deploy to Remote Server ─────────────────────────────────────────────
+  # ─── Deploy via SSH ──────────────────────────────────────────────────
   deploy:
-    name: Deploy via SSH
+    name: Deploy (${{ github.event.inputs.environment || 'production' }})
     runs-on: ubuntu-latest
     needs: build
-
-    environment: production
-
+    environment: ${{ github.event.inputs.environment || 'production' }}
     steps:
-      - name: Checkout code (for docker-compose & nginx configs)
+      - name: Checkout code (for compose & config files)
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Set deploy target vars
+        id: target
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            echo "host=${{ secrets.DEPLOY_STAGING_HOST || secrets.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "path=${{ secrets.DEPLOY_STAGING_PATH || '/opt/omnivote-staging' }}" >> $GITHUB_OUTPUT
+          else
+            echo "host=${{ secrets.DEPLOY_HOST }}" >> $GITHUB_OUTPUT
+            echo "path=${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ steps.target.outputs.host }} >> ~/.ssh/known_hosts 2>/dev/null
 
-          # Strict host key checking for first connection
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Ensure deploy directory exists
-        run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "mkdir -p ${{ secrets.DEPLOY_PATH }}/{nginx,nginx/conf.d,data}"
-
-      - name: Copy Docker Compose file
+      - name: Copy compose files to server
         run: |
           scp -i ~/.ssh/deploy_key \
-            docker-compose.yml \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/docker-compose.yml
-
-      - name: Copy Nginx config
-        run: |
-          scp -i ~/.ssh/deploy_key \
-            nginx/nginx.conf \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/nginx/nginx.conf
-
-      - name: Create production .env on server
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cat > ${{ secrets.DEPLOY_PATH }}/.env << 'ENVEOF'
-          NODE_ENV=production
-          DATABASE_URL=file:/app/data/omnivote.db
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          OMNIVOTE_ENCRYPTION_KEY=${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
-          APP_PORT=3000
-          NGINX_HTTP_PORT=80
-          NGINX_HTTPS_PORT=443
-          ENVEOF"
-
-      - name: Log in to GHCR on remote server
-        run: |
-          ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin"
+            docker-compose.yml docker-compose.prod.yml \
+            ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }}:${{ steps.target.outputs.path }}/
 
       - name: Pull latest image
         run: |
           ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ${{ secrets.DEPLOY_PATH }} && docker compose pull"
+            ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }} \
+            "cd ${{ steps.target.outputs.path }} && docker compose pull"
 
-      - name: Seed database (first run only)
+      - name: Run database migrations
         run: |
           ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ${{ secrets.DEPLOY_PATH }} && \
-             docker compose run --rm app npx prisma db push --skip-generate 2>/dev/null || true"
+            ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }} \
+            "cd ${{ steps.target.outputs.path }} && docker compose run --rm app npx prisma db push --skip-generate 2>/dev/null || true"
 
       - name: Restart services
         run: |
           ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "cd ${{ secrets.DEPLOY_PATH }} && \
-             docker compose up -d --remove-orphans && \
+            ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }} \
+            "cd ${{ steps.target.outputs.path }} && \
+             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans && \
              docker compose ps"
 
       - name: Health check
@@ -166,20 +150,20 @@ jobs:
           echo "Waiting for services to start..."
           sleep 15
           HTTP_CODE=$(ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "curl -s -o /dev/null -w '%{http_code}' http://localhost/api/health --max-time 10" 2>/dev/null || echo "000")
+            ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }} \
+            "curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/health --max-time 10" 2>/dev/null || echo "000")
           echo "Health check: HTTP $HTTP_CODE"
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ Health check failed!"
+            echo "Health check failed!"
             ssh -i ~/.ssh/deploy_key \
-              ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-              "cd ${{ secrets.DEPLOY_PATH }} && docker compose logs --tail=50 app"
+              ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }} \
+              "cd ${{ steps.target.outputs.path }} && docker compose logs --tail=50 app"
             exit 1
           fi
-          echo "✅ Deployment healthy!"
+          echo "Deployment healthy!"
 
       - name: Cleanup old images
         run: |
           ssh -i ~/.ssh/deploy_key \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            ${{ secrets.DEPLOY_USER }}@${{ steps.target.outputs.host }} \
             "docker image prune -f --filter 'label=org.opencontainers.image.source=${{ github.repository }}'"

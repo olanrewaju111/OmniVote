@@ -24,6 +24,7 @@ import { ToastSoundEnhancer } from '@/components/dashboard/toast-sound-enhancer'
 import { PwaRegistration } from '@/components/pwa-registration';
 import { TabContent } from '@/components/dashboard/tab-renderer';
 import { useDashboardWebSocket } from '@/hooks/use-dashboard-websocket';
+import { useTabPrefetch } from '@/hooks/use-tab-prefetch';
 import { useDashboardStore, ROLE_TABS, type ViewTab } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -77,6 +78,9 @@ export default function Home() {
     enabled: isAuthenticated && !!tenantId,
     userId: user?.id,
   });
+
+  // Phase 10: Prefetch adjacent tab chunks after dwell delay
+  useTabPrefetch(activeTab, isAuthenticated);
 
   // Sync URL hash with active tab on mount
   useEffect(() => {
