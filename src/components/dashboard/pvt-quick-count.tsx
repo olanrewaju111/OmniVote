@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,7 +33,7 @@ import {
   AlertTriangle,
   AlertCircle,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { ExportButton } from '@/components/dashboard/export-button';
@@ -256,7 +258,7 @@ function StatCard({
   delay: number;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay }}
@@ -275,7 +277,7 @@ function StatCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -422,7 +424,7 @@ function PartyBarChart({ partyTotals }: { partyTotals: PvtData['partyTotals'] })
               {pt.party}
             </span>
             <div className="relative h-5 flex-1 rounded bg-muted">
-              <motion.div
+              <m.div
                 className="absolute inset-y-0 left-0 rounded"
                 style={{ backgroundColor: color }}
                 initial={{ width: 0 }}
@@ -484,7 +486,7 @@ const fadeUp = {
   animate: { opacity: 1, y: 0 },
 };
 
-export function PvtQuickCount() {
+export const PvtQuickCount = React.memo(function PvtQuickCount() {
   const { tenantId } = useDashboardStore();
 
   const { data, isLoading, isError } = useQuery<PvtData>({
@@ -572,7 +574,7 @@ export function PvtQuickCount() {
       </div>
 
       {/* ── Main Area: Sankey + Right Column ────────────────────────────── */}
-      <motion.div
+      <m.div
         {...fadeUp}
         transition={{ duration: 0.5, delay: 0.1 }}
         className="min-h-0 flex-1 grid grid-cols-1 gap-4 lg:grid-cols-5"
@@ -664,10 +666,10 @@ export function PvtQuickCount() {
             </CardContent>
           </Card>
         </div>
-      </motion.div>
+      </m.div>
 
       {/* ── Bottom: Recent PVT Submissions ──────────────────────────────── */}
-      <motion.div
+      <m.div
         {...fadeUp}
         transition={{ duration: 0.5, delay: 0.2 }}
         className="flex min-h-0 flex-col"
@@ -745,7 +747,7 @@ export function PvtQuickCount() {
             </ScrollArea>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
-}
+});

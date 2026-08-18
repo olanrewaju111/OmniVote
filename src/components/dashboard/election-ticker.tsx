@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
 import { useQuery } from '@tanstack/react-query';
@@ -366,7 +366,7 @@ export const ElectionTicker = React.memo(function ElectionTicker() {
       {/* Inject ticker animation */}
       <style dangerouslySetInnerHTML={{ __html: TickerAnimation }} />
 
-      <motion.aside
+      <m.aside
         initial={{ y: 28, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -391,7 +391,7 @@ export const ElectionTicker = React.memo(function ElectionTicker() {
         {/* ── CENTER: Scrolling Results Ticker (hidden on mobile) ── */}
         <AnimatePresence mode="wait">
           {showTicker && results.length > 0 && (
-            <motion.div
+            <m.div
               key="ticker"
               initial={{ opacity: 0, width: 0 }}
               animate={{ opacity: 1, width: 'auto' }}
@@ -400,7 +400,7 @@ export const ElectionTicker = React.memo(function ElectionTicker() {
               className="hidden md:flex items-center overflow-hidden"
             >
               <ResultsMarquee results={results} />
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
@@ -409,7 +409,7 @@ export const ElectionTicker = React.memo(function ElectionTicker() {
           <QuickStatsStrip stats={stats} />
           <ConnectionStatus connected={sseConnected} />
         </div>
-      </motion.aside>
+      </m.aside>
     </>
   );
 });

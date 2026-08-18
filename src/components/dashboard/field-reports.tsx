@@ -13,7 +13,7 @@ import {
   ChevronDown, ChevronUp, CircleDot, UserCircle, FileText,
 } from 'lucide-react';
 import { MediaViewer, MediaThumbnailStrip, type MediaFile } from '@/components/dashboard/media-viewer';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { EmptyState } from './empty-state';
 import { fetchJson } from '@/lib/api';
@@ -274,7 +274,7 @@ const ResultCard = React.memo(function ResultCard({ r, idx, isExpanded, onToggle
   const winner = r.partyResults?.length > 0 ? [...r.partyResults].sort((a, b) => b.votes - a.votes)[0] : null;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
@@ -352,7 +352,7 @@ const ResultCard = React.memo(function ResultCard({ r, idx, isExpanded, onToggle
       {/* Expanded detail */}
       <AnimatePresence>
         {isExpanded && (
-          <motion.div
+          <m.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -407,10 +407,10 @@ const ResultCard = React.memo(function ResultCard({ r, idx, isExpanded, onToggle
                 </div>
               )}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -424,7 +424,7 @@ interface IncidentCardProps {
 
 const IncidentCard = React.memo(function IncidentCard({ inc, idx, showReporter, onOpenMedia }: IncidentCardProps) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
@@ -475,7 +475,7 @@ const IncidentCard = React.memo(function IncidentCard({ inc, idx, showReporter, 
           <span className="flex items-center gap-1 text-emerald"><ShieldCheck className="h-3 w-3" />C2PA</span>
         )}
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 

@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   MessageSquare, Send, Phone, Smartphone, Bell, Clock, AlertTriangle, UserX,
   WifiOff, ShieldAlert, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp,
@@ -130,7 +132,7 @@ interface LocalChatMessage {
 
 // ─── Component ───────────────────────────────────────────────────────
 
-export function AgentEngagement() {
+export const AgentEngagement = React.memo(function AgentEngagement() {
   const queryClient = useQueryClient();
   const { tenantId, user } = useDashboardStore();
 
@@ -523,7 +525,7 @@ export function AgentEngagement() {
             {/* Local messages with status icons */}
             <AnimatePresence>
               {localChatMsgs.map((lmsg) => (
-                <motion.div
+                <m.div
                   key={lmsg.id}
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -555,7 +557,7 @@ export function AgentEngagement() {
                   <div className="shrink-0 mt-0.5">
                     <MessageStatusIcon status={lmsg.status} />
                   </div>
-                </motion.div>
+                </m.div>
               ))}
             </AnimatePresence>
 
@@ -575,7 +577,7 @@ export function AgentEngagement() {
           {/* Typing indicator */}
           <AnimatePresence>
             {isTyping && (
-              <motion.div
+              <m.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
@@ -587,7 +589,7 @@ export function AgentEngagement() {
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" style={{ animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.16s' }} />
                   <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" style={{ animation: 'bounce 1.4s infinite ease-in-out both', animationDelay: '0.32s' }} />
                 </span>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
 
@@ -771,7 +773,7 @@ export function AgentEngagement() {
       </Dialog>
     </div>
   );
-}
+});
 
 // ─── Sub-components ──────────────────────────────────────────────────
 
@@ -885,7 +887,7 @@ function AgentGroupCard({
 
 function MessageRow({ msg, onClick }: { msg: Message; onClick: () => void }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex items-start gap-3 rounded-lg border border-border bg-card/30 px-3 py-2.5 cursor-pointer hover:bg-card/60 hover:border-border transition-colors"
@@ -925,7 +927,7 @@ function MessageRow({ msg, onClick }: { msg: Message; onClick: () => void }) {
         <span className={cn('text-[10px]', PRIORITY_STYLES[msg.priority])}>{msg.priority}</span>
         <span className={cn('w-2 h-2 rounded-full', msg.agent.isOnline ? 'bg-emerald' : 'bg-muted-foreground/30')} />
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 

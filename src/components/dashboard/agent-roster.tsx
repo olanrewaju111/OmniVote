@@ -1,11 +1,13 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,7 +70,7 @@ interface ReportsSlideOver {
   open: boolean;
 }
 
-export function AgentRoster() {
+export const AgentRoster = React.memo(function AgentRoster() {
   const queryClient = useQueryClient();
   const { tenantId, user } = useDashboardStore();
   const [search, setSearch] = useState('');
@@ -397,7 +399,7 @@ export function AgentRoster() {
                     <TableBody>
                       <AnimatePresence>
                         {users.map(agent => (
-                          <motion.tr
+                          <m.tr
                             key={agent.id}
                             initial={{ opacity: 0, y: 4 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -513,7 +515,7 @@ export function AgentRoster() {
                                 </Button>
                               </div>
                             </TableCell>
-                          </motion.tr>
+                          </m.tr>
                         ))}
                       </AnimatePresence>
                     </TableBody>
@@ -824,7 +826,7 @@ export function AgentRoster() {
       </Dialog>
     </div>
   );
-}
+});
 
 // Sub-component: fetches and displays reports for a specific agent
 function AgentReportsPanel({ agentId }: { agentId: string }) {

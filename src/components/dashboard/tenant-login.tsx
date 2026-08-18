@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -148,7 +148,7 @@ export function TenantLogin() {
   if (!tenant) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center space-y-4 max-w-sm px-4"
@@ -164,7 +164,7 @@ export function TenantLogin() {
             <ArrowLeft className="h-3.5 w-3.5" />
             Go to Main Login
           </Button>
-        </motion.div>
+        </m.div>
       </div>
     );
   }
@@ -182,7 +182,7 @@ export function TenantLogin() {
         <div className="absolute -top-32 -right-32 w-64 h-64 rounded-full blur-3xl" style={{ backgroundColor: `${accentColor}08` }} />
 
         <div className="relative z-10">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
@@ -195,26 +195,26 @@ export function TenantLogin() {
               <h1 className="text-lg font-bold tracking-tight">OmniVote</h1>
               <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Monitor</p>
             </div>
-          </motion.div>
+          </m.div>
 
-          <motion.h2
+          <m.h2
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-2xl font-bold mb-3 leading-tight"
           >
             {tenant.name}
-          </motion.h2>
-          <motion.p
+          </m.h2>
+          <m.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-sm text-muted-foreground leading-relaxed max-w-sm"
           >
             Secure election monitoring command center. Sign in with your organization credentials to access real-time dashboards and field operations.
-          </motion.p>
+          </m.p>
           {tierInfo && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+            <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
               <Badge variant="outline" className={cn(
                 'mt-4 text-[11px] h-7 px-3',
                 tierInfo.tier === 'PRESIDENTIAL' ? 'border-violet/30 text-violet bg-violet/10' :
@@ -224,11 +224,11 @@ export function TenantLogin() {
                 <Vote className="h-3 w-3 mr-1.5" />
                 {tierInfo.badge} Election
               </Badge>
-            </motion.div>
+            </m.div>
           )}
         </div>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -259,7 +259,7 @@ export function TenantLogin() {
             <span className="w-1.5 h-1.5 rounded-full animate-pulse-dot" style={{ backgroundColor: accentColor }} />
             <span>Secure Connection &middot; AES-256 Encryption</span>
           </div>
-        </motion.div>
+        </m.div>
       </div>
 
       {/* ═══ Right panel — login form ═══ */}
@@ -267,7 +267,7 @@ export function TenantLogin() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-md mx-auto px-4 sm:px-6 py-8">
             {/* Mobile header */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="lg:hidden flex items-center gap-3 mb-8"
@@ -279,9 +279,9 @@ export function TenantLogin() {
                 <h1 className="text-base font-bold">OmniVote Monitor</h1>
                 <p className="text-[10px] text-muted-foreground">{tenant.name}</p>
               </div>
-            </motion.div>
+            </m.div>
 
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
@@ -303,12 +303,12 @@ export function TenantLogin() {
                   </Badge>
                 )}
               </div>
-            </motion.div>
+            </m.div>
 
             {/* ═══════════ Login Form ═══════════ */}
             <AnimatePresence mode="wait">
               {view === 'login' ? (
-                <motion.div
+                <m.div
                   key="login"
                   initial={{ opacity: 0, x: 0 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -389,7 +389,7 @@ export function TenantLogin() {
                       {/* Password strength indicator */}
                       <AnimatePresence>
                         {password.length > 0 && (
-                          <motion.div
+                          <m.div
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
@@ -411,7 +411,7 @@ export function TenantLogin() {
                                 {pwStrength.label}
                               </p>
                             </div>
-                          </motion.div>
+                          </m.div>
                         )}
                       </AnimatePresence>
                     </div>
@@ -430,7 +430,7 @@ export function TenantLogin() {
                     {/* Error message */}
                     <AnimatePresence>
                       {error && (
-                        <motion.div
+                        <m.div
                           initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
@@ -438,7 +438,7 @@ export function TenantLogin() {
                         >
                           <XIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                           <span>{error}</span>
-                        </motion.div>
+                        </m.div>
                       )}
                     </AnimatePresence>
 
@@ -464,10 +464,10 @@ export function TenantLogin() {
                       )}
                     </Button>
                   </form>
-                </motion.div>
+                </m.div>
               ) : (
                 /* ═══════════ Forgot Password Form ═══════════ */
-                <motion.div
+                <m.div
                   key="forgot"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -482,7 +482,7 @@ export function TenantLogin() {
                   </p>
 
                   {forgotSent ? (
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="space-y-4"
@@ -507,7 +507,7 @@ export function TenantLogin() {
                         <ArrowLeft className="h-3.5 w-3.5" />
                         Back to Sign In
                       </button>
-                    </motion.div>
+                    </m.div>
                   ) : (
                     <form onSubmit={handleForgotPassword} className="space-y-4">
                       {/* Forgot email field */}
@@ -541,7 +541,7 @@ export function TenantLogin() {
                       {/* Forgot error message */}
                       <AnimatePresence>
                         {forgotError && (
-                          <motion.div
+                          <m.div
                             initial={{ opacity: 0, y: -4 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -4 }}
@@ -549,7 +549,7 @@ export function TenantLogin() {
                           >
                             <XIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                             <span>{forgotError}</span>
-                          </motion.div>
+                          </m.div>
                         )}
                       </AnimatePresence>
 
@@ -588,7 +588,7 @@ export function TenantLogin() {
                       </div>
                     </form>
                   )}
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   Bell, Radio, AlertTriangle, Info, Clock, Shield,
   CheckCheck, Volume2, VolumeX, ArrowUpRight,
@@ -147,7 +147,7 @@ function NotificationItem({
   const incidentId = alert.incident?.id ?? null;
 
   return (
-    <motion.div
+    <m.div
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -254,7 +254,7 @@ function NotificationItem({
           </div>
         )}
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 

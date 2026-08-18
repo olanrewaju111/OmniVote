@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   Radar, Fingerprint, Accessibility, Plus, Loader2, ShieldAlert,
   Shield, AlertTriangle, AlertCircle, Eye, EyeOff, CheckCircle2, XCircle,
@@ -158,7 +160,7 @@ function StatCard({
     rose: 'text-rose', purple: 'text-purple', foreground: 'text-foreground',
   };
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+    <m.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
       <Card className="border-border bg-card/40">
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -169,7 +171,7 @@ function StatCard({
           {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>}
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -181,7 +183,7 @@ function ColorBar({ value, max = 100, color }: { value: number; max?: number; co
   const pct = Math.min((value / max) * 100, 100);
   return (
     <div className="h-2 bg-secondary rounded-full overflow-hidden w-full min-w-[80px]">
-      <motion.div
+      <m.div
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -196,7 +198,7 @@ function ColorBar({ value, max = 100, color }: { value: number; max?: number; co
 // Main Component
 // ────────────────────────────────────────────
 
-export function HoneypotBiometrics() {
+export const HoneypotBiometrics = React.memo(function HoneypotBiometrics() {
   const queryClient = useQueryClient();
   const { tenantId } = useDashboardStore();
 
@@ -475,7 +477,7 @@ export function HoneypotBiometrics() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pr-4 pb-4">
                   {honeypots.map((hp, idx) => (
-                    <motion.div
+                    <m.div
                       key={hp.id}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -591,7 +593,7 @@ export function HoneypotBiometrics() {
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </m.div>
                   ))}
                 </div>
               )}
@@ -663,7 +665,7 @@ export function HoneypotBiometrics() {
                             : 'var(--color-emerald)';
 
                       return (
-                        <motion.tr
+                        <m.tr
                           key={agent.id}
                           initial={{ opacity: 0, x: -6 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -733,7 +735,7 @@ export function HoneypotBiometrics() {
                               <span className="text-[11px] text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                        </motion.tr>
+                        </m.tr>
                       );
                     })}
                   </TableBody>
@@ -832,7 +834,7 @@ export function HoneypotBiometrics() {
                               : 'var(--color-rose)';
 
                       return (
-                        <motion.tr
+                        <m.tr
                           key={report.id}
                           initial={{ opacity: 0, x: -6 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -894,7 +896,7 @@ export function HoneypotBiometrics() {
                           <TableCell className="text-[11px] text-muted-foreground py-2.5 tabular-nums">
                             {new Date(report.createdAt).toLocaleDateString()}
                           </TableCell>
-                        </motion.tr>
+                        </m.tr>
                       );
                     })}
                   </TableBody>
@@ -1248,4 +1250,4 @@ export function HoneypotBiometrics() {
       </Dialog>
     </div>
   );
-}
+});

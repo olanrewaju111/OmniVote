@@ -13,7 +13,7 @@ import {
   Image as ImageIcon, Video, FileAudio, ShieldCheck, ShieldAlert, AlertTriangle,
   Eye, CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
@@ -260,7 +260,7 @@ export function MediaGallery() {
         <ScrollArea className="flex-1">
           <div className="p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {filtered.map((item, idx) => (
-              <motion.div
+              <m.div
                 key={item.id}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -310,7 +310,7 @@ export function MediaGallery() {
                     )}
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
           {!isLoading && filtered.length === 0 && (
@@ -326,7 +326,7 @@ export function MediaGallery() {
         {/* Detail panel — responsive: Dialog on mobile, sidebar on desktop */}
         <AnimatePresence>
           {selectedItem && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
@@ -367,14 +367,14 @@ export function MediaGallery() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
 
         {/* Mobile detail overlay */}
         {selectedItem && (
           <div className="lg:hidden fixed inset-0 z-50 bg-black/60 flex items-end" onClick={() => setSelectedItem(null)}>
-            <motion.div
+            <m.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -416,7 +416,7 @@ export function MediaGallery() {
                   </div>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           </div>
         )}
       </div>

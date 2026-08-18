@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   BarChart,
   Bar,
@@ -261,7 +261,7 @@ export function DrillDownChart({
           <DrillEmptyState />
         ) : (
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div
+            <m.div
               key={drillPath.length}
               initial={{ opacity: 0, x: direction * 40 }}
               animate={{ opacity: 1, x: 0 }}
@@ -317,7 +317,7 @@ export function DrillDownChart({
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            </motion.div>
+            </m.div>
           </AnimatePresence>
         )}
 

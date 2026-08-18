@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { LazyMotion, domAnimation } from 'framer-motion';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -24,9 +25,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <LazyMotion features={domAnimation} strict>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </LazyMotion>
     </ThemeProvider>
   );
 }

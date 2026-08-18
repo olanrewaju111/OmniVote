@@ -122,11 +122,15 @@ export default function Home() {
 
   const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
 
+  // Phase 10: Smart polling — when WebSocket is connected, rely on push updates
+  // instead of polling. Fall back to 30s polling when WS is disconnected.
+  const wsConnected = wsTransport === 'ws' || wsTransport === 'sse';
+
   // Fetch dashboard data
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard', tenantId],
     queryFn: () => fetchJson(`/api/dashboard${tenantParam}`),
-    refetchInterval: 30_000,
+    refetchInterval: wsConnected ? false : 30_000,
     enabled: isAuthenticated,
   });
 
@@ -137,19 +141,19 @@ export default function Home() {
     }
   }, [dashData?.electionInfo, setElectionInfo]);
 
-  // Fetch incidents
+  // Fetch incidents — smart polling with WS-aware interval
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
     queryKey: ['incidents', 'all', tenantId],
     queryFn: () => fetchJson(`/api/incidents?limit=50&tenantId=${tenantId}`),
-    refetchInterval: 30_000,
+    refetchInterval: wsConnected ? false : 30_000,
     enabled: isAuthenticated,
   });
 
-  // Fetch alerts
+  // Fetch alerts — smart polling with WS-aware interval
   const { data: alertsData, isLoading: alertsLoading } = useQuery<AlertsData>({
     queryKey: ['alerts', 'all', tenantId],
     queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
-    refetchInterval: 30_000,
+    refetchInterval: wsConnected ? false : 30_000,
     enabled: isAuthenticated,
   });
 

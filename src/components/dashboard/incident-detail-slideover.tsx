@@ -12,7 +12,7 @@ import {
   ShieldCheck, ShieldOff, Sparkles, ArrowUpCircle, CheckCircle2,
   Loader2, Image as ImageIcon, FileQuestion, FileText, ExternalLink,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useDashboardStore } from '@/store/dashboard';
@@ -183,7 +183,7 @@ export function IncidentDetailSlideover({
       {open && incident && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -194,7 +194,7 @@ export function IncidentDetailSlideover({
           />
 
           {/* Panel */}
-          <motion.aside
+          <m.aside
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -525,7 +525,7 @@ export function IncidentDetailSlideover({
                 </Button>
               </div>
             </div>
-          </motion.aside>
+          </m.aside>
         </>
       )}
     </AnimatePresence>

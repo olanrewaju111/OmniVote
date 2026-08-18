@@ -9,7 +9,7 @@ import {
   Brain, ShieldCheck, ShieldAlert, Scan, Eye, Zap,
   FileWarning, Fingerprint, Network, Layers, Loader2,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
@@ -267,7 +267,7 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
             ) : threatFeed.length > 0 ? (
               <div className="space-y-1.5">
                 {threatFeed.map((item) => (
-                  <motion.div
+                  <m.div
                     key={item.id}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -296,7 +296,7 @@ export function AiInsights({ incidents, stateAgg }: AiInsightsProps) {
                     >
                       {item.severity}
                     </Badge>
-                  </motion.div>
+                  </m.div>
                 ))}
               </div>
             ) : (

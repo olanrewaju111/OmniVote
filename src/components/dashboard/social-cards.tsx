@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
@@ -1002,7 +1004,7 @@ function drawTurnoutTrackerContent(
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function SocialCards() {
+export const SocialCards = React.memo(function SocialCards() {
   const { tenantId, electionTier } = useDashboardStore();
   const electionName = TIER_SHORT[electionTier];
 
@@ -1321,7 +1323,7 @@ export function SocialCards() {
             ([key, cfg]) => {
               const Icon = cfg.icon;
               return (
-                <motion.button
+                <m.button
                   key={key}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -1335,7 +1337,7 @@ export function SocialCards() {
                 >
                   <Icon className="h-5 w-5" />
                   <span className="text-[11px] font-medium leading-tight">{cfg.label}</span>
-                </motion.button>
+                </m.button>
               );
             }
           )}
@@ -1386,12 +1388,12 @@ export function SocialCards() {
             <CollapsibleTrigger asChild>
               <button className="w-full flex items-center justify-between px-4 py-3 hover:bg-card/60 transition-colors">
                 <span className="text-sm font-semibold text-foreground">Customize Card</span>
-                <motion.div
+                <m.div
                   animate={{ rotate: settingsOpen ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
                 >
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                </motion.div>
+                </m.div>
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -1466,13 +1468,13 @@ export function SocialCards() {
                           title={key.replace('-', ' ')}
                         >
                           {gradient === key && (
-                            <motion.div
+                            <m.div
                               initial={{ scale: 0 }}
                               animate={{ scale: 1 }}
                               className="absolute inset-0 flex items-center justify-center"
                             >
                               <div className="w-3 h-3 rounded-full bg-white/90" />
-                            </motion.div>
+                            </m.div>
                           )}
                         </button>
                       )
@@ -1573,14 +1575,14 @@ export function SocialCards() {
               className="w-full text-xs h-8 text-muted-foreground hover:text-foreground"
             >
               {copiedSummary ? (
-                <motion.span
+                <m.span
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
                   className="flex items-center gap-1.5 text-emerald"
                 >
                   <Check className="h-3.5 w-3.5" />
                   Copied!
-                </motion.span>
+                </m.span>
               ) : (
                 <span className="flex items-center gap-1.5">
                   <Copy className="h-3.5 w-3.5" />
@@ -1596,6 +1598,6 @@ export function SocialCards() {
       </div>
     </div>
   );
-}
+});
 
 export default SocialCards;

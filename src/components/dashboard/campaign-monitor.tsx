@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,7 +24,7 @@ import {
   Loader2, ImageIcon, Radio, AlertCircle, Clock, Timer, ChevronRight,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
@@ -185,7 +187,7 @@ function getWeekCount(events: CampaignEvent[]): number {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function CampaignMonitor() {
+function CampaignMonitor() {
   const { tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -688,6 +690,8 @@ export function CampaignMonitor() {
   );
 }
 
+export default React.memo(CampaignMonitor);
+
 // ─── Events Tab ──────────────────────────────────────────────────────────────
 
 function EventsTab({
@@ -784,7 +788,7 @@ function EventsTab({
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             <AnimatePresence>
               {events.map((event, idx) => (
-                <motion.div
+                <m.div
                   key={event.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -869,7 +873,7 @@ function EventsTab({
                       )}
                     </CardContent>
                   </Card>
-                </motion.div>
+                </m.div>
               ))}
             </AnimatePresence>
           </div>
@@ -1008,7 +1012,7 @@ function SuppressionTab({
                   <tbody>
                     <AnimatePresence>
                       {reports.map((report, idx) => (
-                        <motion.tr
+                        <m.tr
                           key={report.id}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
@@ -1055,7 +1059,7 @@ function SuppressionTab({
                               <Eye className="h-3 w-3" />
                             </Button>
                           </td>
-                        </motion.tr>
+                        </m.tr>
                       ))}
                     </AnimatePresence>
                   </tbody>
@@ -1118,7 +1122,7 @@ function BillboardsTab({
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           <AnimatePresence>
             {billboards.map((bb, idx) => (
-              <motion.div
+              <m.div
                 key={bb.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1161,7 +1165,7 @@ function BillboardsTab({
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                        <motion.div
+                        <m.div
                           initial={{ width: 0 }}
                           animate={{ width: `${bb.dominance}%` }}
                           transition={{ delay: 0.2 + idx * 0.04, duration: 0.6, ease: 'easeOut' }}
@@ -1175,7 +1179,7 @@ function BillboardsTab({
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             ))}
           </AnimatePresence>
         </div>
@@ -1235,7 +1239,7 @@ function HateSpeechTab({
           <div className="space-y-2">
             <AnimatePresence>
               {items.map((item, idx) => (
-                <motion.div
+                <m.div
                   key={item.id}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1305,7 +1309,7 @@ function HateSpeechTab({
                       <Mic className="h-3 w-3" />{EVENT_TYPES[item.eventType] || item.eventType}
                     </span>
                   </div>
-                </motion.div>
+                </m.div>
               ))}
             </AnimatePresence>
           </div>
@@ -1480,7 +1484,7 @@ function CalendarTab({
               {groupedEvents.map((group, gIdx) => (
                 <div key={group.label + gIdx}>
                   {/* Date group header */}
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: gIdx * 0.06, duration: 0.2 }}
@@ -1491,7 +1495,7 @@ function CalendarTab({
                     </span>
                     <div className="flex-1 h-px bg-border" />
                     <span className="text-[10px] text-muted-foreground">{group.events.length} event{group.events.length !== 1 ? 's' : ''}</span>
-                  </motion.div>
+                  </m.div>
 
                   {/* Events in group */}
                   <div className="space-y-2 pl-5">
@@ -1501,7 +1505,7 @@ function CalendarTab({
                       const globalIdx = sortedEvents.findIndex(e => e.id === event.id);
 
                       return (
-                        <motion.div
+                        <m.div
                           key={event.id}
                           id={`timeline-event-${event.id}`}
                           initial={{ opacity: 0, x: -12 }}
@@ -1587,7 +1591,7 @@ function CalendarTab({
                               </Badge>
                             )}
                           </div>
-                        </motion.div>
+                        </m.div>
                       );
                     })}
                   </div>

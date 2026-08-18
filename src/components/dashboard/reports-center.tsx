@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   FileText, FileDown, FileSpreadsheet, BarChart3, ShieldAlert, MapPin, Users,
   AlertTriangle, Eye, Globe, Shield, Zap, Clock, Download, Loader2,
@@ -218,7 +220,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 
 // ── Main Component ──
 
-export function ReportsCenter() {
+export const ReportsCenter = React.memo(function ReportsCenter() {
   const { tenantId } = useDashboardStore();
   const [activeTab, setActiveTab] = useState<TabId>('generate');
   const [exportingId, setExportingId] = useState<string | null>(null);
@@ -492,7 +494,7 @@ export function ReportsCenter() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <AnimatePresence mode="popLayout">
                 {filteredCards.map((report, idx) => (
-                  <motion.div key={report.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  <m.div key={report.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2, delay: idx * 0.03 }}>
                     <Card className={cn('group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5', 'border', report.borderColor, 'bg-card/50')}>
                       <CardHeader className="pb-2 pt-4 px-4">
@@ -513,7 +515,7 @@ export function ReportsCenter() {
                         </div>
                       </CardContent>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 ))}
               </AnimatePresence>
             </div>
@@ -584,7 +586,7 @@ export function ReportsCenter() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {templates.map((tpl, idx) => (
-              <motion.div
+              <m.div
                 key={tpl.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -642,7 +644,7 @@ export function ReportsCenter() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </>
@@ -761,4 +763,4 @@ export function ReportsCenter() {
       </Dialog>
     </div>
   );
-}
+});

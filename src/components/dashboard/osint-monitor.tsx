@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
@@ -27,7 +29,7 @@ import {
   AlertCircle, CheckCircle2, Zap, BarChart3, FileWarning, Users,
   Radio, Fingerprint,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 
@@ -166,7 +168,7 @@ function formatNumber(n: number): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export function OsintMonitor() {
+export const OsintMonitor = React.memo(function OsintMonitor() {
   const { tenantId } = useDashboardStore();
 
   // Filters
@@ -304,7 +306,7 @@ export function OsintMonitor() {
       {/* ── KPI Row ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
         {/* Total Posts */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <Card className="border-border bg-card/40 backdrop-blur-sm hover:bg-card/60 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
@@ -331,10 +333,10 @@ export function OsintMonitor() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Disinformation */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }}>
+        <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }}>
           <Card className="border-rose/20 bg-rose/5 backdrop-blur-sm hover:bg-rose/10 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
@@ -361,10 +363,10 @@ export function OsintMonitor() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Bot/CIB */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
+        <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
           <Card className="border-amber/20 bg-amber/5 backdrop-blur-sm hover:bg-amber/10 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
@@ -391,10 +393,10 @@ export function OsintMonitor() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
 
         {/* Virality Alerts */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
+        <m.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }}>
           <Card className="border-violet/20 bg-violet/5 backdrop-blur-sm hover:bg-violet/10 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
@@ -421,7 +423,7 @@ export function OsintMonitor() {
               </div>
             </CardContent>
           </Card>
-        </motion.div>
+        </m.div>
       </div>
 
       {/* ── Sentiment + Platform Breakdown Bars ─────────────────────────── */}
@@ -557,7 +559,7 @@ export function OsintMonitor() {
             )}
 
             {filteredPosts.map((post, idx) => (
-              <motion.div
+              <m.div
                 key={post.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -631,7 +633,7 @@ export function OsintMonitor() {
                 <div className="flex items-center gap-2 mb-2.5">
                   <span className="text-[10px] text-muted-foreground shrink-0 w-14">Virality</span>
                   <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                    <motion.div
+                    <m.div
                       className={cn(
                         'h-full rounded-full transition-colors',
                         post.viralityScore > 70 ? 'bg-rose' : post.viralityScore > 40 ? 'bg-amber' : 'bg-emerald'
@@ -695,7 +697,7 @@ export function OsintMonitor() {
                     </CollapsibleContent>
                   </Collapsible>
                 )}
-              </motion.div>
+              </m.div>
             ))}
           </div>
         </div>
@@ -823,7 +825,7 @@ export function OsintMonitor() {
                       </p>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden">
-                          <motion.div
+                          <m.div
                             className="h-full rounded-full bg-violet"
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(selectedPost.cibScore * 100, 100)}%` }}
@@ -881,7 +883,7 @@ export function OsintMonitor() {
                     <p className="text-[10px] text-muted-foreground mb-2">Virality Score</p>
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-3 rounded-full bg-muted/50 overflow-hidden">
-                        <motion.div
+                        <m.div
                           className={cn(
                             'h-full rounded-full',
                             selectedPost.viralityScore > 70 ? 'bg-rose' : selectedPost.viralityScore > 40 ? 'bg-amber' : 'bg-emerald'
@@ -920,4 +922,4 @@ export function OsintMonitor() {
       </Dialog>
     </div>
   );
-}
+});

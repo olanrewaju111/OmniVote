@@ -6,7 +6,7 @@ import { useDashboardStore } from '@/store/dashboard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { fetchJson } from '@/lib/api';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -217,7 +217,7 @@ function SecurityGauge({ score }: { score: number }) {
           fill="none" strokeWidth="8"
           className="stroke-muted/30"
         />
-        <motion.circle
+        <m.circle
           cx="70" cy="70" r={radius}
           fill="none" strokeWidth="8"
           strokeLinecap="round"
@@ -230,14 +230,14 @@ function SecurityGauge({ score }: { score: number }) {
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <motion.span
+        <m.span
           className={cn('text-3xl font-bold tabular-nums', color)}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.5 }}
         >
           {score}
-        </motion.span>
+        </m.span>
         <span className="text-[10px] text-muted-foreground">/ 100</span>
       </div>
     </div>
@@ -312,7 +312,7 @@ function OverviewTab({ data }: { data: SecurityData }) {
         {/* KPI Grid */}
         <div className="grid grid-cols-2 gap-3">
           {kpis.map((kpi, i) => (
-            <motion.div
+            <m.div
               key={kpi.label}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -327,7 +327,7 @@ function OverviewTab({ data }: { data: SecurityData }) {
                   <p className={cn('text-xl font-bold tabular-nums', kpi.color)}>{kpi.value}</p>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>
@@ -1267,7 +1267,7 @@ function PoliciesTab({ data, policyMutation }: {
 /*  Main Export                                                        */
 /* ------------------------------------------------------------------ */
 
-export function SecurityCenter() {
+export const SecurityCenter = React.memo(function SecurityCenter() {
   const tenantId = useDashboardStore(s => s.tenantId);
   const queryClient = useQueryClient();
 
@@ -1424,4 +1424,4 @@ export function SecurityCenter() {
       ) : null}
     </div>
   );
-}
+});

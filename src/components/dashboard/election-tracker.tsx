@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { useDashboardStore } from '@/store/dashboard';
@@ -199,7 +199,7 @@ function VictoryGauge({ confidence, color }: { confidence: number; color: string
           strokeLinecap="round"
         />
         {/* Animated foreground arc */}
-        <motion.path
+        <m.path
           d={`M ${center - radius} ${center} A ${radius} ${radius} 0 0 1 ${center + radius} ${center}`}
           fill="none"
           stroke={color}
@@ -213,11 +213,11 @@ function VictoryGauge({ confidence, color }: { confidence: number; color: string
         />
       </svg>
       {/* Center percentage */}
-      <motion.div
+      <m.div
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"
         style={{ top: '55%' }}
       >
-        <motion.span
+        <m.span
           className="text-2xl font-black tabular-nums leading-none"
           style={{ color }}
           initial={{ opacity: 0 }}
@@ -226,8 +226,8 @@ function VictoryGauge({ confidence, color }: { confidence: number; color: string
         >
           {confidence}
           <span className="text-xs font-semibold opacity-70">%</span>
-        </motion.span>
-      </motion.div>
+        </m.span>
+      </m.div>
     </div>
   );
 }
@@ -245,7 +245,7 @@ const VictoryProjectionCard = React.memo(function VictoryProjectionCard({ projec
   const gap = runnerUp ? (projection.confidence - (100 - projection.confidence)) : projection.confidence;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
@@ -321,7 +321,7 @@ const VictoryProjectionCard = React.memo(function VictoryProjectionCard({ projec
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -348,7 +348,7 @@ function PathToVictory({ states, projectedWinner }: {
   };
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1 }}
@@ -376,7 +376,7 @@ function PathToVictory({ states, projectedWinner }: {
                 {safeStates.map((s) => {
                   const sc = statusColorMap['SAFE'];
                   return (
-                    <motion.div
+                    <m.div
                       key={s.name}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -388,14 +388,14 @@ function PathToVictory({ states, projectedWinner }: {
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald shrink-0" />
                       {s.name}
-                    </motion.div>
+                    </m.div>
                   );
                 })}
                 {/* Leaning states */}
                 {leaningStates.map((s) => {
                   const sc = statusColorMap['LEANING'];
                   return (
-                    <motion.div
+                    <m.div
                       key={s.name}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -407,14 +407,14 @@ function PathToVictory({ states, projectedWinner }: {
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-amber shrink-0" />
                       {s.name}
-                    </motion.div>
+                    </m.div>
                   );
                 })}
                 {/* Tight race states */}
                 {tightRaceStates.map((s) => {
                   const sc = statusColorMap['TIGHT RACE'];
                   return (
-                    <motion.div
+                    <m.div
                       key={s.name}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -426,14 +426,14 @@ function PathToVictory({ states, projectedWinner }: {
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-rose shrink-0" />
                       {s.name}
-                    </motion.div>
+                    </m.div>
                   );
                 })}
                 {/* Lost states */}
                 {lostStates.map((s) => {
                   const sc = statusColorMap['LOST'];
                   return (
-                    <motion.div
+                    <m.div
                       key={s.name}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -445,7 +445,7 @@ function PathToVictory({ states, projectedWinner }: {
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-rose/50 shrink-0" />
                       {s.name}
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </div>
@@ -473,7 +473,7 @@ function PathToVictory({ states, projectedWinner }: {
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -481,7 +481,7 @@ const PartyRow = React.memo(function PartyRow({ party, idx }: { party: PartyResu
   const isLeading = idx === 0;
   const partyColor = PARTY_COLOR_MAPPINGS[party.party] || DEFAULT_PARTY_COLOR;
   return (
-    <motion.div
+    <m.div
       layoutId={`party-${party.party}`}
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
@@ -542,7 +542,7 @@ const PartyRow = React.memo(function PartyRow({ party, idx }: { party: PartyResu
       <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0 w-16 text-right hidden md:block">
         {party.votes.toLocaleString()}
       </span>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -631,7 +631,7 @@ function CoalitionMath({ parties }: { parties: PartyResult[] }) {
   if (scenarios.length === 0) return null;
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.15 }}
@@ -666,7 +666,7 @@ function CoalitionMath({ parties }: { parties: PartyResult[] }) {
           </div>
         ))}
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -752,7 +752,7 @@ const SwingStateCard = React.memo(function SwingStateCard({ state }: { state: Sw
   const sc = statusConfig[state.status] || statusConfig['LEANING'];
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className="rounded-lg border border-border/60 bg-card/40 backdrop-blur-sm p-3 card-lift"
@@ -783,13 +783,13 @@ const SwingStateCard = React.memo(function SwingStateCard({ state }: { state: Sw
       <p className="text-[10px] text-muted-foreground/40 mt-1 tabular-nums">
         {state.totalVotes.toLocaleString()} votes counted
       </p>
-    </motion.div>
+    </m.div>
   );
 });
 
 function SwingStatesGrid({ states }: { states: SwingState[] }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
@@ -808,7 +808,7 @@ function SwingStatesGrid({ states }: { states: SwingState[] }) {
           <SwingStateCard key={s.name} state={s} />
         ))}
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -836,7 +836,7 @@ function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
   };
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.25 }}
@@ -853,7 +853,7 @@ function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
         <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] font-semibold ml-1">
           {states.length} states
         </Badge>
-        <motion.div
+        <m.div
           animate={{ rotate: expanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
           className="ml-auto"
@@ -863,13 +863,13 @@ function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
           ) : (
             <ChevronDown className="h-4 w-4 text-muted-foreground/50" />
           )}
-        </motion.div>
+        </m.div>
       </button>
 
       {/* Expandable content */}
       <AnimatePresence>
         {expanded && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -897,7 +897,7 @@ function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
                   const sc = statusColorMap[s.status] || statusColorMap['LEANING'];
                   const totalPct = s.partyVotes.reduce((sum, pv) => sum + pv.percentage, 0);
                   return (
-                    <motion.div
+                    <m.div
                       key={s.name}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -950,7 +950,7 @@ function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
                       <span className="text-[10px] text-muted-foreground/40 tabular-nums shrink-0 hidden lg:block">
                         {s.totalVotes.toLocaleString()}
                       </span>
-                    </motion.div>
+                    </m.div>
                   );
                 })
               )}
@@ -961,10 +961,10 @@ function StateBreakdown({ states }: { states: StateBreakdownEntry[] }) {
                 Showing {filteredStates.length} of {states.length} states
               </p>
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -1004,7 +1004,7 @@ function SentimentPulse({ sentiment }: {
 
   return (
     <div className="space-y-2">
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.3 }}
@@ -1014,10 +1014,10 @@ function SentimentPulse({ sentiment }: {
           <Activity className="h-4 w-4 text-cyan" />
         </div>
         <span className="text-sm font-semibold">Sentiment Pulse</span>
-      </motion.div>
+      </m.div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
       {chips.map((chip) => (
-        <motion.div
+        <m.div
           key={chip.label}
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -1038,7 +1038,7 @@ function SentimentPulse({ sentiment }: {
               {chip.value}%
             </span>
           </div>
-        </motion.div>
+        </m.div>
       ))}
       </div>
     </div>
@@ -1117,7 +1117,7 @@ function TrackerSkeleton() {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function ElectionTracker() {
+export const ElectionTracker = React.memo(function ElectionTracker() {
   const { tenantId, setSelectedTab } = useDashboardStore();
 
   // ── Data Fetches ──────────────────────────────────────────────────────────
@@ -1409,7 +1409,7 @@ export function ElectionTracker() {
       {stateBreakdown.length > 0 && (
         <div>
           <PathToVictory states={stateBreakdown} projectedWinner={victoryProjection.projectedWinner} />
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -1425,7 +1425,7 @@ export function ElectionTracker() {
               Open Full Victory Roadmap
               <ChevronRight className="h-3 w-3" />
             </Button>
-          </motion.div>
+          </m.div>
         </div>
       )}
 
@@ -1453,4 +1453,4 @@ export function ElectionTracker() {
       <SentimentPulse sentiment={sentiment} />
     </div>
   );
-}
+});

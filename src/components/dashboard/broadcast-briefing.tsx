@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Send, Users, Shield, Clock, Loader2, X, CheckCircle2,
   AlertTriangle, Info, Eye, Sparkles, Copy, Download, FileText, Zap,
@@ -262,7 +262,7 @@ export function BroadcastBriefing({ open, onOpenChange }: BroadcastBriefingProps
               {QUICK_TEMPLATES.map((t) => {
                 const Icon = t.icon;
                 return (
-                  <motion.button
+                  <m.button
                     key={t.id}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -276,7 +276,7 @@ export function BroadcastBriefing({ open, onOpenChange }: BroadcastBriefingProps
                   >
                     <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="font-medium truncate">{t.label}</span>
-                  </motion.button>
+                  </m.button>
                 );
               })}
             </div>

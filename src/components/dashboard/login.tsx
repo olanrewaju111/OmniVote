@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -75,7 +75,7 @@ export function LoginScreen() {
         <div className="absolute bottom-20 -left-20 w-40 h-40 rounded-full bg-cyan/5 blur-3xl" />
 
         <div className="relative z-10">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
@@ -88,34 +88,34 @@ export function LoginScreen() {
               <h1 className="text-lg font-bold tracking-tight">OmniVote</h1>
               <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em]">Monitor</p>
             </div>
-          </motion.div>
+          </m.div>
 
-          <motion.h2
+          <m.h2
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
             className="text-2xl font-bold mb-3 leading-tight"
           >
             Secure Election<br />Command Center
-          </motion.h2>
-          <motion.p
+          </m.h2>
+          <m.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.25 }}
             className="text-sm text-muted-foreground leading-relaxed max-w-sm"
           >
             Real-time election monitoring with AI-powered threat detection, deepfake identification, and adversarial defense systems.
-          </motion.p>
+          </m.p>
 
           {/* Feature highlights */}
-          <motion.div
+          <m.div
             variants={container}
             initial="hidden"
             animate="show"
             className="mt-8 space-y-3"
           >
             {FEATURES.map((f) => (
-              <motion.div
+              <m.div
                 key={f.title}
                 variants={item}
                 className="flex items-start gap-3 p-2.5 rounded-lg hover:bg-card/40 transition-colors group"
@@ -127,12 +127,12 @@ export function LoginScreen() {
                   <p className="text-xs font-medium">{f.title}</p>
                   <p className="text-[11px] text-muted-foreground/60">{f.desc}</p>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
-          </motion.div>
+          </m.div>
         </div>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -157,7 +157,7 @@ export function LoginScreen() {
           <p className="text-[10px] text-muted-foreground/30">
             OmniVote Monitor v2.1 &middot; Zero-Trust Architecture &middot; AES-256 Encryption
           </p>
-        </motion.div>
+        </m.div>
       </div>
 
       {/* ═══ Right panel — tenant selection ═══ */}
@@ -165,7 +165,7 @@ export function LoginScreen() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-md mx-auto px-4 sm:px-6 py-8">
             {/* Mobile header */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="lg:hidden flex items-center gap-3 mb-8"
@@ -177,10 +177,10 @@ export function LoginScreen() {
                 <h1 className="text-base font-bold">OmniVote Monitor</h1>
                 <p className="text-[10px] text-muted-foreground">Election Command Center</p>
               </div>
-            </motion.div>
+            </m.div>
 
             {/* Tenant Selection */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
@@ -196,7 +196,7 @@ export function LoginScreen() {
                 </div>
               ) : (
                 <AnimatePresence>
-                  <motion.div
+                  <m.div
                     variants={container}
                     initial="hidden"
                     animate="show"
@@ -205,7 +205,7 @@ export function LoginScreen() {
                     {tenants.map(t => {
                       const tInfo = TENANT_TIER[t.slug];
                       return (
-                        <motion.button
+                        <m.button
                           key={t.id}
                           variants={item}
                           whileHover={{ scale: 1.005, x: 2 }}
@@ -240,13 +240,13 @@ export function LoginScreen() {
                             </div>
                             <ExternalLink className="h-4 w-4 text-muted-foreground/30 opacity-0 group-hover:opacity-100 group-hover:text-muted-foreground transition-all shrink-0" />
                           </div>
-                        </motion.button>
+                        </m.button>
                       );
                     })}
-                  </motion.div>
+                  </m.div>
                 </AnimatePresence>
               )}
-            </motion.div>
+            </m.div>
           </div>
         </div>
 

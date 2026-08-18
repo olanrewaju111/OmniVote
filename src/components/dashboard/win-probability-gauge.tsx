@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
-import { motion, useSpring, useTransform } from 'framer-motion';
+import { m, useSpring, useTransform } from 'framer-motion';
 import { useEffect, useState, useMemo } from 'react';
 import {
   TrendingUp,
@@ -127,7 +127,7 @@ function RingGauge({ probability }: { probability: number }) {
         strokeWidth={strokeWidth}
       />
       {/* Progress */}
-      <motion.circle
+      <m.circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
@@ -227,7 +227,7 @@ export function WinProbabilityGauge() {
             <div className="flex items-center gap-2 mt-1.5">
               <Shield className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
               <div className="flex-1 h-1.5 bg-muted/50 rounded-full overflow-hidden">
-                <motion.div
+                <m.div
                   className="h-full rounded-full bg-cyan"
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(confidence, 100)}%` }}
@@ -247,7 +247,7 @@ export function WinProbabilityGauge() {
                     {p.party}
                   </span>
                   <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                    <motion.div
+                    <m.div
                       className="h-full rounded-full"
                       style={{ backgroundColor: PARTY_COLORS[p.party] || '#888' }}
                       initial={{ width: 0 }}

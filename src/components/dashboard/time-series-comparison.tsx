@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   LineChart,
   Line,
@@ -436,7 +436,7 @@ export function TimeSeriesComparison({
             <p className="text-sm font-medium">No data for the selected period</p>
           </div>
         ) : mode === 'overlay' ? (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
@@ -508,7 +508,7 @@ export function TimeSeriesComparison({
                   })}
               </AreaChart>
             </ResponsiveContainer>
-          </motion.div>
+          </m.div>
         ) : (
           <div
             className="grid grid-cols-1 md:grid-cols-2 gap-4"

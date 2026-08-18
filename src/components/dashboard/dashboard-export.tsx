@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -415,7 +415,7 @@ export function DashboardExport({
           {/* Preview / Progress / Error */}
           <AnimatePresence mode="wait">
             {step === 'capturing' && (
-              <motion.div
+              <m.div
                 key="capturing"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -424,10 +424,10 @@ export function DashboardExport({
               >
                 <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
                 <p className="text-xs text-muted-foreground">Capturing dashboard...</p>
-              </motion.div>
+              </m.div>
             )}
             {step === 'generating' && (
-              <motion.div
+              <m.div
                 key="generating"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -438,10 +438,10 @@ export function DashboardExport({
                 <p className="text-xs text-muted-foreground">
                   Generating {format.toUpperCase()}...
                 </p>
-              </motion.div>
+              </m.div>
             )}
             {step === 'error' && (
-              <motion.div
+              <m.div
                 key="error"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -450,10 +450,10 @@ export function DashboardExport({
               >
                 <AlertCircle className="h-8 w-8 text-rose mb-2" />
                 <p className="text-xs text-rose">{errorMessage || 'Export failed'}</p>
-              </motion.div>
+              </m.div>
             )}
             {step === 'done' && previewUrl && (
-              <motion.div
+              <m.div
                 key="preview"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -468,7 +468,7 @@ export function DashboardExport({
                     className="w-full h-auto max-h-[240px] object-contain"
                   />
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>

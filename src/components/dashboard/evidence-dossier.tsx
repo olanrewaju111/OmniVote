@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   FileSearch, ShieldCheck, ScanEye, Globe, Plus, Trash2, Eye,
   Loader2, RefreshCw, Clock, AlertTriangle, AlertCircle, CheckCircle2, XCircle,
@@ -202,7 +204,7 @@ function StatCard({ icon: Icon, label, value, iconColor, subtitle }: StatCardPro
 
 // ─── Main Component ──────────────────────────────────────────────────
 
-export function EvidenceDossier() {
+export const EvidenceDossier = React.memo(function EvidenceDossier() {
   const { tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -414,7 +416,7 @@ export function EvidenceDossier() {
               {dossiers.map((d, idx) => {
                 const sc = statusConfig(d.status);
                 return (
-                  <motion.div
+                  <m.div
                     key={d.id}
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -520,7 +522,7 @@ export function EvidenceDossier() {
                         </div>
                       </CardContent>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 );
               })}
 
@@ -800,7 +802,7 @@ export function EvidenceDossier() {
               <ScrollArea className="flex-1 min-h-0">
                 <div className="space-y-1.5 pb-2">
                   {SCRAPE_LOG_ENTRIES.map((entry, i) => (
-                    <motion.div
+                    <m.div
                       key={i}
                       initial={{ opacity: 0, x: -8 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -811,7 +813,7 @@ export function EvidenceDossier() {
                         {entry.relTime}
                       </span>
                       <span className="text-[11px] text-foreground/80">{entry.msg}</span>
-                    </motion.div>
+                    </m.div>
                   ))}
                 </div>
               </ScrollArea>
@@ -973,4 +975,4 @@ export function EvidenceDossier() {
       </Dialog>
     </div>
   );
-}
+});

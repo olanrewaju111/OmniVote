@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,7 +64,7 @@ const ROLE_ICONS: Record<string, React.ReactNode> = {
 };
 
 // ---- Main Component ----
-export function TenantManagement() {
+export const TenantManagement = React.memo(function TenantManagement() {
   const { user, tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
@@ -805,7 +807,7 @@ export function TenantManagement() {
       </Dialog>
     </div>
   );
-}
+});
 
 // ============================================================
 // Sub-components

@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   BarChart3, TrendingUp, TrendingDown, Send, MessageSquare,
   Users, Target, Zap, Rocket, Eye, ArrowUpRight, ArrowDownRight,
@@ -174,7 +176,7 @@ function generateTimeSeriesFromApi(
 //  MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 
-export function CampaignAnalyticsPanel() {
+export const CampaignAnalyticsPanel = React.memo(function CampaignAnalyticsPanel() {
   const tenantId = useDashboardStore((s) => s.tenantId);
   const queryClient = useQueryClient();
   const [quickChannel, setQuickChannel] = useState('WHATSAPP');
@@ -345,7 +347,7 @@ export function CampaignAnalyticsPanel() {
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4">
       {/* ─── Header ─────────────────────────────────────────────── */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
@@ -363,7 +365,7 @@ export function CampaignAnalyticsPanel() {
           <Sparkles className="size-3 text-emerald-400" />
           {campaigns.length} campaigns
         </Badge>
-      </motion.div>
+      </m.div>
 
       {/* ─── Tabs ────────────────────────────────────────────────── */}
       <Tabs defaultValue="roi" className="space-y-4">
@@ -390,7 +392,7 @@ export function CampaignAnalyticsPanel() {
             TAB 1: ROI DASHBOARD
             ═══════════════════════════════════════════════════════════ */}
         <TabsContent value="roi" className="space-y-4">
-          <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
+          <m.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-3">
             {/* Top 3 Highlight Cards */}
             {topThree.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -400,7 +402,7 @@ export function CampaignAnalyticsPanel() {
                     : 0;
                   const style = RANK_STYLES[idx] || RANK_STYLES[2];
                   return (
-                    <motion.div key={camp.id} custom={idx} variants={fadeUp}>
+                    <m.div key={camp.id} custom={idx} variants={fadeUp}>
                       <Card className={cn(`border ${style.border} ${style.bg} shadow-sm ${style.glow}`)}>
                         <CardContent className="p-3">
                           <div className="flex items-center justify-between mb-2">
@@ -436,7 +438,7 @@ export function CampaignAnalyticsPanel() {
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </div>
@@ -482,7 +484,7 @@ export function CampaignAnalyticsPanel() {
                           const reach = Math.round(camp.deliveredCount * 1.12); // estimated network reach
                           const isTop3 = idx < 3;
                           return (
-                            <motion.tr
+                            <m.tr
                               key={camp.id}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
@@ -543,7 +545,7 @@ export function CampaignAnalyticsPanel() {
                               <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">
                                 ~{fmt(reach)}
                               </td>
-                            </motion.tr>
+                            </m.tr>
                           );
                         })
                       )}
@@ -621,14 +623,14 @@ export function CampaignAnalyticsPanel() {
                 </CardContent>
               </Card>
             )}
-          </motion.div>
+          </m.div>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════════
             TAB 2: ENGAGEMENT FUNNEL
             ═══════════════════════════════════════════════════════════ */}
         <TabsContent value="funnel" className="space-y-4">
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
@@ -642,7 +644,7 @@ export function CampaignAnalyticsPanel() {
                 { label: 'Open Rate', value: `${pct(funnelData.opened, funnelData.delivered)}`, icon: <Eye className="size-4" />, color: 'text-violet-400' },
                 { label: 'Conversion', value: `${pct(funnelData.converted, funnelData.total)}`, icon: <Target className="size-4" />, color: 'text-amber-400' },
               ].map((stat, idx) => (
-                <motion.div key={stat.label} custom={idx} variants={fadeUp}>
+                <m.div key={stat.label} custom={idx} variants={fadeUp}>
                   <Card className="p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={stat.color}>{stat.icon}</span>
@@ -650,7 +652,7 @@ export function CampaignAnalyticsPanel() {
                     </div>
                     <p className="text-lg font-bold font-mono">{stat.value}</p>
                   </Card>
-                </motion.div>
+                </m.div>
               ))}
             </div>
 
@@ -676,7 +678,7 @@ export function CampaignAnalyticsPanel() {
                   const percentage = pct(value, funnelData.total);
 
                   return (
-                    <motion.div
+                    <m.div
                       key={stage.key}
                       custom={idx}
                       variants={fadeUp}
@@ -698,7 +700,7 @@ export function CampaignAnalyticsPanel() {
                         </span>
                       </div>
                       <div className="relative h-7 rounded-md overflow-hidden bg-muted/30">
-                        <motion.div
+                        <m.div
                           initial={{ width: 0 }}
                           animate={{ width: `${widthPct}%` }}
                           transition={{
@@ -712,7 +714,7 @@ export function CampaignAnalyticsPanel() {
                             opacity: 0.15 + idx * 0.06,
                           }}
                         />
-                        <motion.div
+                        <m.div
                           initial={{ width: 0 }}
                           animate={{ width: `${widthPct}%` }}
                           transition={{
@@ -727,7 +729,7 @@ export function CampaignAnalyticsPanel() {
                           }}
                         />
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </CardContent>
@@ -765,14 +767,14 @@ export function CampaignAnalyticsPanel() {
                 )}
               </p>
             </Card>
-          </motion.div>
+          </m.div>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════════
             TAB 3: CHANNEL PERFORMANCE
             ═══════════════════════════════════════════════════════════ */}
         <TabsContent value="channel" className="space-y-4">
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
@@ -842,7 +844,7 @@ export function CampaignAnalyticsPanel() {
                   ) : (
                     <AnimatePresence mode="popLayout">
                       {channelPieData.map((ch, idx) => (
-                        <motion.div
+                        <m.div
                           key={ch.name}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
@@ -884,7 +886,7 @@ export function CampaignAnalyticsPanel() {
                               </p>
                             </div>
                           </div>
-                        </motion.div>
+                        </m.div>
                       ))}
                     </AnimatePresence>
                   )}
@@ -933,14 +935,14 @@ export function CampaignAnalyticsPanel() {
                 </CardContent>
               </Card>
             )}
-          </motion.div>
+          </m.div>
         </TabsContent>
 
         {/* ═══════════════════════════════════════════════════════════
             TAB 4: SENTIMENT
             ═══════════════════════════════════════════════════════════ */}
         <TabsContent value="sentiment" className="space-y-4">
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
@@ -949,7 +951,7 @@ export function CampaignAnalyticsPanel() {
             {/* Sentiment Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Positive */}
-              <motion.div custom={0} variants={fadeUp}>
+              <m.div custom={0} variants={fadeUp}>
                 <Card className="p-4 border-emerald-500/20 bg-emerald-500/5">
                   <div className="flex items-center justify-between mb-2">
                     <ThumbsUp className="size-5 text-emerald-400" />
@@ -970,10 +972,10 @@ export function CampaignAnalyticsPanel() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Positive Mentions</p>
                 </Card>
-              </motion.div>
+              </m.div>
 
               {/* Negative */}
-              <motion.div custom={1} variants={fadeUp}>
+              <m.div custom={1} variants={fadeUp}>
                 <Card className="p-4 border-rose-500/20 bg-rose-500/5">
                   <div className="flex items-center justify-between mb-2">
                     <ThumbsDown className="size-5 text-rose-400" />
@@ -994,10 +996,10 @@ export function CampaignAnalyticsPanel() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Negative Mentions</p>
                 </Card>
-              </motion.div>
+              </m.div>
 
               {/* Neutral */}
-              <motion.div custom={2} variants={fadeUp}>
+              <m.div custom={2} variants={fadeUp}>
                 <Card className="p-4 border-muted/40 bg-muted/5">
                   <div className="flex items-center justify-between mb-2">
                     <Minus className="size-5 text-muted-foreground" />
@@ -1012,12 +1014,12 @@ export function CampaignAnalyticsPanel() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">Neutral / Mixed</p>
                 </Card>
-              </motion.div>
+              </m.div>
             </div>
 
             {/* Sentiment Ratio */}
             {sentimentSummary.total > 0 && (
-              <motion.div custom={3} variants={fadeUp}>
+              <m.div custom={3} variants={fadeUp}>
                 <Card className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-medium">Sentiment Distribution</p>
@@ -1036,7 +1038,7 @@ export function CampaignAnalyticsPanel() {
                   </div>
                   {/* Stacked horizontal bar */}
                   <div className="flex h-3 rounded-full overflow-hidden bg-muted/20">
-                    <motion.div
+                    <m.div
                       initial={{ width: 0 }}
                       animate={{
                         width: `${(sentimentSummary.pos / sentimentSummary.total) * 100}%`,
@@ -1044,7 +1046,7 @@ export function CampaignAnalyticsPanel() {
                       transition={{ delay: 0.3, duration: 0.8 }}
                       className="bg-emerald-500"
                     />
-                    <motion.div
+                    <m.div
                       initial={{ width: 0 }}
                       animate={{
                         width: `${(sentimentSummary.neg / sentimentSummary.total) * 100}%`,
@@ -1052,7 +1054,7 @@ export function CampaignAnalyticsPanel() {
                       transition={{ delay: 0.4, duration: 0.8 }}
                       className="bg-rose-500"
                     />
-                    <motion.div
+                    <m.div
                       initial={{ width: 0 }}
                       animate={{
                         width: `${((sentimentSummary.neu + sentimentSummary.mixed) / sentimentSummary.total) * 100}%`,
@@ -1076,12 +1078,12 @@ export function CampaignAnalyticsPanel() {
                     </span>
                   </div>
                 </Card>
-              </motion.div>
+              </m.div>
             )}
 
             {/* Sentiment over channel — bar chart */}
             {osintQuery.data?.posts && osintQuery.data.posts.length > 0 && (
-              <motion.div custom={4} variants={fadeUp}>
+              <m.div custom={4} variants={fadeUp}>
                 <Card>
                   <CardHeader className="pb-2 pt-4 px-4">
                     <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -1143,7 +1145,7 @@ export function CampaignAnalyticsPanel() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             )}
 
             {osintQuery.isLoading && (
@@ -1152,14 +1154,14 @@ export function CampaignAnalyticsPanel() {
                 <span className="ml-2 text-sm text-muted-foreground">Loading sentiment data...</span>
               </div>
             )}
-          </motion.div>
+          </m.div>
         </TabsContent>
       </Tabs>
 
       {/* ═══════════════════════════════════════════════════════════════
           QUICK CAMPAIGN LAUNCHER (always visible)
           ═══════════════════════════════════════════════════════════════ */}
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
@@ -1189,7 +1191,7 @@ export function CampaignAnalyticsPanel() {
             {/* Template suggestions */}
             <AnimatePresence>
               {showTemplates && (
-                <motion.div
+                <m.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
@@ -1225,7 +1227,7 @@ export function CampaignAnalyticsPanel() {
                         </button>
                       ))}
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
 
@@ -1308,9 +1310,9 @@ export function CampaignAnalyticsPanel() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </m.div>
     </div>
   );
-}
+});
 
 export default CampaignAnalyticsPanel;

@@ -1,12 +1,14 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { useDashboardStore } from '@/store/dashboard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -210,7 +212,7 @@ const staggerContainer = {
 /* Main Component                                                      */
 /* ------------------------------------------------------------------ */
 
-export function FlashpointWargame() {
+export const FlashpointWargame = React.memo(function FlashpointWargame() {
   const { tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -397,7 +399,7 @@ export function FlashpointWargame() {
         {/* TAB 1 — Risk Forecast                                           */}
         {/* ================================================================ */}
         <TabsContent value="forecast" className="flex-1 min-h-0 flex flex-col">
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="initial"
             animate="animate"
@@ -405,7 +407,7 @@ export function FlashpointWargame() {
           >
             {/* --- Stats Row --- */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <motion.div variants={fadeIn}>
+              <m.div variants={fadeIn}>
                 <Card className="h-full">
                   <CardContent className="p-4 flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -415,9 +417,9 @@ export function FlashpointWargame() {
                     <p className="text-2xl font-bold">{stats?.totalForecasts ?? 0}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
 
-              <motion.div variants={fadeIn}>
+              <m.div variants={fadeIn}>
                 <Card className="h-full border-red-500/20">
                   <CardContent className="p-4 flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-red-400">
@@ -427,9 +429,9 @@ export function FlashpointWargame() {
                     <p className="text-2xl font-bold text-red-400">{stats?.highRiskStates?.length ?? 0}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
 
-              <motion.div variants={fadeIn}>
+              <m.div variants={fadeIn}>
                 <Card className="h-full border-rose-500/20">
                   <CardContent className="p-4 flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-rose-400">
@@ -439,9 +441,9 @@ export function FlashpointWargame() {
                     <p className="text-2xl font-bold text-rose-400">{stats?.byRiskLevel?.CRITICAL ?? 0}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
 
-              <motion.div variants={fadeIn}>
+              <m.div variants={fadeIn}>
                 <Card className="h-full">
                   <CardContent className="p-4 flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-cyan-400">
@@ -453,9 +455,9 @@ export function FlashpointWargame() {
                     </p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
 
-              <motion.div variants={fadeIn}>
+              <m.div variants={fadeIn}>
                 <Card className="h-full">
                   <CardContent className="p-4 flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-amber-400">
@@ -465,13 +467,13 @@ export function FlashpointWargame() {
                     <p className="text-sm font-semibold truncate">{topFactor}</p>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             </div>
 
             {/* --- Main Two Column Layout --- */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
               {/* LEFT: 7-Day Heatmap */}
-              <motion.div variants={fadeIn}>
+              <m.div variants={fadeIn}>
                 <Card className="h-full flex flex-col">
                   <CardContent className="p-4 flex flex-col gap-3 flex-1 min-h-0">
                     <div className="flex items-center justify-between">
@@ -594,12 +596,12 @@ export function FlashpointWargame() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
 
               {/* RIGHT: Stacked sections */}
               <div className="flex flex-col gap-4 min-h-0">
                 {/* Risk by State - Horizontal Bar Chart */}
-                <motion.div variants={fadeIn} className="flex-1 min-h-0">
+                <m.div variants={fadeIn} className="flex-1 min-h-0">
                   <Card className="h-full flex flex-col">
                     <CardContent className="p-4 flex flex-col gap-3 flex-1 min-h-0">
                       <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -620,7 +622,7 @@ export function FlashpointWargame() {
                                   {state}
                                 </div>
                                 <div className="flex-1 h-5 bg-muted/50 rounded-sm overflow-hidden relative">
-                                  <motion.div
+                                  <m.div
                                     className="h-full rounded-sm"
                                     style={{ backgroundColor: riskBarColor(overall) }}
                                     initial={{ width: 0 }}
@@ -641,10 +643,10 @@ export function FlashpointWargame() {
                       )}
                     </CardContent>
                   </Card>
-                </motion.div>
+                </m.div>
 
                 {/* Top Contributing Factors */}
-                <motion.div variants={fadeIn} className="flex-1 min-h-0">
+                <m.div variants={fadeIn} className="flex-1 min-h-0">
                   <Card className="h-full flex flex-col">
                     <CardContent className="p-4 flex flex-col gap-3 flex-1 min-h-0">
                       <h3 className="text-sm font-semibold flex items-center gap-2">
@@ -668,7 +670,7 @@ export function FlashpointWargame() {
                                   {item.factor}
                                 </div>
                                 <div className="flex-1 h-4 bg-muted/50 rounded-sm overflow-hidden relative">
-                                  <motion.div
+                                  <m.div
                                     className="h-full rounded-sm bg-cyan-500/60"
                                     initial={{ width: 0 }}
                                     animate={{ width: `${(item.count / maxFactorCount) * 100}%` }}
@@ -685,17 +687,17 @@ export function FlashpointWargame() {
                       )}
                     </CardContent>
                   </Card>
-                </motion.div>
+                </m.div>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         </TabsContent>
 
         {/* ================================================================ */}
         {/* TAB 2 — Wargame Simulator                                       */}
         {/* ================================================================ */}
         <TabsContent value="wargame" className="flex-1 min-h-0 flex flex-col">
-          <motion.div
+          <m.div
             variants={staggerContainer}
             initial="initial"
             animate="animate"
@@ -730,7 +732,7 @@ export function FlashpointWargame() {
               <div className="flex-1 min-h-0 flex flex-col gap-4">
                 {/* Scenario list (when no scenario selected) */}
                 {!selectedScenario && (
-                  <motion.div variants={fadeIn} className="flex-1 min-h-0">
+                  <m.div variants={fadeIn} className="flex-1 min-h-0">
                     <Card className="h-full flex flex-col">
                       <CardContent className="p-4 flex-1 min-h-0">
                         {scenarios.length === 0 ? (
@@ -791,12 +793,12 @@ export function FlashpointWargame() {
                         )}
                       </CardContent>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 )}
 
                 {/* Scenario Detail View */}
                 {selectedScenario && (
-                  <motion.div variants={fadeIn} className="flex-1 min-h-0 flex flex-col gap-4">
+                  <m.div variants={fadeIn} className="flex-1 min-h-0 flex flex-col gap-4">
                     {/* Header */}
                     <Card>
                       <CardContent className="p-4">
@@ -969,12 +971,12 @@ export function FlashpointWargame() {
                         )}
                       </CardContent>
                     </Card>
-                  </motion.div>
+                  </m.div>
                 )}
               </div>
 
               {/* Right Stats Sidebar */}
-              <motion.div variants={fadeIn} className="hidden lg:flex w-56 flex-col gap-3 flex-shrink-0">
+              <m.div variants={fadeIn} className="hidden lg:flex w-56 flex-col gap-3 flex-shrink-0">
                 <Card>
                   <CardContent className="p-4 flex flex-col gap-4">
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Scenario Stats</h4>
@@ -1092,9 +1094,9 @@ export function FlashpointWargame() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             </div>
-          </motion.div>
+          </m.div>
         </TabsContent>
       </Tabs>
 
@@ -1201,4 +1203,4 @@ export function FlashpointWargame() {
       </Dialog>
     </div>
   );
-}
+});

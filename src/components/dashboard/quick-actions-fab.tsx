@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useDashboardStore, type ViewTab, type UserRole } from '@/store/dashboard';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Plus,
@@ -153,7 +153,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
     <AnimatePresence>
       {/* Semi-transparent backdrop when expanded */}
       {isOpen && (
-        <motion.div
+        <m.div
           key="fab-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -175,7 +175,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
               const yOffset = (displayedActions.length - index) * 56 + 8;
 
               return (
-                <motion.div
+                <m.div
                   key={action.id}
                   initial={{ opacity: 0, y: 20, scale: 0.8 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -193,7 +193,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
                   style={{ bottom: yOffset }}
                 >
                   {/* Label tooltip */}
-                  <motion.span
+                  <m.span
                     initial={{ opacity: 0, x: 8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: staggerDelay + 0.1, duration: 0.15 }}
@@ -206,7 +206,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
                     )}
                   >
                     {action.label}
-                  </motion.span>
+                  </m.span>
 
                   {/* Action button */}
                   <button
@@ -235,7 +235,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
                   >
                     {/* SOS pulse ring */}
                     {action.isSOS && (
-                      <motion.span
+                      <m.span
                         className="absolute inset-0 rounded-full bg-rose-500"
                         animate={{ scale: [1, 1.6], opacity: [0.5, 0] }}
                         transition={{
@@ -255,7 +255,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
 
                     {/* SOS loading spinner */}
                     {action.isSOS && isSendingSOS ? (
-                      <motion.div
+                      <m.div
                         className="h-5 w-5 rounded-full border-2 border-white border-t-transparent"
                         animate={{ rotate: 360 }}
                         transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
@@ -264,13 +264,13 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
                       action.icon
                     )}
                   </button>
-                </motion.div>
+                </m.div>
               );
             })}
         </AnimatePresence>
 
         {/* Main FAB button */}
-        <motion.button
+        <m.button
           onClick={toggleMenu}
           aria-label="Quick actions"
           aria-expanded={isOpen}
@@ -286,7 +286,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
         >
           {/* Pulse indicator for unread alerts */}
           {unreadAlerts > 0 && !isOpen && (
-            <motion.span
+            <m.span
               className="absolute inset-0 rounded-full bg-emerald-400"
               animate={{ scale: [1, 1.35], opacity: [0.6, 0] }}
               transition={{
@@ -297,7 +297,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
             />
           )}
 
-          <motion.div
+          <m.div
             animate={{ rotate: isOpen ? 45 : 0 }}
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
           >
@@ -306,8 +306,8 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
             ) : (
               <Plus className="h-6 w-6" />
             )}
-          </motion.div>
-        </motion.button>
+          </m.div>
+        </m.button>
       </div>
     </AnimatePresence>
   );

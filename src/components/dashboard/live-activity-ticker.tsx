@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
 import { Badge } from '@/components/ui/badge';
@@ -76,7 +76,7 @@ function EventRow({ event, onClick, isLatest }: { event: ActivityEvent; onClick?
   const timeAgo = formatDistanceToNow(new Date(event.timestamp), { addSuffix: true });
 
   return (
-    <motion.div
+    <m.div
       initial={isLatest ? { opacity: 0, x: -20, scale: 0.98 } : false}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -107,7 +107,7 @@ function EventRow({ event, onClick, isLatest }: { event: ActivityEvent; onClick?
 
       {/* Time */}
       <span className="shrink-0 text-[10px] text-muted-foreground/70 whitespace-nowrap mt-0.5">{timeAgo}</span>
-    </motion.div>
+    </m.div>
   );
 }
 

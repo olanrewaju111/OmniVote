@@ -1,11 +1,14 @@
 /**
  * Tab renderer — renders the correct tab component based on activeTab.
  * Uses ErrorBoundary wrapping for each tab.
- * Extracted from page.tsx.
+ * Phase 10: Wrapped TabContent in React.memo with custom comparator
+ * to prevent re-renders when only liveIncidents changes (which updates
+ * frequently via WebSocket but is only used by 'overview' and 'feed' tabs).
  */
 
 'use client';
 
+import React from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 import {
@@ -20,7 +23,28 @@ import {
 } from '@/components/dashboard/lazy-components';
 import type { TabContentProps } from '@/types/dashboard';
 
-export function TabContent({ activeTab, dashData, incidents, alertsData, liveIncidents }: TabContentProps) {
+/**
+ * Custom comparator: skip re-render if only liveIncidents changed
+ * and the active tab doesn't consume it.
+ */
+function tabPropsEqual(prev: TabContentProps, next: TabContentProps): boolean {
+  // Always re-render on tab change or data changes
+  if (prev.activeTab !== next.activeTab) return false;
+  if (prev.dashData !== next.dashData) return false;
+  if (prev.incidents !== next.incidents) return false;
+  if (prev.alertsData !== next.alertsData) return false;
+
+  // Tabs that consume liveIncidents
+  const liveConsumingTabs = ['overview', 'feed'];
+  if (liveConsumingTabs.includes(prev.activeTab)) {
+    return prev.liveIncidents === next.liveIncidents;
+  }
+
+  // For all other tabs, liveIncidents changes don't matter
+  return true;
+}
+
+function TabContentInner({ activeTab, dashData, incidents, alertsData, liveIncidents }: TabContentProps) {
   switch (activeTab) {
     case 'overview':
       return (
@@ -172,19 +196,19 @@ export function TabContent({ activeTab, dashData, incidents, alertsData, liveInc
     case 'my-reports':
       return (
         <ErrorBoundary title="My Reports">
-          <MyReports />
+          <div className="h-full"><MyReports /></div>
         </ErrorBoundary>
       );
     case 'agents':
       return (
         <ErrorBoundary title="Agent Roster">
-          <AgentRoster />
+          <div className="h-full"><AgentRoster /></div>
         </ErrorBoundary>
       );
     case 'engagement':
       return (
         <ErrorBoundary title="Agent Engagement">
-          <AgentEngagement />
+          <div className="h-full"><AgentEngagement /></div>
         </ErrorBoundary>
       );
     case 'system':
@@ -199,7 +223,7 @@ export function TabContent({ activeTab, dashData, incidents, alertsData, liveInc
     case 'tenants':
       return (
         <ErrorBoundary title="Tenant Management">
-          <TenantManagement />
+          <div className="h-full"><TenantManagement /></div>
         </ErrorBoundary>
       );
     case 'narrative':
@@ -230,3 +254,5 @@ export function TabContent({ activeTab, dashData, incidents, alertsData, liveInc
       return <DashboardSkeleton />;
   }
 }
+
+export const TabContent = React.memo(TabContentInner, tabPropsEqual);

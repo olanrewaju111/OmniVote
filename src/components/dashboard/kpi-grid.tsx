@@ -7,7 +7,7 @@ import {
   Users, AlertTriangle, Vote, Shield, ShieldCheck, Radio, ShieldAlert,
   BarChart3, TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
-import { motion, useSpring, useTransform } from 'framer-motion';
+import { m, useSpring, useTransform } from 'framer-motion';
 import { useEffect, useState, useMemo } from 'react';
 
 // ── Mini Sparkline SVG ──
@@ -178,7 +178,7 @@ function ProgressRing({ value, max, size = 40, strokeWidth = 3, color = 'emerald
   return (
     <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" className={trackColor} strokeWidth={strokeWidth} />
-      <motion.circle
+      <m.circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
         className={colorMap[color] || 'stroke-emerald'}
         strokeWidth={strokeWidth}
@@ -247,7 +247,7 @@ const KpiCard = React.memo(function KpiCard({ label, value, sub, icon, color, tr
   }, [sparkline, isNumeric, value]);
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -292,7 +292,7 @@ const KpiCard = React.memo(function KpiCard({ label, value, sub, icon, color, tr
           )}
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 });
 

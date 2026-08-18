@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect, useMemo, type RefObject } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap, Megaphone, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -562,7 +562,7 @@ export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
               {/* Password Change Form */}
               <AnimatePresence>
                 {showPwChange && (
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
@@ -641,7 +641,7 @@ export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
                         {/* Password strength indicator */}
                         <AnimatePresence>
                           {newPw.length > 0 && (
-                            <motion.div
+                            <m.div
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}
                               exit={{ opacity: 0, height: 0 }}
@@ -660,7 +660,7 @@ export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
                               <p className={cn('text-[10px] font-medium', getPasswordStrength(newPw).color)}>
                                 {getPasswordStrength(newPw).label}
                               </p>
-                            </motion.div>
+                            </m.div>
                           )}
                         </AnimatePresence>
                       </div>
@@ -730,7 +730,7 @@ export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
                         {pwChanging ? 'Updating...' : 'Update Password'}
                       </Button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
             </div>

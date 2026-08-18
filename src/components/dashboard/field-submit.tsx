@@ -21,7 +21,7 @@ import {
   Radio, Loader2, ShieldCheck, Vote, FileWarning, Plus, X,
   TrendingUp, BarChart3, Users, RefreshCw, CloudOff,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
@@ -480,7 +480,7 @@ export function SubmitReport() {
 
         {/* Tab content */}
         <AnimatePresence mode="wait">
-          <motion.div
+          <m.div
             key={activeTab}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -896,7 +896,7 @@ export function SubmitReport() {
                 </CardContent>
               </Card>
             )}
-          </motion.div>
+          </m.div>
         </AnimatePresence>
 
         {/* Offline queue indicator */}

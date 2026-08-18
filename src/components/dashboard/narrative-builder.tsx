@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Plus, Loader2, Trophy, ShieldAlert, Route,
   ChevronDown, ChevronUp, Clock, MessageSquare, Filter,
@@ -160,7 +162,7 @@ function PriorityBar({ priority }: { priority: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-        <motion.div
+        <m.div
           className={cn('h-full rounded-full', color)}
           initial={{ width: 0 }}
           animate={{ width: `${width}%` }}
@@ -174,7 +176,7 @@ function PriorityBar({ priority }: { priority: number }) {
 
 // ─── Main Component ──────────────────────────────────────────────────
 
-export function NarrativeBuilder() {
+export const NarrativeBuilder = React.memo(function NarrativeBuilder() {
   const { tenantId } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -417,7 +419,7 @@ export function NarrativeBuilder() {
                   {filteredMessages.map((msg, idx) => {
                     const style = CATEGORY_STYLES[msg.category];
                     return (
-                      <motion.div
+                      <m.div
                         key={msg.id}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -472,7 +474,7 @@ export function NarrativeBuilder() {
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </AnimatePresence>
@@ -493,7 +495,7 @@ export function NarrativeBuilder() {
             ) : (
               <div className="space-y-4 pb-4">
                 {Object.entries(groupedTalkingPoints).map(([category, points], groupIdx) => (
-                  <motion.div
+                  <m.div
                     key={category}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -506,7 +508,7 @@ export function NarrativeBuilder() {
                       {points.map((tp, idx) => {
                         const isExpanded = expandedPoint === tp.id;
                         return (
-                          <motion.div
+                          <m.div
                             key={tp.id}
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
@@ -526,7 +528,7 @@ export function NarrativeBuilder() {
                                     <p className="text-xs font-medium leading-relaxed">{tp.point}</p>
                                     <AnimatePresence>
                                       {isExpanded && (
-                                        <motion.div
+                                        <m.div
                                           initial={{ height: 0, opacity: 0 }}
                                           animate={{ height: 'auto', opacity: 1 }}
                                           exit={{ height: 0, opacity: 0 }}
@@ -537,7 +539,7 @@ export function NarrativeBuilder() {
                                           <p className="text-[11px] text-muted-foreground leading-relaxed">
                                             {tp.context}
                                           </p>
-                                        </motion.div>
+                                        </m.div>
                                       )}
                                     </AnimatePresence>
                                   </div>
@@ -561,11 +563,11 @@ export function NarrativeBuilder() {
                                 </div>
                               </CardContent>
                             </Card>
-                          </motion.div>
+                          </m.div>
                         );
                       })}
                     </div>
-                  </motion.div>
+                  </m.div>
                 ))}
               </div>
             )}
@@ -591,7 +593,7 @@ export function NarrativeBuilder() {
                     const timelineStyle = TIMELINE_STYLES[event.type];
                     const Icon = TIMELINE_ICONS[event.type];
                     return (
-                      <motion.div
+                      <m.div
                         key={event.id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -634,7 +636,7 @@ export function NarrativeBuilder() {
                             </div>
                           </CardContent>
                         </Card>
-                      </motion.div>
+                      </m.div>
                     );
                   })}
                 </div>
@@ -762,4 +764,4 @@ export function NarrativeBuilder() {
       </Dialog>
     </div>
   );
-}
+});

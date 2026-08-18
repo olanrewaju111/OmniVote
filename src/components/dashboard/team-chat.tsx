@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   MessageCircle,
   X,
@@ -79,7 +79,7 @@ function renderBody(text: string) {
 
 function ChatBackdrop({ onClick }: { onClick: () => void }) {
   return (
-    <motion.div
+    <m.div
       key="chat-backdrop"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -101,7 +101,7 @@ export function ChatToggleButton() {
   if (!isAuthenticated) return null;
 
   return (
-    <motion.button
+    <m.button
       onClick={toggleOpen}
       aria-label={isOpen ? 'Close team chat' : `Open team chat${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
       aria-expanded={isOpen}
@@ -120,7 +120,7 @@ export function ChatToggleButton() {
     >
       {/* Emerald pulsing ring when unread */}
       {unreadCount > 0 && !isOpen && (
-        <motion.span
+        <m.span
           className="absolute inset-0 rounded-full bg-emerald-400"
           animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
@@ -132,7 +132,7 @@ export function ChatToggleButton() {
         <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-emerald-300 animate-pulse-dot border-2 border-emerald-600" />
       )}
 
-      <motion.div
+      <m.div
         animate={{ rotate: isOpen ? 90 : 0 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       >
@@ -141,11 +141,11 @@ export function ChatToggleButton() {
         ) : (
           <MessageCircle className="h-5 w-5" />
         )}
-      </motion.div>
+      </m.div>
 
       {/* Unread badge */}
       {unreadCount > 0 && !isOpen && (
-        <motion.span
+        <m.span
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: 'spring', stiffness: 500, damping: 25 }}
@@ -158,9 +158,9 @@ export function ChatToggleButton() {
           )}
         >
           {unreadCount > 99 ? '99+' : unreadCount}
-        </motion.span>
+        </m.span>
       )}
-    </motion.button>
+    </m.button>
   );
 }
 
@@ -182,7 +182,7 @@ function MessageBubble({
   // System message — centered
   if (message.isSystem) {
     return (
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
@@ -196,12 +196,12 @@ function MessageBubble({
           </span>
           <span className="shrink-0 h-px flex-1 bg-border/50" />
         </div>
-      </motion.div>
+      </m.div>
     );
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 6, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -264,7 +264,7 @@ function MessageBubble({
           {renderBody(message.body)}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -328,7 +328,7 @@ function OnlineUsersBar({ users }: { users: OnlineUser[] }) {
       {/* Expanded users list */}
       <AnimatePresence>
         {expanded && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -353,7 +353,7 @@ function OnlineUsersBar({ users }: { users: OnlineUser[] }) {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -425,7 +425,7 @@ function MessageInput({
             aria-label="Type a message"
           />
         </div>
-        <motion.button
+        <m.button
           onClick={handleSubmit}
           disabled={!text.trim() || isSending}
           aria-label="Send message"
@@ -443,7 +443,7 @@ function MessageInput({
           ) : (
             <Send className="h-4 w-4" />
           )}
-        </motion.button>
+        </m.button>
       </div>
       <div className="flex items-center justify-between mt-1.5 px-1">
         <span className="text-[10px] text-muted-foreground/30 flex items-center gap-1">
@@ -587,7 +587,7 @@ export function TeamChatDrawer() {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.aside
+          <m.aside
             key="team-chat-drawer"
             variants={drawerVariants}
             initial="hidden"
@@ -622,7 +622,7 @@ export function TeamChatDrawer() {
                 </div>
               </div>
 
-              <motion.button
+              <m.button
                 onClick={handleClose}
                 aria-label="Close chat"
                 className={cn(
@@ -633,7 +633,7 @@ export function TeamChatDrawer() {
                 whileTap={{ scale: 0.9 }}
               >
                 <X className="h-4 w-4" />
-              </motion.button>
+              </m.button>
             </div>
 
             {/* ── Online users bar ── */}
@@ -685,7 +685,7 @@ export function TeamChatDrawer() {
               onSend={(body) => sendMessage.mutate(body)}
               isSending={isSending}
             />
-          </motion.aside>
+          </m.aside>
         )}
       </AnimatePresence>
     </AnimatePresence>

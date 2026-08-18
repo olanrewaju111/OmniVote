@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Mail, Building2, Shield, Loader2, Eye, EyeOff, Volume2, VolumeX, User, Bell, MessageSquare, AlertTriangle, BarChart3, Settings, Smartphone, Copy, Check, KeyRound } from 'lucide-react';
@@ -200,7 +200,7 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
           {/* ─── Profile Tab ─── */}
           <AnimatePresence mode="wait">
             <TabsContent value="profile" forceMount className={cn('hidden', 'data-[state=active]:block')}>
-              <motion.div {...fadeTransition} key="profile">
+              <m.div {...fadeTransition} key="profile">
                 <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-4">
                   {/* Read-only info */}
                   <div className="flex items-center gap-4">
@@ -274,12 +274,12 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
                     ) : 'Save Changes'}
                   </Button>
                 </div>
-              </motion.div>
+              </m.div>
             </TabsContent>
 
             {/* ─── Security Tab ─── */}
             <TabsContent value="security" forceMount className={cn('hidden', 'data-[state=active]:block')}>
-              <motion.div {...fadeTransition} key="security">
+              <m.div {...fadeTransition} key="security">
                 <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-5">
                   {/* Password Change */}
                   <div className="space-y-1.5">
@@ -409,12 +409,12 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
                   {/* ─── Two-Factor Authentication ─── */}
                   <TwoFactorSection />
                 </div>
-              </motion.div>
+              </m.div>
             </TabsContent>
 
             {/* ─── Preferences Tab ─── */}
             <TabsContent value="preferences" forceMount className={cn('hidden', 'data-[state=active]:block')}>
-              <motion.div {...fadeTransition} key="preferences">
+              <m.div {...fadeTransition} key="preferences">
                 <div className="rounded-lg border border-border/60 bg-card/40 p-4 space-y-5">
                   {/* Theme */}
                   <div className="flex items-center justify-between">
@@ -492,7 +492,7 @@ export function ProfileSettingsDialog({ open, onOpenChange }: ProfileSettingsDia
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             </TabsContent>
           </AnimatePresence>
         </Tabs>

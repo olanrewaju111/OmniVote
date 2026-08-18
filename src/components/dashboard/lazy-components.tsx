@@ -79,7 +79,7 @@ export const SituationRoom = createDynamic(() => import('@/components/dashboard/
 export const AgentEngagement = createDynamic(() => import('@/components/dashboard/agent-engagement').then(m => ({ default: m.AgentEngagement })), 'engagement');
 export const OsintMonitor = createDynamic(() => import('@/components/dashboard/osint-monitor').then(m => ({ default: m.OsintMonitor })), 'osint');
 export const MobilizationEngine = createDynamic(() => import('@/components/dashboard/mobilization').then(m => ({ default: m.MobilizationEngine })), 'mobilization');
-export const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campaign-monitor').then(m => ({ default: m.CampaignMonitor })), 'campaigns');
+export const CampaignMonitor = createDynamic(() => import('@/components/dashboard/campaign-monitor'), 'campaigns');
 export const SecurityCenter = createDynamic(() => import('@/components/dashboard/security-center').then(m => ({ default: m.SecurityCenter })), 'security');
 export const FieldSafety = createDynamic(() => import('@/components/dashboard/field-safety').then(m => ({ default: m.FieldSafety })), 'field-safety');
 export const PvtQuickCount = createDynamic(() => import('@/components/dashboard/pvt-quick-count').then(m => ({ default: m.PvtQuickCount })), 'pvt');

@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   Check, Plus, Pencil, Trash2, Calendar, MapPin, Users, Vote,
   X, ChevronDown, Search, Filter, Eye,
@@ -411,7 +411,7 @@ export function ElectionManagement() {
           ))}
         </div>
       ) : filteredElections.length === 0 ? (
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col items-center justify-center py-20 text-center"
@@ -435,12 +435,12 @@ export function ElectionManagement() {
               Create Election
             </Button>
           )}
-        </motion.div>
+        </m.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence mode="popLayout">
             {filteredElections.map((election, idx) => (
-              <motion.div
+              <m.div
                 key={election.id}
                 layout
                 initial={{ opacity: 0, y: 16, scale: 0.97 }}
@@ -538,7 +538,7 @@ export function ElectionManagement() {
                     </div>
                   </CardContent>
                 </Card>
-              </motion.div>
+              </m.div>
             ))}
           </AnimatePresence>
         </div>
@@ -547,7 +547,7 @@ export function ElectionManagement() {
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="sm:max-w-md">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
@@ -658,7 +658,7 @@ export function ElectionManagement() {
                 {editingElection ? 'Update' : 'Create'}
               </Button>
             </DialogFooter>
-          </motion.div>
+          </m.div>
         </DialogContent>
       </Dialog>
 

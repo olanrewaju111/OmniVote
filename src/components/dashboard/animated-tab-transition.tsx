@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import React from 'react';
 
 /**
@@ -16,7 +16,7 @@ export const AnimatedTabTransition = React.memo(function AnimatedTabTransition({
 }) {
   return (
     <AnimatePresence mode="wait">
-      <motion.div
+      <m.div
         key={activeKey}
         initial={{ opacity: 0, y: 12, scale: 0.995 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -27,7 +27,7 @@ export const AnimatedTabTransition = React.memo(function AnimatedTabTransition({
         aria-label={`${activeKey.replace(/-/g, ' ')} panel`}
       >
         {children}
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 });

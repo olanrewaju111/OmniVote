@@ -10,7 +10,7 @@ import {
   ShieldAlert, AlertTriangle, Info, Radio, CheckCircle2,
   Eye, ShieldOff, Clock, Check, CheckCheck,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { ConfirmDialog } from './confirm-dialog';
@@ -67,7 +67,7 @@ const AlertCard = React.memo(function AlertCard({ alert, idx, onMarkRead, onUpda
   onDismiss: (id: string, title: string) => void;
 }) {
   return (
-    <motion.div
+    <m.div
       key={alert.id}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -156,7 +156,7 @@ const AlertCard = React.memo(function AlertCard({ alert, idx, onMarkRead, onUpda
           )}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 

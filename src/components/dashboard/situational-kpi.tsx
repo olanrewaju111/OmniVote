@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,7 +93,7 @@ function KPICard({ metric, onClick }: { metric: KPIMetric; onClick?: () => void 
   const isCritical = metric.id === 'activeIncidents' && metric.value > 10;
 
   return (
-    <motion.div
+    <m.div
       whileHover={{ scale: 1.02, y: -1 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
@@ -122,7 +122,7 @@ function KPICard({ metric, onClick }: { metric: KPIMetric; onClick?: () => void 
       </div>
 
       <p className="text-[11px] text-muted-foreground mt-1 font-medium">{metric.label}</p>
-    </motion.div>
+    </m.div>
   );
 }
 

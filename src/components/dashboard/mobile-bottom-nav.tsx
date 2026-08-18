@@ -6,7 +6,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useDashboardStore, type ViewTab } from '@/store/dashboard';
 import { Send, FileText, Radio } from 'lucide-react';
 import { getQueueSize } from '@/lib/offline-queue';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 
 const TABS: { id: ViewTab; label: string; icon: React.ReactNode }[] = [
   { id: 'submit', label: 'Submit', icon: <Send className="h-5 w-5" /> },
@@ -52,18 +52,18 @@ export function MobileBottomNav() {
             >
               {/* Active indicator pill */}
               {isActive && (
-                <motion.div
+                <m.div
                   layoutId="mobile-nav-active"
                   className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-emerald"
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
-              <motion.div
+              <m.div
                 animate={isActive ? { scale: [1, 1.15, 1] } : { scale: 1 }}
                 transition={{ duration: 0.25 }}
               >
                 {tab.icon}
-              </motion.div>
+              </m.div>
               <span className={cn(
                 'text-[10px] leading-none transition-colors',
                 isActive ? 'font-semibold' : 'font-medium'
@@ -72,13 +72,13 @@ export function MobileBottomNav() {
               </span>
               {/* Pending queue badge */}
               {tab.id === 'my-reports' && pendingCount > 0 && (
-                <motion.span
+                <m.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   className="absolute top-0.5 right-1/2 translate-x-5 min-w-[16px] h-4 rounded-full bg-amber text-amber-950 text-[8px] font-bold flex items-center justify-center px-1 border border-background"
                 >
                   {pendingCount}
-                </motion.span>
+                </m.span>
               )}
             </button>
           );

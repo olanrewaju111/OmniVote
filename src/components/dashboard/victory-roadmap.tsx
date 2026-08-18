@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { useDashboardStore, TIER_SHORT } from '@/store/dashboard';
@@ -128,7 +128,7 @@ function WinProbabilityGauge({ probability, party }: { probability: number; part
           className="text-muted/20"
         />
         {/* Filled arc */}
-        <motion.path
+        <m.path
           d="M 20 120 A 80 80 0 0 1 180 120"
           fill="none"
           stroke={color}
@@ -179,7 +179,7 @@ function StateCard({ state, onClick }: { state: StateResult; onClick?: () => voi
   const cfg = statusConfig[status];
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ scale: 1.02 }}
@@ -219,7 +219,7 @@ function StateCard({ state, onClick }: { state: StateResult; onClick?: () => voi
           <span>Reg: {state.totalRegistered.toLocaleString()}</span>
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -249,7 +249,7 @@ function CoalitionBuilder({
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         {scenarios.map((scenario) => (
-          <motion.button
+          <m.button
             key={scenario.id}
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
@@ -282,13 +282,13 @@ function CoalitionBuilder({
               <span className="text-foreground font-medium">{scenario.projectedStates} states</span>
               <span className="text-muted-foreground">{scenario.projectedPercentage.toFixed(1)}%</span>
             </div>
-          </motion.button>
+          </m.button>
         ))}
       </div>
       
       <AnimatePresence>
         {active && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -334,7 +334,7 @@ function CoalitionBuilder({
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -365,7 +365,7 @@ function BattlegroundStates({ states }: { states: SwingState[] }) {
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {states.map((ss, i) => (
-          <motion.div
+          <m.div
             key={ss.state}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -396,14 +396,14 @@ function BattlegroundStates({ states }: { states: SwingState[] }) {
             {/* Two-party comparison bar */}
             <div className="mb-2">
               <div className="flex h-4 w-full overflow-hidden rounded-full bg-muted/30">
-                <motion.div
+                <m.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(85, 50 + (ss.margin / ss.totalVotes * 100) / 2)}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
                   className="h-full rounded-l-full"
                   style={{ backgroundColor: ss.leadingPartyColor }}
                 />
-                <motion.div
+                <m.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(85, 50 - (ss.margin / ss.totalVotes * 100) / 2)}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -427,7 +427,7 @@ function BattlegroundStates({ states }: { states: SwingState[] }) {
               <span>Margin: <strong className="text-foreground">{ss.margin.toLocaleString()}</strong></span>
               <span>{ss.totalVotes.toLocaleString()} total</span>
             </div>
-          </motion.div>
+          </m.div>
         ))}
       </div>
     </div>
@@ -449,7 +449,7 @@ function StateDetailPanel({ state, onClose }: { state: StateResult; onClose: () 
     }));
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
@@ -503,7 +503,7 @@ function StateDetailPanel({ state, onClose }: { state: StateResult; onClose: () 
                 </div>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-muted/30">
-                <motion.div
+                <m.div
                   initial={{ width: 0 }}
                   animate={{ width: `${p.pct}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -515,7 +515,7 @@ function StateDetailPanel({ state, onClose }: { state: StateResult; onClose: () 
           ))}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -549,7 +549,7 @@ function PathToVictory({ path, party }: { path: VictoryPath; party: string }) {
             </span>
           </div>
           <div className="h-3 w-full overflow-hidden rounded-full bg-muted/30">
-            <motion.div
+            <m.div
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(100, progressPct)}%` }}
               transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -597,7 +597,7 @@ function PathToVictory({ path, party }: { path: VictoryPath; party: string }) {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function VictoryRoadmap() {
+export const VictoryRoadmap = React.memo(function VictoryRoadmap() {
   const tenantId = useDashboardStore((s) => s.tenantId);
   const [selectedParty, setSelectedParty] = useState<string>('APC');
   const [selectedScenario, setSelectedScenario] = useState<string | null>(null);
@@ -752,7 +752,7 @@ export function VictoryRoadmap() {
                       <span className="text-xs font-semibold w-10">{party.party}</span>
                       <div className="flex-1">
                         <div className="h-3 w-full overflow-hidden rounded-full bg-muted/30">
-                          <motion.div
+                          <m.div
                             initial={{ width: 0 }}
                             animate={{ width: `${party.percentage}%` }}
                             transition={{ duration: 1, ease: 'easeOut', delay: i * 0.1 }}
@@ -823,4 +823,4 @@ export function VictoryRoadmap() {
       </AnimatePresence>
     </div>
   );
-}
+});

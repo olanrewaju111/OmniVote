@@ -15,7 +15,7 @@ import {
   Megaphone, ArrowUpRight, MessageCircle, Flag, CheckCircle2,
   Zap, Wifi, WifiOff,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
 import { toast } from 'sonner';
 import type { Incident } from '@/types/dashboard';
@@ -71,7 +71,7 @@ interface IncidentCardProps {
 
 const IncidentCard = React.memo(function IncidentCard({ inc, idx, isLive, isExpanded, onToggle, onQuickAction }: IncidentCardProps) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
@@ -132,7 +132,7 @@ const IncidentCard = React.memo(function IncidentCard({ inc, idx, isLive, isExpa
           </div>
           <p className="text-xs text-foreground/80 line-clamp-2">{inc.description}</p>
           {isExpanded && (
-            <motion.div
+            <m.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               className="mt-2 pt-2 border-t border-border/50 space-y-2"
@@ -180,11 +180,11 @@ const IncidentCard = React.memo(function IncidentCard({ inc, idx, isLive, isExpa
                   </button>
                 )}
               </div>
-            </motion.div>
+            </m.div>
           )}
         </div>
       </div>
-    </motion.div>
+    </m.div>
   );
 });
 
@@ -313,14 +313,14 @@ export function LiveFeed({ incidents, loading, onLoadMore, hasMore, onIncidentCl
         <div className="p-3 space-y-2">
           {/* New incidents banner */}
           {newCount > 0 && !liveFeedPaused && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               className="rounded-lg bg-emerald/5 border border-emerald/20 px-3 py-2 flex items-center gap-2 text-xs text-emerald"
             >
               <Zap className="h-3 w-3" />
               <span>{newCount} new incident{newCount > 1 ? 's' : ''} pushed in real-time</span>
-            </motion.div>
+            </m.div>
           )}
 
           <AnimatePresence mode="popLayout">

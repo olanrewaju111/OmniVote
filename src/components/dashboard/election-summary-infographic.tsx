@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, useSpring, useTransform } from 'framer-motion';
+import { m, useSpring, useTransform } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
@@ -156,7 +156,7 @@ function StatItem({
   color: string;
 }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -170,7 +170,7 @@ function StatItem({
         <AnimatedNumber value={value} />
         {suffix && <span className="text-sm ml-0.5">{suffix}</span>}
       </span>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -195,7 +195,7 @@ function PartyBar({ parties }: { parties: PartyShare[] }) {
         {parties.map((p) => {
           const pct = total > 0 ? (p.votes / total) * 100 : 0;
           return (
-            <motion.div
+            <m.div
               key={p.party}
               initial={{ width: 0 }}
               animate={{ width: `${pct}%` }}
@@ -320,7 +320,7 @@ Generated: ${watTime}`;
   }
 
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
@@ -436,6 +436,6 @@ Generated: ${watTime}`;
           </div>
         </div>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }

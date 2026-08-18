@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Upload, Users, Send, CheckCircle, AlertTriangle, Clock,
   BarChart3, Plus, Phone, Shield, FileText, Pause, Play, Loader2,
@@ -145,7 +147,7 @@ function segmentLabel(seg: string) {
 
 // ─── Component ───────────────────────────────────────────────────────
 
-export function MobilizationEngine() {
+export const MobilizationEngine = React.memo(function MobilizationEngine() {
   const queryClient = useQueryClient();
   const { tenantId } = useDashboardStore();
 
@@ -479,7 +481,7 @@ export function MobilizationEngine() {
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
         {kpis.map((kpi) => (
-          <motion.div
+          <m.div
             key={kpi.label}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -496,7 +498,7 @@ export function MobilizationEngine() {
                 </p>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         ))}
       </div>
 
@@ -527,18 +529,18 @@ export function MobilizationEngine() {
               </Badge>
             )}
             <div className="flex-1" />
-            <motion.div
+            <m.div
               animate={{ rotate: quickComposeOpen ? 180 : 0 }}
               transition={{ duration: 0.2 }}
             >
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </motion.div>
+            </m.div>
           </div>
 
           {/* Expandable form */}
           <AnimatePresence initial={false}>
             {quickComposeOpen && (
-              <motion.div
+              <m.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
@@ -662,7 +664,7 @@ export function MobilizationEngine() {
                   {/* Progress bar during sending */}
                   <AnimatePresence>
                     {quickSending && (
-                      <motion.div
+                      <m.div
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -671,7 +673,7 @@ export function MobilizationEngine() {
                           <Progress value={quickProgress} className="h-1.5 flex-1 bg-emerald/20 [&>div]:bg-emerald" />
                           <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">{Math.round(quickProgress)}%</span>
                         </div>
-                      </motion.div>
+                      </m.div>
                     )}
                   </AnimatePresence>
 
@@ -692,7 +694,7 @@ export function MobilizationEngine() {
                   )}
 
                 </div>
-              </motion.div>
+              </m.div>
             )}
           </AnimatePresence>
         </div>
@@ -783,7 +785,7 @@ export function MobilizationEngine() {
                       </TableRow>
                     ) : (
                       campaigns.map((c, idx) => (
-                        <motion.tr
+                        <m.tr
                           key={c.id}
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -864,7 +866,7 @@ export function MobilizationEngine() {
                               )}
                             </div>
                           </TableCell>
-                        </motion.tr>
+                        </m.tr>
                       ))
                     )}
                   </AnimatePresence>
@@ -931,7 +933,7 @@ export function MobilizationEngine() {
                       </TableRow>
                     ) : (
                       contactLists.map((cl, idx) => (
-                        <motion.tr
+                        <m.tr
                           key={cl.id}
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -974,7 +976,7 @@ export function MobilizationEngine() {
                           <TableCell className="py-2.5">
                             <span className="text-[11px] text-muted-foreground">{formatDate(cl.createdAt)}</span>
                           </TableCell>
-                        </motion.tr>
+                        </m.tr>
                       ))
                     )}
                   </AnimatePresence>
@@ -1020,7 +1022,7 @@ export function MobilizationEngine() {
           <div className="flex-1 min-h-0 overflow-auto grid gap-3 content-start">
             <AnimatePresence>
               {allTemplates.map((tmpl, idx) => (
-                <motion.div
+                <m.div
                   key={tmpl.id}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1075,7 +1077,7 @@ export function MobilizationEngine() {
                       </div>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </m.div>
               ))}
             </AnimatePresence>
           </div>
@@ -1282,7 +1284,7 @@ export function MobilizationEngine() {
                         </span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <motion.div
+                        <m.div
                           className={cn('h-full rounded-full', bar.color)}
                           initial={{ width: 0 }}
                           animate={{ width: `${Math.min(pct, 100)}%` }}
@@ -1521,4 +1523,4 @@ export function MobilizationEngine() {
       </Dialog>
     </div>
   );
-}
+});

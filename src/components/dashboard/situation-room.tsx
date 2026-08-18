@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -183,7 +183,7 @@ export function SituationRoom() {
                 <span className="font-medium text-foreground">{summary.turnout}%</span>
               </div>
               <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                <motion.div
+                <m.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(summary.turnout, 100)}%` }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -200,7 +200,7 @@ export function SituationRoom() {
           {/* Items grid — the drill-down table */}
           <div className="flex-1 min-h-0 overflow-y-auto">
             <AnimatePresence mode="wait">
-              <motion.div
+              <m.div
                 key={`${activeLevel}-${activeFilter}`}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -223,7 +223,7 @@ export function SituationRoom() {
                     const barColor = barWidth >= 50 ? 'bg-emerald' : barWidth >= 30 ? 'bg-amber' : 'bg-rose';
 
                     return (
-                      <motion.div
+                      <m.div
                         key={item.id}
                         initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -266,7 +266,7 @@ export function SituationRoom() {
                                 {/* Turnout bar */}
                                 <div className="flex items-center gap-3">
                                   <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden max-w-xs">
-                                    <motion.div
+                                    <m.div
                                       initial={{ width: 0 }}
                                       animate={{ width: `${barWidth}%` }}
                                       transition={{ duration: 0.6, delay: idx * 0.03 }}
@@ -304,11 +304,11 @@ export function SituationRoom() {
                             </div>
                           </CardContent>
                         </Card>
-                      </motion.div>
+                      </m.div>
                     );
                   })
                 )}
-              </motion.div>
+              </m.div>
             </AnimatePresence>
           </div>
         </>

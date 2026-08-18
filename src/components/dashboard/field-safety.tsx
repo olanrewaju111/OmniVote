@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
+
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
@@ -189,7 +191,7 @@ const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { st
 const item = { hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0, transition: { duration: 0.25 } } };
 
 // ── Main Component ───────────────────────────────────────────────────
-export function FieldSafety() {
+export const FieldSafety = React.memo(function FieldSafety() {
   const { tenantId, user } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -344,14 +346,14 @@ export function FieldSafety() {
           <div className="space-y-4 mt-2">
             {/* KPI Cards */}
             {counts && (
-              <motion.div className="grid grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
+              <m.div className="grid grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
                 <KpiCard label="Active Zones" value={counts.activeZones} icon={<MapPin className="h-4 w-4 text-emerald" />} accent="emerald" delay={0} />
                 <KpiCard label="Agents Checked In" value={counts.checkedInNow} icon={<CheckCircle2 className="h-4 w-4 text-emerald" />} accent="emerald" delay={1} />
                 <KpiCard label="Overdue Switches" value={counts.overdueSwitches} icon={<AlertTriangle className="h-4 w-4 text-rose" />} accent="rose" delay={2} />
                 <KpiCard label="SOS Alerts" value={counts.sosTriggered} icon={<Radio className="h-4 w-4 text-rose" />} accent="rose" delay={3} />
                 <KpiCard label="Escalated Cases" value={counts.escalatedSwitches} icon={<ShieldAlert className="h-4 w-4 text-amber" />} accent="amber" delay={4} />
                 <KpiCard label="Field Agents" value={counts.totalFieldAgents} icon={<Users className="h-4 w-4 text-cyan" />} accent="cyan" delay={5} />
-              </motion.div>
+              </m.div>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -372,7 +374,7 @@ export function FieldSafety() {
                     {activeSwitches.map(sw => {
                       const deadline = formatDeadlineCountdown(sw.checkInDeadline);
                       return (
-                        <motion.div
+                        <m.div
                           key={sw.id}
                           variants={item}
                           initial="hidden"
@@ -407,7 +409,7 @@ export function FieldSafety() {
                               SOS
                             </Button>
                           </div>
-                        </motion.div>
+                        </m.div>
                       );
                     })}
                   </div>
@@ -448,9 +450,9 @@ export function FieldSafety() {
                 <Plus className="h-3.5 w-3.5" /> Create Zone
               </Button>
             </div>
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
+            <m.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
               {data.zones.map(zone => (
-                <motion.div key={zone.id} variants={item}>
+                <m.div key={zone.id} variants={item}>
                   <Card className={cn('bg-card/40 border-border rounded-xl overflow-hidden', zone.isActive ? 'border-l-2 border-l-emerald' : 'border-l-2 border-l-muted-foreground/30')}>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -492,12 +494,12 @@ export function FieldSafety() {
                       </div>
                     </CardContent>
                   </Card>
-                </motion.div>
+                </m.div>
               ))}
               {data.zones.length === 0 && (
                 <div className="col-span-full text-center text-muted-foreground text-sm py-10">No geofence zones configured yet</div>
               )}
-            </motion.div>
+            </m.div>
           </div>
         </TabsContent>
 
@@ -535,7 +537,7 @@ export function FieldSafety() {
                   const riskScore = (agent.biometricRiskScore || 0) + (agent.isOverdue ? 100 : 0) + (agent.switchEscalation * 25);
 
                   return (
-                    <motion.div
+                    <m.div
                       key={agent.id}
                       variants={item}
                       initial="hidden"
@@ -584,7 +586,7 @@ export function FieldSafety() {
                           SOS
                         </Button>
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
                 {filteredAgents.length === 0 && (
@@ -604,7 +606,7 @@ export function FieldSafety() {
             <ScrollArea className="max-h-[calc(100vh-200px)]">
               <div className="space-y-1.5">
                 {data.checkIns.map(ci => (
-                  <motion.div
+                  <m.div
                     key={ci.id}
                     variants={item}
                     initial="hidden"
@@ -638,7 +640,7 @@ export function FieldSafety() {
                       </div>
                     </div>
                     <span className="text-[10px] text-muted-foreground shrink-0">{formatRelativeTime(ci.checkedInAt)}</span>
-                  </motion.div>
+                  </m.div>
                 ))}
                 {data.checkIns.length === 0 && (
                   <div className="text-center text-muted-foreground text-xs py-8">No check-in records</div>
@@ -717,7 +719,7 @@ export function FieldSafety() {
       </Dialog>
     </div>
   );
-}
+});
 
 // ── KPI Card Sub-component ───────────────────────────────────────────
 function KpiCard({ label, value, icon, accent, delay }: {
@@ -725,7 +727,7 @@ function KpiCard({ label, value, icon, accent, delay }: {
 }) {
   const glowClass = accent === 'rose' ? 'glow-rose' : accent === 'amber' ? 'glow-amber' : accent === 'emerald' ? 'glow-emerald' : '';
   return (
-    <motion.div variants={item} transition={{ delay: delay * 0.05 }}>
+    <m.div variants={item} transition={{ delay: delay * 0.05 }}>
       <Card className={cn('bg-card/40 border-border rounded-xl', glowClass, value > 0 && (accent === 'rose' || accent === 'amber') ? '' : '')}>
         <CardContent className="p-4 flex items-center gap-3">
           <div className={cn(
@@ -743,7 +745,7 @@ function KpiCard({ label, value, icon, accent, delay }: {
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </m.div>
   );
 }
 

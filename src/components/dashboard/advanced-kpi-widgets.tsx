@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
+import { m, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
@@ -276,7 +276,7 @@ export function ComparisonGauge({ current, target, label, unit = '' }: Compariso
             strokeLinecap="round"
           />
           {/* Filled arc */}
-          <motion.path
+          <m.path
             d={arcPath(filledAngle)}
             fill="none"
             stroke={color}
@@ -366,7 +366,7 @@ export function MiniBarChart({ data, maxItems = 5 }: MiniBarChartProps) {
               </span>
             </div>
             <div className="h-2 rounded-full bg-secondary/60 overflow-hidden">
-              <motion.div
+              <m.div
                 className="h-full rounded-full"
                 style={{ backgroundColor: barColor }}
                 initial={{ width: 0 }}
@@ -427,7 +427,7 @@ export function StatusIndicator({ status, label, count }: StatusIndicatorProps) 
       <div className="relative">
         {/* Pulse ring for animated states */}
         {isAnimated && (
-          <motion.span
+          <m.span
             className={cn(
               'absolute inset-0 rounded-full shadow-lg',
               config.dotColor,
@@ -445,7 +445,7 @@ export function StatusIndicator({ status, label, count }: StatusIndicatorProps) 
           />
         )}
         {/* Main dot */}
-        <motion.span
+        <m.span
           className={cn(
             'relative block h-2.5 w-2.5 rounded-full',
             config.dotColor,
