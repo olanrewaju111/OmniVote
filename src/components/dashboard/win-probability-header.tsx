@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
@@ -26,7 +27,7 @@ function badgeStyle(prob: number) {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export function WinProbabilityHeader() {
+export const WinProbabilityHeader = React.memo(function WinProbabilityHeader() {
   const tenantId = useDashboardStore((s) => s.tenantId);
   const setSelectedTab = useDashboardStore((s) => s.setSelectedTab);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -81,4 +82,4 @@ export function WinProbabilityHeader() {
       )}
     </div>
   );
-}
+});

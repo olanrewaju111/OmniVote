@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import {
@@ -236,7 +237,7 @@ const COLOR_MAP = {
   violet: { bg: 'bg-violet/10', text: 'text-violet', border: 'border-violet/20', glow: 'glow-violet', ring: 'ring-violet/20' },
 };
 
-function KpiCard({ label, value, sub, icon, color, trend, glow, ring, sparkline, className, onClick }: KpiCardProps) {
+const KpiCard = React.memo(function KpiCard({ label, value, sub, icon, color, trend, glow, ring, sparkline, className, onClick }: KpiCardProps) {
   const c = COLOR_MAP[color];
   const isNumeric = typeof value === 'number';
 
@@ -293,7 +294,7 @@ function KpiCard({ label, value, sub, icon, color, trend, glow, ring, sparkline,
       </Card>
     </motion.div>
   );
-}
+});
 
 // ── Extra stat chip ──
 interface ExtraStat {
@@ -311,7 +312,7 @@ const EXTRA_ICONS: Record<string, React.ReactNode> = {
   violet: <Shield className="h-3.5 w-3.5 text-violet" />,
 };
 
-function StatChip({ s }: { s: ExtraStat }) {
+const StatChip = React.memo(function StatChip({ s }: { s: ExtraStat }) {
   const c = COLOR_MAP[s.color];
   return (
     <div className={cn(
@@ -329,7 +330,7 @@ function StatChip({ s }: { s: ExtraStat }) {
       </div>
     </div>
   );
-}
+});
 
 // ── KPI Grid Props ──
 interface KpiGridProps {

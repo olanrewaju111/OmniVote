@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
@@ -156,7 +156,7 @@ function MiniSparkline({ data, color }: { data: number[]; color: string }) {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function SituationalKPI() {
+export const SituationalKPI = React.memo(function SituationalKPI() {
   const { tenantId, sseConnected, setSelectedTab, setUnreadAlerts } = useDashboardStore();
   const [kpi, setKpi] = useState<KPIData | null>(null);
   const [history, setHistory] = useState<Record<string, number[]>>({
@@ -337,7 +337,7 @@ export function SituationalKPI() {
       </div>
     </div>
   );
-}
+});
 
 // Helper: shorter time format
 function formatDistanceToNowShort(date: Date): string {

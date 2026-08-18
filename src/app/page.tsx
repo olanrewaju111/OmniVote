@@ -1,9 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
+
+const AnimatedTabTransition = dynamic(
+  () => import('@/components/dashboard/animated-tab-transition').then(m => ({ default: m.AnimatedTabTransition })),
+  { ssr: false }
+);
 
 import { LoginScreen } from '@/components/dashboard/login';
 import { AppSidebar } from '@/components/dashboard/sidebar';
@@ -42,6 +47,7 @@ const TAB_LABELS: Record<string, string> = {
   'system': 'System Health', 'tenants': 'Tenant Management',
   'narrative': 'Narrative Builder',
   'reports': 'Reports Center', 'activity-stream': 'Activity Stream',
+  'data-explorer': 'Data Explorer',
 };
 
 // Section grouping for breadcrumbs
@@ -49,7 +55,7 @@ const TAB_SECTION: Record<string, string> = {
   'overview': 'Command', 'situation': 'Command', 'map': 'Command', 'feed': 'Command',
   'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
   'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'campaign-analytics': 'Operations', 'social-cards': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
-  'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
+  'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'data-explorer': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
   'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team', 'reports': 'Team',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
   'system': 'Admin', 'tenants': 'Admin', 'activity-stream': 'Command',
@@ -57,6 +63,7 @@ const TAB_SECTION: Record<string, string> = {
 
 // ---- Main Page ----
 export default function Home() {
+  const mainContentRef = useRef<HTMLDivElement>(null);
   const {
     isAuthenticated, user, activeTab, setElectionInfo, tenantId,
     setUnreadAlerts, login, setTenantId, setSelectedTab,
@@ -199,6 +206,7 @@ export default function Home() {
       <div className="flex-1 flex flex-col min-w-0">
         <div className={user?.role === 'FIELD_AGENT' ? 'md:block hidden' : ''}>
           <AppHeader
+            containerRef={mainContentRef}
             breadcrumb={{ section: TAB_SECTION[activeTab] || '', current: TAB_LABELS[activeTab] || activeTab }}
             kpis={dashData?.kpis ? {
               onlineAgents: dashData.kpis.onlineAgents,
@@ -209,21 +217,11 @@ export default function Home() {
           />
         </div>
 
-        <main id="main-content" className={cn('flex-1 overflow-hidden', user?.role === 'FIELD_AGENT' && 'pb-14 md:pb-0')} role="main">
+        <main ref={mainContentRef} id="main-content" className={cn('flex-1 overflow-hidden', user?.role === 'FIELD_AGENT' && 'pb-14 md:pb-0')} role="main">
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             Switched to {activeTab.replace(/-/g, ' ')} view
           </div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 12, scale: 0.995 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.995 }}
-              transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-              className="h-full"
-              role="tabpanel"
-              aria-label={`${activeTab.replace(/-/g, ' ')} panel`}
-            >
+          <AnimatedTabTransition activeKey={activeTab}>
               <TabContent
                 activeTab={activeTab}
                 dashData={dashData!}
@@ -231,8 +229,7 @@ export default function Home() {
                 alertsData={alertsData}
                 liveIncidents={liveIncidents}
               />
-            </motion.div>
-          </AnimatePresence>
+          </AnimatedTabTransition>
         </main>
         <ElectionTicker />
         <MobileBottomNav />

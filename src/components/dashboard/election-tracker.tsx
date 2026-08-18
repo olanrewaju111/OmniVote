@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -236,7 +236,7 @@ function VictoryGauge({ confidence, color }: { confidence: number; color: string
 // 1. VICTORY PROJECTION PANEL (Enhanced with gauge)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function VictoryProjectionCard({ projection, partyResults }: {
+const VictoryProjectionCard = React.memo(function VictoryProjectionCard({ projection, partyResults }: {
   projection: VictoryProjection;
   partyResults: PartyResult[];
 }) {
@@ -323,7 +323,7 @@ function VictoryProjectionCard({ projection, partyResults }: {
       </Card>
     </motion.div>
   );
-}
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // B. PATH TO VICTORY PANEL
@@ -477,6 +477,75 @@ function PathToVictory({ states, projectedWinner }: {
   );
 }
 
+const PartyRow = React.memo(function PartyRow({ party, idx }: { party: PartyResult; idx: number }) {
+  const isLeading = idx === 0;
+  const partyColor = PARTY_COLOR_MAPPINGS[party.party] || DEFAULT_PARTY_COLOR;
+  return (
+    <motion.div
+      layoutId={`party-${party.party}`}
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ duration: 0.35, delay: idx * 0.06 }}
+      className={cn(
+        'flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all duration-200',
+        isLeading
+          ? 'bg-emerald/5 border border-emerald/20'
+          : 'hover:bg-secondary/40',
+      )}
+    >
+      {/* Rank */}
+      <span className={cn(
+        'w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0',
+        isLeading
+          ? 'bg-emerald/15 text-emerald'
+          : idx === 1
+            ? 'bg-amber/15 text-amber'
+            : idx === 2
+              ? 'bg-rose/15 text-rose'
+              : 'bg-secondary text-muted-foreground',
+      )}>
+        {idx + 1}
+      </span>
+
+      {/* Party color dot + code */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div
+          className="w-2.5 h-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: partyColor }}
+        />
+        <span className="text-xs font-semibold truncate">{party.party}</span>
+        {isLeading && (
+          <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[9px] px-1.5 py-0 h-4 font-bold">
+            LEADING
+          </Badge>
+        )}
+      </div>
+
+      {/* Trend */}
+      <TrendArrow trend={party.trend} />
+
+      {/* States */}
+      <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 hidden sm:block">
+        {party.states} states
+      </span>
+
+      {/* Percentage */}
+      <span
+        className="text-xs font-bold tabular-nums shrink-0 w-10 text-right"
+        style={{ color: isLeading ? partyColor : undefined }}
+      >
+        {party.percentage.toFixed(1)}%
+      </span>
+
+      {/* Votes */}
+      <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0 w-16 text-right hidden md:block">
+        {party.votes.toLocaleString()}
+      </span>
+    </motion.div>
+  );
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 2. PARTY PERFORMANCE LEADERBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -495,75 +564,9 @@ function PartyLeaderboard({ parties }: { parties: PartyResult[] }) {
       <CardContent className="px-4 pb-4">
         <div className="space-y-1.5">
           <AnimatePresence mode="popLayout">
-            {parties.map((party, idx) => {
-              const isLeading = idx === 0;
-              const partyColor = PARTY_COLOR_MAPPINGS[party.party] || DEFAULT_PARTY_COLOR;
-              return (
-                <motion.div
-                  key={party.party}
-                  layoutId={`party-${party.party}`}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 12 }}
-                  transition={{ duration: 0.35, delay: idx * 0.06 }}
-                  className={cn(
-                    'flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all duration-200',
-                    isLeading
-                      ? 'bg-emerald/5 border border-emerald/20'
-                      : 'hover:bg-secondary/40',
-                  )}
-                >
-                  {/* Rank */}
-                  <span className={cn(
-                    'w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0',
-                    isLeading
-                      ? 'bg-emerald/15 text-emerald'
-                      : idx === 1
-                        ? 'bg-amber/15 text-amber'
-                        : idx === 2
-                          ? 'bg-rose/15 text-rose'
-                          : 'bg-secondary text-muted-foreground',
-                  )}>
-                    {idx + 1}
-                  </span>
-
-                  {/* Party color dot + code */}
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: partyColor }}
-                    />
-                    <span className="text-xs font-semibold truncate">{party.party}</span>
-                    {isLeading && (
-                      <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[9px] px-1.5 py-0 h-4 font-bold">
-                        LEADING
-                      </Badge>
-                    )}
-                  </div>
-
-                  {/* Trend */}
-                  <TrendArrow trend={party.trend} />
-
-                  {/* States */}
-                  <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0 hidden sm:block">
-                    {party.states} states
-                  </span>
-
-                  {/* Percentage */}
-                  <span
-                    className="text-xs font-bold tabular-nums shrink-0 w-10 text-right"
-                    style={{ color: isLeading ? partyColor : undefined }}
-                  >
-                    {party.percentage.toFixed(1)}%
-                  </span>
-
-                  {/* Votes */}
-                  <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0 w-16 text-right hidden md:block">
-                    {party.votes.toLocaleString()}
-                  </span>
-                </motion.div>
-              );
-            })}
+            {parties.map((party, idx) => (
+              <PartyRow key={party.party} party={party} idx={idx} />
+            ))}
           </AnimatePresence>
         </div>
       </CardContent>
@@ -740,7 +743,7 @@ function MiniResultsChart({ data }: { data: Array<{ name: string; value: number;
 // 4. KEY SWING STATE INDICATORS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function SwingStateCard({ state }: { state: SwingState }) {
+const SwingStateCard = React.memo(function SwingStateCard({ state }: { state: SwingState }) {
   const statusConfig: Record<string, { color: string; bg: string; border: string }> = {
     'SAFE': { color: 'text-emerald', bg: 'bg-emerald/15', border: 'border-emerald/30' },
     'LEANING': { color: 'text-amber', bg: 'bg-amber/15', border: 'border-amber/30' },
@@ -782,7 +785,7 @@ function SwingStateCard({ state }: { state: SwingState }) {
       </p>
     </motion.div>
   );
-}
+});
 
 function SwingStatesGrid({ states }: { states: SwingState[] }) {
   return (

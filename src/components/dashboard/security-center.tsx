@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -37,6 +37,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Info, Plus, Trash2,
   ChevronDown, ChevronUp, Loader2, Settings, FileText,
 } from 'lucide-react';
+import { VirtualizedList } from '@/components/ui/virtualized-list';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -437,6 +438,170 @@ function OverviewTab({ data }: { data: SecurityData }) {
 /*  Event Log Tab                                                      */
 /* ------------------------------------------------------------------ */
 
+// ── Memoized Security Event Row ──
+const SecurityEventRow = React.memo(function SecurityEventRow({ event, isExpanded, onToggle, onResolve, resolvePending }: {
+  event: SecurityEvent;
+  isExpanded: boolean;
+  onToggle: (id: string) => void;
+  onResolve: (id: string) => void;
+  resolvePending: boolean;
+}) {
+  return (
+    <>
+      <TableRow
+        className={cn(
+          'cursor-pointer transition-colors',
+          isExpanded && 'bg-card/60',
+        )}
+        onClick={() => onToggle(event.id)}
+      >
+        <TableCell className="text-[10px] py-2 text-muted-foreground">
+          {formatDate(event.createdAt)}
+        </TableCell>
+        <TableCell className="text-xs py-2">
+          <div className="flex items-center gap-1.5">
+            {eventTypeIcon(event.eventType, 'h-3.5 w-3.5')}
+            <span>{event.eventType.replace(/_/g, ' ')}</span>
+          </div>
+        </TableCell>
+        <TableCell className="py-2">{severityBadge(event.severity)}</TableCell>
+        <TableCell className="text-xs py-2 max-w-[300px] truncate">{event.description}</TableCell>
+        <TableCell className="text-[10px] py-2 text-muted-foreground font-mono">
+          {event.ipAddress || '—'}
+        </TableCell>
+        <TableCell className="text-[10px] py-2 text-muted-foreground">
+          {event.userId || '—'}
+        </TableCell>
+        <TableCell className="py-2">
+          {event.resolved ? (
+            <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5" variant="outline">
+              <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+              Resolved
+            </Badge>
+          ) : (
+            <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] h-5" variant="outline">
+              <Clock className="h-2.5 w-2.5 mr-0.5" />
+              Pending
+            </Badge>
+          )}
+        </TableCell>
+        <TableCell className="py-2">
+          {isExpanded ? (
+            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+        </TableCell>
+      </TableRow>
+      {isExpanded && (
+        <TableRow key={`${event.id}-detail`}>
+          <TableCell colSpan={8} className="px-6 py-3">
+            <div className="bg-card/40 border border-border rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold">Event Details</span>
+                {!event.resolved && (
+                  <Button
+                    size="sm"
+                    className="h-6 text-[10px] bg-emerald/15 text-emerald hover:bg-emerald/25 border-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResolve(event.id);
+                    }}
+                    disabled={resolvePending}
+                  >
+                    {resolvePending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                    )}
+                    Resolve Event
+                  </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div>
+                  <span className="text-muted-foreground">Event ID: </span>
+                  <span className="font-mono">{event.id}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Created: </span>
+                  <span>{formatDate(event.createdAt)}</span>
+                </div>
+                {event.userAgent && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">User Agent: </span>
+                    <span className="font-mono break-all">{event.userAgent}</span>
+                  </div>
+                )}
+                {event.resolvedAt && (
+                  <div>
+                    <span className="text-muted-foreground">Resolved At: </span>
+                    <span>{formatDate(event.resolvedAt)}</span>
+                  </div>
+                )}
+                {event.resolvedById && (
+                  <div>
+                    <span className="text-muted-foreground">Resolved By: </span>
+                    <span>{event.resolvedById}</span>
+                  </div>
+                )}
+              </div>
+              {event.metadata && Object.keys(event.metadata).length > 0 && (
+                <>
+                  <Separator className="bg-border" />
+                  <div>
+                    <span className="text-[10px] text-muted-foreground font-medium">Metadata:</span>
+                    <pre className="text-[10px] mt-1 p-2 rounded bg-card/60 border border-border overflow-x-auto max-h-32 overflow-y-auto font-mono">
+                      {JSON.stringify(event.metadata, null, 2)}
+                    </pre>
+                  </div>
+                </>
+              )}
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
+  );
+});
+
+// ── Virtualized event row (div-based, same cells as table) ──
+function renderSecurityVirtualRow({ event, onToggle }: { event: SecurityEvent; onToggle: (id: string) => void }) {
+  return (
+    <div
+      className="flex items-center px-3 cursor-pointer hover:bg-muted/50 border-b border-border transition-colors"
+      style={{ height: 56 }}
+      onClick={() => onToggle(event.id)}
+    >
+      <span className="w-28 shrink-0 text-[10px] text-muted-foreground">{formatDate(event.createdAt)}</span>
+      <span className="w-36 shrink-0 text-xs flex items-center gap-1.5">
+        {eventTypeIcon(event.eventType, 'h-3.5 w-3.5')}
+        <span className="truncate">{event.eventType.replace(/_/g, ' ')}</span>
+      </span>
+      <span className="w-24 shrink-0">{severityBadge(event.severity)}</span>
+      <span className="flex-1 min-w-0 text-xs truncate">{event.description}</span>
+      <span className="w-28 shrink-0 text-[10px] text-muted-foreground font-mono truncate">{event.ipAddress || '—'}</span>
+      <span className="w-28 shrink-0 text-[10px] text-muted-foreground truncate">{event.userId || '—'}</span>
+      <span className="w-20 shrink-0">
+        {event.resolved ? (
+          <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5" variant="outline">
+            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+            Resolved
+          </Badge>
+        ) : (
+          <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] h-5" variant="outline">
+            <Clock className="h-2.5 w-2.5 mr-0.5" />
+            Pending
+          </Badge>
+        )}
+      </span>
+      <span className="w-16 shrink-0 text-center">
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground mx-auto" />
+      </span>
+    </div>
+  );
+}
+
 function EventLogTab({ data, resolveMutation }: {
   data: SecurityData;
   resolveMutation: { mutate: (vars: { eventId: string; resolvedById: string | null }) => void; isPending: boolean };
@@ -459,6 +624,7 @@ function EventLogTab({ data, resolveMutation }: {
   }, [data.events, severityFilter, typeFilter]);
 
   const currentUser = useDashboardStore(s => s.user);
+  const useVirtualization = filtered.length > 50;
 
   const handleResolve = (eventId: string) => {
     resolveMutation.mutate({
@@ -466,6 +632,24 @@ function EventLogTab({ data, resolveMutation }: {
       resolvedById: currentUser?.id || null,
     });
   };
+
+  const toggleExpand = (id: string) => {
+    if (useVirtualization) return;
+    setExpandedId(prev => prev === id ? null : id);
+  };
+
+  const virtualHeader = (
+    <div className="flex items-center px-3 text-[10px] font-medium text-muted-foreground border-b border-border bg-muted/30">
+      <span className="w-28 shrink-0">Time</span>
+      <span className="w-36 shrink-0">Type</span>
+      <span className="w-24 shrink-0">Severity</span>
+      <span className="flex-1 min-w-0">Description</span>
+      <span className="w-28 shrink-0">IP Address</span>
+      <span className="w-28 shrink-0">User</span>
+      <span className="w-20 shrink-0">Status</span>
+      <span className="w-16 shrink-0" />
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-3 flex-1 overflow-hidden">
@@ -499,151 +683,55 @@ function EventLogTab({ data, resolveMutation }: {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-y-auto rounded-lg border border-border">
-        <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-[10px] h-8 w-28">Time</TableHead>
-              <TableHead className="text-[10px] h-8 w-36">Type</TableHead>
-              <TableHead className="text-[10px] h-8 w-24">Severity</TableHead>
-              <TableHead className="text-[10px] h-8">Description</TableHead>
-              <TableHead className="text-[10px] h-8 w-28">IP Address</TableHead>
-              <TableHead className="text-[10px] h-8 w-28">User</TableHead>
-              <TableHead className="text-[10px] h-8 w-20">Status</TableHead>
-              <TableHead className="text-[10px] h-8 w-16" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(event => (
-              <>
-                <TableRow
+      {useVirtualization ? (
+        <div className="flex-1 overflow-hidden rounded-lg border border-border flex flex-col" style={{ animation: 'fadeIn 200ms ease-in' }}>
+          <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 shrink-0">{virtualHeader}</div>
+          <VirtualizedList
+            items={filtered}
+            itemHeight={56}
+            getKey={(e) => e.id}
+            renderItem={({ item }) => renderSecurityVirtualRow({ event: item, onToggle: toggleExpand })}
+          />
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto rounded-lg border border-border" style={{ animation: 'fadeIn 200ms ease-in' }}>
+          <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-[10px] h-8 w-28">Time</TableHead>
+                <TableHead className="text-[10px] h-8 w-36">Type</TableHead>
+                <TableHead className="text-[10px] h-8 w-24">Severity</TableHead>
+                <TableHead className="text-[10px] h-8">Description</TableHead>
+                <TableHead className="text-[10px] h-8 w-28">IP Address</TableHead>
+                <TableHead className="text-[10px] h-8 w-28">User</TableHead>
+                <TableHead className="text-[10px] h-8 w-20">Status</TableHead>
+                <TableHead className="text-[10px] h-8 w-16" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map(event => (
+                <SecurityEventRow
                   key={event.id}
-                  className={cn(
-                    'cursor-pointer transition-colors',
-                    expandedId === event.id && 'bg-card/60',
-                  )}
-                  onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
-                >
-                  <TableCell className="text-[10px] py-2 text-muted-foreground">
-                    {formatDate(event.createdAt)}
-                  </TableCell>
-                  <TableCell className="text-xs py-2">
-                    <div className="flex items-center gap-1.5">
-                      {eventTypeIcon(event.eventType, 'h-3.5 w-3.5')}
-                      <span>{event.eventType.replace(/_/g, ' ')}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-2">{severityBadge(event.severity)}</TableCell>
-                  <TableCell className="text-xs py-2 max-w-[300px] truncate">{event.description}</TableCell>
-                  <TableCell className="text-[10px] py-2 text-muted-foreground font-mono">
-                    {event.ipAddress || '—'}
-                  </TableCell>
-                  <TableCell className="text-[10px] py-2 text-muted-foreground">
-                    {event.userId || '—'}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {event.resolved ? (
-                      <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5" variant="outline">
-                        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                        Resolved
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-amber/15 text-amber border-amber/30 text-[10px] h-5" variant="outline">
-                        <Clock className="h-2.5 w-2.5 mr-0.5" />
-                        Pending
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-2">
-                    {expandedId === event.id ? (
-                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                    )}
+                  event={event}
+                  isExpanded={expandedId === event.id}
+                  onToggle={toggleExpand}
+                  onResolve={handleResolve}
+                  resolvePending={resolveMutation.isPending}
+                />
+              ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-xs text-muted-foreground">
+                    No events match the selected filters
                   </TableCell>
                 </TableRow>
-                {expandedId === event.id && (
-                  <TableRow key={`${event.id}-detail`}>
-                    <TableCell colSpan={8} className="px-6 py-3">
-                      <div className="bg-card/40 border border-border rounded-lg p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold">Event Details</span>
-                          {!event.resolved && (
-                            <Button
-                              size="sm"
-                              className="h-6 text-[10px] bg-emerald/15 text-emerald hover:bg-emerald/25 border-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleResolve(event.id);
-                              }}
-                              disabled={resolveMutation.isPending}
-                            >
-                              {resolveMutation.isPending ? (
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                              )}
-                              Resolve Event
-                            </Button>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-[10px]">
-                          <div>
-                            <span className="text-muted-foreground">Event ID: </span>
-                            <span className="font-mono">{event.id}</span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Created: </span>
-                            <span>{formatDate(event.createdAt)}</span>
-                          </div>
-                          {event.userAgent && (
-                            <div className="col-span-2">
-                              <span className="text-muted-foreground">User Agent: </span>
-                              <span className="font-mono break-all">{event.userAgent}</span>
-                            </div>
-                          )}
-                          {event.resolvedAt && (
-                            <div>
-                              <span className="text-muted-foreground">Resolved At: </span>
-                              <span>{formatDate(event.resolvedAt)}</span>
-                            </div>
-                          )}
-                          {event.resolvedById && (
-                            <div>
-                              <span className="text-muted-foreground">Resolved By: </span>
-                              <span>{event.resolvedById}</span>
-                            </div>
-                          )}
-                        </div>
-                        {event.metadata && Object.keys(event.metadata).length > 0 && (
-                          <>
-                            <Separator className="bg-border" />
-                            <div>
-                              <span className="text-[10px] text-muted-foreground font-medium">Metadata:</span>
-                              <pre className="text-[10px] mt-1 p-2 rounded bg-card/60 border border-border overflow-x-auto max-h-32 overflow-y-auto font-mono">
-                                {JSON.stringify(event.metadata, null, 2)}
-                              </pre>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </>
-            ))}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-xs text-muted-foreground">
-                  No events match the selected filters
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              )}
+            </TableBody>
+          </Table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

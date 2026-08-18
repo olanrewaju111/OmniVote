@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +11,7 @@ import {
 import { useSound } from '@/hooks/use-sound';
 import { cn } from '@/lib/utils';
 
-export function SoundToggle() {
+export const SoundToggle = React.memo(function SoundToggle() {
   const { toggleSound, isSoundEnabled, play } = useSound();
   const [enabled, setEnabled] = useState(isSoundEnabled);
 
@@ -42,4 +42,4 @@ export function SoundToggle() {
       </TooltipContent>
     </Tooltip>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +57,108 @@ function formatTime(date: string | Date) {
   if (diff < 60) return `${diff}m ago`;
   return `${Math.floor(diff / 60)}h ${diff % 60}m ago`;
 }
+
+const AlertCard = React.memo(function AlertCard({ alert, idx, onMarkRead, onUpdateIncident, updatePending, onDismiss }: {
+  alert: Alert;
+  idx: number;
+  onMarkRead: (id: string) => void;
+  onUpdateIncident: (id: string, status: string) => void;
+  updatePending: boolean;
+  onDismiss: (id: string, title: string) => void;
+}) {
+  return (
+    <motion.div
+      key={alert.id}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.02, duration: 0.2 }}
+      className={cn(
+        'rounded-lg border p-3 transition-colors',
+        categoryStyle(alert.category),
+        !alert.isRead && 'ring-1 ring-ring/30'
+      )}
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 shrink-0">{categoryIcon(alert.category)}</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] h-5 border',
+                alert.type === 'SECURITY'
+                  ? 'text-rose border-rose/30 bg-rose/10'
+                  : 'text-cyan border-cyan/30 bg-cyan/10'
+              )}
+            >
+              {alert.type === 'SECURITY' ? <ShieldOff className="h-2.5 w-2.5 mr-1" /> : <CheckCircle2 className="h-2.5 w-2.5 mr-1" />}
+              {alert.type}
+            </Badge>
+            {!alert.isRead && (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            )}
+            {!alert.isRead && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMarkRead(alert.id);
+                }}
+                className="ml-auto shrink-0 p-0.5 rounded text-muted-foreground hover:text-emerald transition-colors"
+                title="Mark as read"
+                aria-label="Mark alert as read"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <span className="text-[10px] text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5" />{formatTime(alert.createdAt)}
+            </span>
+          </div>
+          <p className="text-xs font-medium mb-0.5">{alert.title}</p>
+          <p className="text-[11px] text-muted-foreground line-clamp-2">{alert.description}</p>
+          {alert.incident && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <Badge variant="outline" className="text-[10px] h-5">{alert.incident.severity}</Badge>
+              <Badge variant="outline" className="text-[10px] h-5">{alert.incident.status}</Badge>
+            </div>
+          )}
+          {alert.incident && (
+            <div className="flex items-center gap-1.5 mt-2">
+              {alert.incident.status !== 'REVIEWED' && (
+                <Button
+                  size="sm" variant="outline" className="h-6 text-[10px] px-2"
+                  onClick={(e) => { e.stopPropagation(); onUpdateIncident(alert.id, 'REVIEWED'); }}
+                  disabled={updatePending}
+                >
+                  <Check className="h-3 w-3 mr-1" /> Review
+                </Button>
+              )}
+              {alert.incident.status !== 'ESCALATED' && alert.incident.severity !== 'LOW' && (
+                <Button
+                  size="sm" variant="outline" className="h-6 text-[10px] px-2 border-amber/30 text-amber hover:bg-amber/10"
+                  onClick={(e) => { e.stopPropagation(); onUpdateIncident(alert.id, 'ESCALATED'); }}
+                  disabled={updatePending}
+                >
+                  <AlertTriangle className="h-3 w-3 mr-1" /> Escalate
+                </Button>
+              )}
+              {alert.incident.status !== 'DISMISSED' && (
+                <Button
+                  size="sm" variant="outline" className="h-6 text-[10px] px-2 border-slate/30 text-slate hover:bg-slate/10"
+                  onClick={(e) => { e.stopPropagation(); onDismiss(alert.id, alert.title); }}
+                  disabled={updatePending}
+                >
+                  <ShieldOff className="h-3 w-3 mr-1" /> Dismiss
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+});
 
 export function AlertTriage({ alerts, operationalCount, securityCount, criticalCount }: AlertTriageProps) {
   const { alertFilter, setAlertFilter, tenantId } = useDashboardStore();
@@ -177,96 +279,15 @@ export function AlertTriage({ alerts, operationalCount, securityCount, criticalC
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-3 space-y-2">
           {filtered.map((alert, idx) => (
-            <motion.div
+            <AlertCard
               key={alert.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.02, duration: 0.2 }}
-              className={cn(
-                'rounded-lg border p-3 transition-colors',
-                categoryStyle(alert.category),
-                !alert.isRead && 'ring-1 ring-ring/30'
-              )}
-            >
-              <div className="flex items-start gap-2.5">
-                <div className="mt-0.5 shrink-0">{categoryIcon(alert.category)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-[10px] h-5 border',
-                        alert.type === 'SECURITY'
-                          ? 'text-rose border-rose/30 bg-rose/10'
-                          : 'text-cyan border-cyan/30 bg-cyan/10'
-                      )}
-                    >
-                      {alert.type === 'SECURITY' ? <ShieldOff className="h-2.5 w-2.5 mr-1" /> : <CheckCircle2 className="h-2.5 w-2.5 mr-1" />}
-                      {alert.type}
-                    </Badge>
-                    {!alert.isRead && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    )}
-                    {!alert.isRead && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markReadMutation.mutate(alert.id);
-                        }}
-                        className="ml-auto shrink-0 p-0.5 rounded text-muted-foreground hover:text-emerald transition-colors"
-                        title="Mark as read"
-                        aria-label="Mark alert as read"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    <span className="text-[10px] text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
-                      <Clock className="h-2.5 w-2.5" />{formatTime(alert.createdAt)}
-                    </span>
-                  </div>
-                  <p className="text-xs font-medium mb-0.5">{alert.title}</p>
-                  <p className="text-[11px] text-muted-foreground line-clamp-2">{alert.description}</p>
-                  {alert.incident && (
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <Badge variant="outline" className="text-[10px] h-5">{alert.incident.severity}</Badge>
-                      <Badge variant="outline" className="text-[10px] h-5">{alert.incident.status}</Badge>
-                    </div>
-                  )}
-                  {alert.incident && (
-                    <div className="flex items-center gap-1.5 mt-2">
-                      {alert.incident.status !== 'REVIEWED' && (
-                        <Button
-                          size="sm" variant="outline" className="h-6 text-[10px] px-2"
-                          onClick={(e) => { e.stopPropagation(); updateIncident.mutate({ id: alert.id, status: 'REVIEWED' }); }}
-                          disabled={updateIncident.isPending}
-                        >
-                          <Check className="h-3 w-3 mr-1" /> Review
-                        </Button>
-                      )}
-                      {alert.incident.status !== 'ESCALATED' && alert.incident.severity !== 'LOW' && (
-                        <Button
-                          size="sm" variant="outline" className="h-6 text-[10px] px-2 border-amber/30 text-amber hover:bg-amber/10"
-                          onClick={(e) => { e.stopPropagation(); updateIncident.mutate({ id: alert.id, status: 'ESCALATED' }); }}
-                          disabled={updateIncident.isPending}
-                        >
-                          <AlertTriangle className="h-3 w-3 mr-1" /> Escalate
-                        </Button>
-                      )}
-                      {alert.incident.status !== 'DISMISSED' && (
-                        <Button
-                          size="sm" variant="outline" className="h-6 text-[10px] px-2 border-slate/30 text-slate hover:bg-slate/10"
-                          onClick={(e) => { e.stopPropagation(); setDismissConfirm({ id: alert.id, title: alert.title }); }}
-                          disabled={updateIncident.isPending}
-                        >
-                          <ShieldOff className="h-3 w-3 mr-1" /> Dismiss
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
+              alert={alert}
+              idx={idx}
+              onMarkRead={(id) => markReadMutation.mutate(id)}
+              onUpdateIncident={(id, status) => updateIncident.mutate({ id, status })}
+              updatePending={updateIncident.isPending}
+              onDismiss={(id, title) => setDismissConfirm({ id, title })}
+            />
           ))}
 
           {filtered.length === 0 && (

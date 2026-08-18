@@ -8,7 +8,6 @@
 
 import { ErrorBoundary } from '@/components/error-boundary';
 import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
-import { OverviewTab } from '@/components/dashboard/overview-tab';
 import {
   GeoMapView, SituationRoom, LiveFeed, AlertTriage, AiInsights,
   MediaGallery, MobilizationEngine, CampaignMonitor, SecurityCenter,
@@ -17,7 +16,7 @@ import {
   MyReports, AgentRoster, AgentEngagement, SystemHealth,
   TenantManagement, CampaignAnalyticsPanel, SocialCardsPanel,
   NarrativeBuilderPanel, ReportsCenter, LiveActivityStream,
-  ElectionManagementPanel, OsintMonitor,
+  ElectionManagementPanel, OsintMonitor, OverviewTab, DataExplorerPanel,
 } from '@/components/dashboard/lazy-components';
 import type { TabContentProps } from '@/types/dashboard';
 
@@ -219,6 +218,12 @@ export function TabContent({ activeTab, dashData, incidents, alertsData, liveInc
       return (
         <ErrorBoundary title="Activity Stream">
           <div className="h-full"><LiveActivityStream /></div>
+        </ErrorBoundary>
+      );
+    case 'data-explorer':
+      return (
+        <ErrorBoundary title="Data Explorer">
+          <div className="h-full"><DataExplorerPanel /></div>
         </ErrorBoundary>
       );
     default:

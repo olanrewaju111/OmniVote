@@ -44,6 +44,7 @@ export const TAB_SKELETONS: Record<string, React.ComponentType> = {
   'social-cards': () => <CardGridSkeleton cols={1} rows={2} />,
   'narrative': () => <CardGridSkeleton cols={2} rows={3} />,
   'reports': () => <CardGridSkeleton cols={2} rows={3} />,
+  'data-explorer': ChartSkeleton,
 };
 
 // ── Dynamic import helper ──
@@ -94,3 +95,5 @@ export const ReportsCenter = createDynamic(() => import('@/components/dashboard/
 export const LiveActivityStream = createDynamic(() => import('@/components/dashboard/live-activity-ticker').then(m => ({ default: m.LiveActivityTicker })), 'activity-stream');
 export const SituationalKPIPanel = createDynamic(() => import('@/components/dashboard/situational-kpi').then(m => ({ default: m.SituationalKPI })), 'overview');
 export const ElectionManagementPanel = createDynamic(() => import('@/components/dashboard/election-management').then(m => ({ default: m.ElectionManagement })), 'system');
+export const OverviewTab = createDynamic(() => import('@/components/dashboard/overview-tab').then(m => ({ default: m.OverviewTab })), 'overview');
+export const DataExplorerPanel = createDynamic(() => import('@/components/dashboard/data-explorer').then(m => ({ default: m.DataExplorer })), 'data-explorer');

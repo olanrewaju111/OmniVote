@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDashboardStore } from '@/store/dashboard';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -11,11 +11,12 @@ import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FileText, Search, ChevronLeft, ChevronRight, RefreshCw, Filter, ScrollText } from 'lucide-react';
 import { ExportButton } from '@/components/dashboard/export-button';
 import { EmptyState } from './empty-state';
+import { VirtualizedList } from '@/components/ui/virtualized-list';
 
 interface AuditLogEntry {
   id: string;
@@ -67,6 +68,135 @@ const COMMON_ACTIONS = [
   'AGENT_ASSIGNED', 'AGENT_CHECKIN',
   'ALERT_CREATED', 'SECURITY_EVENT',
 ];
+
+// ── Memoized Audit Log Row ──
+const AuditLogRow = React.memo(function AuditLogRow({ log, isExpanded, onToggle }: {
+  log: AuditLogEntry;
+  isExpanded: boolean;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <TableRow
+      className="cursor-pointer hover:bg-muted/50"
+      onClick={() => onToggle(log.id)}
+    >
+      <TableCell scope="row" className="text-xs font-mono text-muted-foreground">
+        {new Date(log.createdAt).toLocaleString('en-NG', {
+          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
+        })}
+      </TableCell>
+      <TableCell className="font-medium text-sm">{log.userName}</TableCell>
+      <TableCell>
+        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${ROLE_COLORS[log.userRole] || ''}`}>
+          {log.userRole.replace(/_/g, ' ')}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${ACTION_COLORS[log.action] || ''}`}>
+          {log.action.replace(/_/g, ' ')}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-sm">
+        {log.entityType ? (
+          <span>
+            {log.entityType}
+            {log.entityId && (
+              <span className="text-muted-foreground font-mono text-[10px] block truncate max-w-[80px]">
+                {log.entityId.substring(0, 8)}...
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground max-w-[200px]">
+        {log.metadata && Object.keys(log.metadata).length > 0 ? (
+          <div>
+            {isExpanded ? (
+              <pre className="text-[10px] bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(log.metadata, null, 2)}
+              </pre>
+            ) : (
+              <span className="truncate block">
+                {Object.entries(log.metadata)
+                  .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+                  .join(' | ')
+                  .substring(0, 80)}...
+              </span>
+            )}
+          </div>
+        ) : '—'}
+      </TableCell>
+      <TableCell className="text-xs font-mono text-muted-foreground">
+        {log.ipAddress || '—'}
+      </TableCell>
+    </TableRow>
+  );
+});
+
+// ── Virtualized row renderer (div-based, matches table column widths) ──
+function renderVirtualRow({ log, isExpanded, onToggle }: { log: AuditLogEntry; isExpanded: boolean; onToggle: (id: string) => void }) {
+  return (
+    <div
+      className="flex items-center px-4 cursor-pointer hover:bg-muted/50 border-b border-border transition-colors text-sm"
+      style={{ height: 52 }}
+      onClick={() => onToggle(log.id)}
+    >
+      <span className="w-[160px] shrink-0 text-xs font-mono text-muted-foreground">
+        {new Date(log.createdAt).toLocaleString('en-NG', {
+          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
+        })}
+      </span>
+      <span className="w-[130px] shrink-0 font-medium truncate">{log.userName}</span>
+      <span className="w-[100px] shrink-0">
+        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${ROLE_COLORS[log.userRole] || ''}`}>
+          {log.userRole.replace(/_/g, ' ')}
+        </Badge>
+      </span>
+      <span className="w-[170px] shrink-0">
+        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${ACTION_COLORS[log.action] || ''}`}>
+          {log.action.replace(/_/g, ' ')}
+        </Badge>
+      </span>
+      <span className="w-[100px] shrink-0 text-xs">
+        {log.entityType ? (
+          <span className="truncate block">
+            {log.entityType}
+            {log.entityId && (
+              <span className="text-muted-foreground font-mono text-[10px] block truncate max-w-[80px]">
+                {log.entityId.substring(0, 8)}...
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </span>
+      <span className="flex-1 min-w-0 text-xs text-muted-foreground">
+        {log.metadata && Object.keys(log.metadata).length > 0 ? (
+          <div>
+            {isExpanded ? (
+              <pre className="text-[10px] bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
+                {JSON.stringify(log.metadata, null, 2)}
+              </pre>
+            ) : (
+              <span className="truncate block">
+                {Object.entries(log.metadata)
+                  .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+                  .join(' | ')
+                  .substring(0, 80)}...
+              </span>
+            )}
+          </div>
+        ) : '—'}
+      </span>
+      <span className="w-[120px] shrink-0 text-xs font-mono text-muted-foreground">
+        {log.ipAddress || '—'}
+      </span>
+    </div>
+  );
+}
 
 export function AuditLogViewer() {
   const { tenantId } = useDashboardStore();
@@ -120,6 +250,23 @@ export function AuditLogViewer() {
     : logs;
 
   const totalPages = Math.ceil(total / pageSize);
+  const useVirtualization = filteredLogs.length > 50;
+
+  const toggleMeta = useCallback((id: string) => {
+    setExpandedMeta(prev => prev === id ? null : id);
+  }, []);
+
+  const virtualHeader = (
+    <div className="flex items-center px-4 text-xs font-medium text-muted-foreground border-b border-border bg-muted/30">
+      <span className="w-[160px] shrink-0">Timestamp</span>
+      <span className="w-[130px] shrink-0">User</span>
+      <span className="w-[100px] shrink-0">Role</span>
+      <span className="w-[170px] shrink-0">Action</span>
+      <span className="w-[100px] shrink-0">Entity</span>
+      <span className="flex-1 min-w-0">Details</span>
+      <span className="w-[120px] shrink-0">IP Address</span>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -201,23 +348,22 @@ export function AuditLogViewer() {
       {/* Log Table */}
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <caption className="sr-only">Audit trail log entries showing system activity including user actions, incidents, and data exports.</caption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
-                  <TableHead scope="col" className="w-[130px]">User</TableHead>
-                  <TableHead scope="col" className="w-[100px]">Role</TableHead>
-                  <TableHead scope="col" className="w-[170px]">Action</TableHead>
-                  <TableHead scope="col" className="w-[100px]">Entity</TableHead>
-                  <TableHead scope="col">Details</TableHead>
-                  <TableHead scope="col" className="w-[120px]">IP Address</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 10 }).map((_, i) => (
+          {loading ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
+                    <TableHead scope="col" className="w-[130px]">User</TableHead>
+                    <TableHead scope="col" className="w-[100px]">Role</TableHead>
+                    <TableHead scope="col" className="w-[170px]">Action</TableHead>
+                    <TableHead scope="col" className="w-[100px]">Entity</TableHead>
+                    <TableHead scope="col">Details</TableHead>
+                    <TableHead scope="col" className="w-[120px]">IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({ length: 10 }).map((_, i) => (
                     <TableRow key={i}>
                       {Array.from({ length: 7 }).map((_, j) => (
                         <TableCell key={j}>
@@ -225,8 +371,25 @@ export function AuditLogViewer() {
                         </TableCell>
                       ))}
                     </TableRow>
-                  ))
-                ) : filteredLogs.length === 0 ? (
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
+                    <TableHead scope="col" className="w-[130px]">User</TableHead>
+                    <TableHead scope="col" className="w-[100px]">Role</TableHead>
+                    <TableHead scope="col" className="w-[170px]">Action</TableHead>
+                    <TableHead scope="col" className="w-[100px]">Entity</TableHead>
+                    <TableHead scope="col">Details</TableHead>
+                    <TableHead scope="col" className="w-[120px]">IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   <TableRow>
                     <TableCell colSpan={7} className="p-0">
                       <EmptyState
@@ -237,67 +400,51 @@ export function AuditLogViewer() {
                       />
                     </TableCell>
                   </TableRow>
-                ) : (
-                  filteredLogs.map((log) => (
-                    <TableRow key={log.id} className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setExpandedMeta(expandedMeta === log.id ? null : log.id)}>
-                      <TableCell scope="row" className="text-xs font-mono text-muted-foreground">
-                        {new Date(log.createdAt).toLocaleString('en-NG', {
-                          day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit',
-                        })}
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">{log.userName}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${ROLE_COLORS[log.userRole] || ''}`}>
-                          {log.userRole.replace(/_/g, ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${ACTION_COLORS[log.action] || ''}`}>
-                          {log.action.replace(/_/g, ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {log.entityType ? (
-                          <span>
-                            {log.entityType}
-                            {log.entityId && (
-                              <span className="text-muted-foreground font-mono text-[10px] block truncate max-w-[80px]">
-                                {log.entityId.substring(0, 8)}...
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px]">
-                        {log.metadata && Object.keys(log.metadata).length > 0 ? (
-                          <div>
-                            {expandedMeta === log.id ? (
-                              <pre className="text-[10px] bg-muted p-2 rounded overflow-x-auto whitespace-pre-wrap">
-                                {JSON.stringify(log.metadata, null, 2)}
-                              </pre>
-                            ) : (
-                              <span className="truncate block">
-                                {Object.entries(log.metadata)
-                                  .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
-                                  .join(' | ')
-                                  .substring(0, 80)}...
-                              </span>
-                            )}
-                          </div>
-                        ) : '—'}
-                      </TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">
-                        {log.ipAddress || '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                </TableBody>
+              </Table>
+            </div>
+          ) : useVirtualization ? (
+            <div style={{ animation: 'fadeIn 200ms ease-in' }}>
+              <div className="overflow-x-auto">{virtualHeader}</div>
+              <VirtualizedList
+                items={filteredLogs}
+                itemHeight={52}
+                getKey={(log) => log.id}
+                className="overflow-x-auto"
+                renderItem={({ item }) => renderVirtualRow({
+                  log: item,
+                  isExpanded: expandedMeta === item.id,
+                  onToggle: toggleMeta,
+                })}
+              />
+            </div>
+          ) : (
+            <div className="overflow-x-auto" style={{ animation: 'fadeIn 200ms ease-in' }}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead scope="col" className="w-[160px]">Timestamp</TableHead>
+                    <TableHead scope="col" className="w-[130px]">User</TableHead>
+                    <TableHead scope="col" className="w-[100px]">Role</TableHead>
+                    <TableHead scope="col" className="w-[170px]">Action</TableHead>
+                    <TableHead scope="col" className="w-[100px]">Entity</TableHead>
+                    <TableHead scope="col">Details</TableHead>
+                    <TableHead scope="col" className="w-[120px]">IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLogs.map((log) => (
+                    <AuditLogRow
+                      key={log.id}
+                      log={log}
+                      isExpanded={expandedMeta === log.id}
+                      onToggle={toggleMeta}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
           {/* Pagination */}
           {!loading && totalPages > 1 && (

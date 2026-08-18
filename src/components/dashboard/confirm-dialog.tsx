@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -19,7 +20,7 @@ interface ConfirmDialogProps {
   variant?: 'default' | 'destructive';
 }
 
-export function ConfirmDialog({
+export const ConfirmDialog = React.memo(function ConfirmDialog({
   open, onOpenChange, title, description,
   confirmLabel = 'Confirm', cancelLabel = 'Cancel',
   onConfirm, loading = false, variant = 'default',
@@ -48,4 +49,4 @@ export function ConfirmDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore, ROLE_TABS, type ViewTab, type UserRole } from '@/store/dashboard';
@@ -9,6 +9,7 @@ import {
   ChevronLeft, ChevronRight, Activity, Zap, Users, Send, FileText,
   Server, Building2, LogOut, MessageSquareWarning, MessageSquare, Globe, Megaphone, CalendarDays,
   Shield, MapPin, Eye, Flame, Menu, Settings, X, Trophy, FileDown, Share2, PieChart,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -72,6 +73,7 @@ const NAV_SECTIONS: NavSection[] = [
     id: 'analysis',
     label: 'Analysis',
     items: [
+      { id: 'data-explorer', label: 'Data Explorer', icon: <TrendingUp className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'], keywords: ['drill-down', 'time-series', 'trend', 'comparison', 'analytics'] },
       { id: 'pvt', label: 'PVT / Quick Count', icon: <BarChart3 className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
       { id: 'victory-roadmap', label: 'Victory Roadmap', icon: <Trophy className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
       { id: 'evidence', label: 'Evidence Dossier', icon: <FileText className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] },
@@ -120,19 +122,19 @@ export function AppSidebar() {
   // Share setter for MobileMenuTrigger
   setMobileSheetOpen = setMobileOpenState;
 
-  if (!user) return null;
+  const allowedTabs = useMemo(() => ROLE_TABS[user?.role || ''] || [], [user?.role]);
 
-  const allowedTabs = ROLE_TABS[user.role] || [];
-
-  const handleTabSelect = (tabId: ViewTab) => {
+  const handleTabSelect = useCallback((tabId: ViewTab) => {
     setSelectedTab(tabId);
     if (isMobile) setMobileOpenState(false);
-  };
+  }, [setSelectedTab, isMobile]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     if (isMobile) setMobileOpenState(false);
-  };
+  }, [logout, isMobile]);
+
+  if (!user) return null;
 
   const navContent = renderNavContent({
     allowedTabs,

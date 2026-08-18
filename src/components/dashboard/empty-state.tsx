@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -40,7 +41,7 @@ const SIZE_CONFIG = {
   },
 } as const;
 
-export function EmptyState({
+export const EmptyState = React.memo(function EmptyState({
   icon: Icon,
   title,
   description,
@@ -76,4 +77,4 @@ export function EmptyState({
       )}
     </div>
   );
-}
+});

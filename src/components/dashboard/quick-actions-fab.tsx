@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useDashboardStore, type ViewTab, type UserRole } from '@/store/dashboard';
 import { toast } from 'sonner';
@@ -82,7 +82,7 @@ function useFilteredActions(): QuickAction[] {
   });
 }
 
-export function QuickActionsFab() {
+export const QuickActionsFab = React.memo(function QuickActionsFab() {
   const isMobile = useIsMobile();
   const { setSelectedTab, unreadAlerts, user } = useDashboardStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -311,4 +311,4 @@ export function QuickActionsFab() {
       </div>
     </AnimatePresence>
   );
-}
+});

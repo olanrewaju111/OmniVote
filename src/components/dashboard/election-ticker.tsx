@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useDashboardStore } from '@/store/dashboard';
@@ -332,7 +332,7 @@ function QuickStatsStrip({ stats }: { stats: DashboardQuickStats }) {
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function ElectionTicker() {
+export const ElectionTicker = React.memo(function ElectionTicker() {
   const { electionInfo, tenantId, sseConnected } = useDashboardStore();
   const status = electionInfo?.status ?? '';
   const showTicker = isElectionLive(status);
@@ -412,4 +412,4 @@ export function ElectionTicker() {
       </motion.aside>
     </>
   );
-}
+});

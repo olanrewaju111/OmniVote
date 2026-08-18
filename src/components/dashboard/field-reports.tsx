@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -262,6 +262,223 @@ function StatPill({ label, value, icon, color }: { label: string; value: number;
   );
 }
 
+// ---- Result Card ----
+const ResultCard = React.memo(function ResultCard({ r, idx, isExpanded, onToggle, showReporter }: {
+  r: ReportResult & { _type: 'result' };
+  idx: number;
+  isExpanded: boolean;
+  onToggle: (id: string) => void;
+  showReporter: boolean;
+}) {
+  const turnout = r.accreditedVoters > 0 ? Math.round((r.totalVotesCast / r.accreditedVoters) * 10000) / 100 : 0;
+  const winner = r.partyResults?.length > 0 ? [...r.partyResults].sort((a, b) => b.votes - a.votes)[0] : null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
+      className="rounded-lg border border-border bg-card/60 overflow-hidden"
+    >
+      <button
+        onClick={() => onToggle(r.id)}
+        className="w-full text-left p-3 space-y-2 hover:bg-card/40 transition-colors"
+      >
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5">
+            <Vote className="h-2.5 w-2.5 mr-1" /> RESULT
+          </Badge>
+          {r.verified && (
+            <Badge className="bg-emerald text-white text-[10px] h-5 border-0">
+              <ShieldCheck className="h-2.5 w-2.5 mr-1" /> VERIFIED
+            </Badge>
+          )}
+          {showReporter && r.reporter && (
+            <Badge variant="outline" className="text-[10px] h-5">
+              <UserCircle className="h-2.5 w-2.5 mr-1" />
+              {r.reporter.name}
+            </Badge>
+          )}
+          <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto', !r.verified ? 'border-amber/30 text-amber' : '')}>
+            {r.verified ? 'Verified' : 'Pending Review'}
+          </Badge>
+        </div>
+
+        {r.pollingUnit && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <MapPin className="h-3 w-3" />
+            <span className="font-medium text-foreground/80">{r.pollingUnit.name}</span>
+            <span className="text-muted-foreground/50">({r.pollingUnit.code})</span>
+            <span className="text-muted-foreground/50">{r.pollingUnit.state}/{r.pollingUnit.lga}</span>
+          </div>
+        )}
+
+        {/* Quick stats row */}
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <MiniStat label="Accredited" value={r.accreditedVoters} />
+          <MiniStat label="Valid Votes" value={r.totalValidVotes} color="text-emerald" />
+          <MiniStat label="Rejected" value={r.rejectedBallots} color="text-amber" />
+          <MiniStat label="Turnout" value={`${turnout}%`} color="text-cyan" />
+        </div>
+
+        {/* Winner bar */}
+        {winner && (
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-medium" style={{ color: winner.color }}>{winner.party}: {winner.votes.toLocaleString()}</span>
+              <span className="text-muted-foreground">Leading</span>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden bg-secondary">
+              {r.partyResults.map(pr => (
+                <div
+                  key={pr.party}
+                  className="h-full transition-all"
+                  style={{
+                    width: `${r.totalVotesCast > 0 ? (pr.votes / r.totalVotesCast) * 100 : 0}%`,
+                    backgroundColor: pr.color,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(r.submittedAt)}</span>
+          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </div>
+      </button>
+
+      {/* Expanded detail */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 pt-3 space-y-3 border-t border-border/50">
+              {/* Full party breakdown table */}
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-muted-foreground">Full Party Breakdown</p>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-background/80">
+                        <th className="text-left py-1.5 px-2.5 font-medium text-muted-foreground">Party</th>
+                        <th className="text-right py-1.5 px-2.5 font-medium text-muted-foreground">Votes</th>
+                        <th className="text-right py-1.5 px-2.5 font-medium text-muted-foreground">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...r.partyResults].sort((a, b) => b.votes - a.votes).map((pr, i) => {
+                        const share = r.totalValidVotes > 0 ? ((pr.votes / r.totalValidVotes) * 100).toFixed(1) : '0.0';
+                        return (
+                          <tr key={pr.party} className={cn('border-t border-border/50', i === 0 && 'bg-emerald/5')}>
+                            <td className="py-1.5 px-2.5 flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: pr.color }} />
+                              <span className="font-medium">{pr.party}</span>
+                              {i === 0 && <TrendingUp className="h-3 w-3 text-emerald" />}
+                            </td>
+                            <td className="text-right py-1.5 px-2.5 tabular-nums font-medium">{pr.votes.toLocaleString()}</td>
+                            <td className="text-right py-1.5 px-2.5 tabular-nums text-muted-foreground">{share}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Polling unit stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <StatToggle label="BVAS Used" value={r.bvasUsed} />
+                <StatToggle label="Materials On Time" value={r.materialsArrivedOnTime} />
+                <StatToggle label="Security Present" value={r.securityPresent} />
+                <StatToggle label="Violence Occurred" value={r.violenceOccurred} danger />
+              </div>
+
+              {r.notes && (
+                <div className="rounded-lg bg-background border border-border p-2.5">
+                  <p className="text-[10px] font-medium text-muted-foreground mb-1">Agent Notes</p>
+                  <p className="text-xs text-foreground/80">{r.notes}</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+});
+
+// ---- Incident Card ----
+interface IncidentCardProps {
+  inc: ReportIncident & { _type: 'incident' };
+  idx: number;
+  showReporter: boolean;
+  onOpenMedia: (urls: string[], index: number, title: string) => void;
+}
+
+const IncidentCard = React.memo(function IncidentCard({ inc, idx, showReporter, onOpenMedia }: IncidentCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
+      className="rounded-lg border border-border bg-card/60 p-3 space-y-2"
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge className={cn('text-[10px] h-5 border', sevColor(inc.severity))}>
+          {inc.severity}
+        </Badge>
+        <Badge variant="outline" className="text-[10px] h-5">
+          {TYPE_LABELS[inc.type] || inc.type.replace(/_/g, ' ')}
+        </Badge>
+        {showReporter && inc.reporter && (
+          <Badge variant="outline" className="text-[10px] h-5">
+            <UserCircle className="h-2.5 w-2.5 mr-1" />
+            {inc.reporter.name}
+          </Badge>
+        )}
+        <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto', statusStyle(inc.status))}>
+          {inc.status === 'REVIEWED' && <CheckCircle2 className="h-2.5 w-2.5 mr-1" />}
+          {inc.status}
+        </Badge>
+      </div>
+
+      <p className="text-xs text-foreground/80 leading-relaxed">{inc.description}</p>
+
+      {/* Media thumbnails */}
+      {inc.mediaUrls && inc.mediaUrls.length > 0 && (
+        <MediaThumbnailStrip
+          mediaUrls={inc.mediaUrls}
+          onOpen={(i) => onOpenMedia(inc.mediaUrls, i, `${inc.type} — ${inc.pollingUnit?.name || 'Incident'}`)}
+          size="sm"
+        />
+      )}
+
+      <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+        <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(inc.submittedAt)}</span>
+        {inc.pollingUnit && (
+          <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.name} ({inc.pollingUnit.code})</span>
+        )}
+        {inc.gpsAnomaly && (
+          <Badge variant="outline" className="text-[9px] h-4 border-rose/30 text-rose">GPS ANOMALY</Badge>
+        )}
+        {inc.isQuarantined && (
+          <Badge variant="outline" className="text-[9px] h-4 border-amber/30 text-amber">QUARANTINED</Badge>
+        )}
+        {inc.c2paVerified && (
+          <span className="flex items-center gap-1 text-emerald"><ShieldCheck className="h-3 w-3" />C2PA</span>
+        )}
+      </div>
+    </motion.div>
+  );
+});
+
 // ---- Report List ----
 function ReportList({ reports, expandedResult, setExpandedResult, showReporter }: {
   reports: ((ReportResult & { _type: 'result' }) | (ReportIncident & { _type: 'incident' }))[];
@@ -302,212 +519,27 @@ function ReportList({ reports, expandedResult, setExpandedResult, showReporter }
       <div className="p-3 space-y-2">
         <AnimatePresence>
           {reports.map((report, idx) => {
-            const isResult = report._type === 'result';
-
-            if (isResult) {
-              const r = report;
-              const isExpanded = expandedResult === r.id;
-              const turnout = r.accreditedVoters > 0 ? Math.round((r.totalVotesCast / r.accreditedVoters) * 10000) / 100 : 0;
-              const winner = r.partyResults?.length > 0 ? [...r.partyResults].sort((a, b) => b.votes - a.votes)[0] : null;
-
+            if (report._type === 'result') {
               return (
-                <motion.div
-                  key={r.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
-                  className="rounded-lg border border-border bg-card/60 overflow-hidden"
-                >
-                  <button
-                    onClick={() => setExpandedResult(isExpanded ? null : r.id)}
-                    className="w-full text-left p-3 space-y-2 hover:bg-card/40 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className="bg-emerald/15 text-emerald border-emerald/30 text-[10px] h-5">
-                        <Vote className="h-2.5 w-2.5 mr-1" /> RESULT
-                      </Badge>
-                      {r.verified && (
-                        <Badge className="bg-emerald text-white text-[10px] h-5 border-0">
-                          <ShieldCheck className="h-2.5 w-2.5 mr-1" /> VERIFIED
-                        </Badge>
-                      )}
-                      {showReporter && r.reporter && (
-                        <Badge variant="outline" className="text-[10px] h-5">
-                          <UserCircle className="h-2.5 w-2.5 mr-1" />
-                          {r.reporter.name}
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto', !r.verified ? 'border-amber/30 text-amber' : '')}>
-                        {r.verified ? 'Verified' : 'Pending Review'}
-                      </Badge>
-                    </div>
-
-                    {r.pollingUnit && (
-                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        <span className="font-medium text-foreground/80">{r.pollingUnit.name}</span>
-                        <span className="text-muted-foreground/50">({r.pollingUnit.code})</span>
-                        <span className="text-muted-foreground/50">{r.pollingUnit.state}/{r.pollingUnit.lga}</span>
-                      </div>
-                    )}
-
-                    {/* Quick stats row */}
-                    <div className="grid grid-cols-4 gap-2 text-center">
-                      <MiniStat label="Accredited" value={r.accreditedVoters} />
-                      <MiniStat label="Valid Votes" value={r.totalValidVotes} color="text-emerald" />
-                      <MiniStat label="Rejected" value={r.rejectedBallots} color="text-amber" />
-                      <MiniStat label="Turnout" value={`${turnout}%`} color="text-cyan" />
-                    </div>
-
-                    {/* Winner bar */}
-                    {winner && (
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-medium" style={{ color: winner.color }}>{winner.party}: {winner.votes.toLocaleString()}</span>
-                          <span className="text-muted-foreground">Leading</span>
-                        </div>
-                        <div className="flex h-2 rounded-full overflow-hidden bg-secondary">
-                          {r.partyResults.map(pr => (
-                            <div
-                              key={pr.party}
-                              className="h-full transition-all"
-                              style={{
-                                width: `${r.totalVotesCast > 0 ? (pr.votes / r.totalVotesCast) * 100 : 0}%`,
-                                backgroundColor: pr.color,
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(r.submittedAt)}</span>
-                      {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                    </div>
-                  </button>
-
-                  {/* Expanded detail */}
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-3 pb-3 pt-3 space-y-3 border-t border-border/50">
-                          {/* Full party breakdown table */}
-                          <div className="space-y-1">
-                            <p className="text-[11px] font-medium text-muted-foreground">Full Party Breakdown</p>
-                            <div className="rounded-lg border border-border overflow-hidden">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="bg-background/80">
-                                    <th className="text-left py-1.5 px-2.5 font-medium text-muted-foreground">Party</th>
-                                    <th className="text-right py-1.5 px-2.5 font-medium text-muted-foreground">Votes</th>
-                                    <th className="text-right py-1.5 px-2.5 font-medium text-muted-foreground">Share</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {[...r.partyResults].sort((a, b) => b.votes - a.votes).map((pr, i) => {
-                                    const share = r.totalValidVotes > 0 ? ((pr.votes / r.totalValidVotes) * 100).toFixed(1) : '0.0';
-                                    return (
-                                      <tr key={pr.party} className={cn('border-t border-border/50', i === 0 && 'bg-emerald/5')}>
-                                        <td className="py-1.5 px-2.5 flex items-center gap-1.5">
-                                          <span className="w-2 h-2 rounded-sm" style={{ backgroundColor: pr.color }} />
-                                          <span className="font-medium">{pr.party}</span>
-                                          {i === 0 && <TrendingUp className="h-3 w-3 text-emerald" />}
-                                        </td>
-                                        <td className="text-right py-1.5 px-2.5 tabular-nums font-medium">{pr.votes.toLocaleString()}</td>
-                                        <td className="text-right py-1.5 px-2.5 tabular-nums text-muted-foreground">{share}%</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-
-                          {/* Polling unit stats */}
-                          <div className="grid grid-cols-2 gap-2">
-                            <StatToggle label="BVAS Used" value={r.bvasUsed} />
-                            <StatToggle label="Materials On Time" value={r.materialsArrivedOnTime} />
-                            <StatToggle label="Security Present" value={r.securityPresent} />
-                            <StatToggle label="Violence Occurred" value={r.violenceOccurred} danger />
-                          </div>
-
-                          {r.notes && (
-                            <div className="rounded-lg bg-background border border-border p-2.5">
-                              <p className="text-[10px] font-medium text-muted-foreground mb-1">Agent Notes</p>
-                              <p className="text-xs text-foreground/80">{r.notes}</p>
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+                <ResultCard
+                  key={report.id}
+                  r={report as ReportResult & { _type: 'result' }}
+                  idx={idx}
+                  isExpanded={expandedResult === report.id}
+                  onToggle={(id) => setExpandedResult(expandedResult === id ? null : id)}
+                  showReporter={showReporter}
+                />
               );
             }
 
-            // Incident card
-            const inc = report;
             return (
-              <motion.div
-                key={inc.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(idx, 20) * 0.03, duration: 0.2 }}
-                className="rounded-lg border border-border bg-card/60 p-3 space-y-2"
-              >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={cn('text-[10px] h-5 border', sevColor(inc.severity))}>
-                    {inc.severity}
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px] h-5">
-                    {TYPE_LABELS[inc.type] || inc.type.replace(/_/g, ' ')}
-                  </Badge>
-                  {showReporter && inc.reporter && (
-                    <Badge variant="outline" className="text-[10px] h-5">
-                      <UserCircle className="h-2.5 w-2.5 mr-1" />
-                      {inc.reporter.name}
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className={cn('text-[10px] h-5 ml-auto', statusStyle(inc.status))}>
-                    {inc.status === 'REVIEWED' && <CheckCircle2 className="h-2.5 w-2.5 mr-1" />}
-                    {inc.status}
-                  </Badge>
-                </div>
-
-                <p className="text-xs text-foreground/80 leading-relaxed">{inc.description}</p>
-
-                {/* Media thumbnails */}
-                {inc.mediaUrls && inc.mediaUrls.length > 0 && (
-                  <MediaThumbnailStrip
-                    mediaUrls={inc.mediaUrls}
-                    onOpen={(i) => openMedia(inc.mediaUrls, i, `${inc.type} — ${inc.pollingUnit?.name || 'Incident'}`)}
-                    size="sm"
-                  />
-                )}
-
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(inc.submittedAt)}</span>
-                  {inc.pollingUnit && (
-                    <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{inc.pollingUnit.name} ({inc.pollingUnit.code})</span>
-                  )}
-                  {inc.gpsAnomaly && (
-                    <Badge variant="outline" className="text-[9px] h-4 border-rose/30 text-rose">GPS ANOMALY</Badge>
-                  )}
-                  {inc.isQuarantined && (
-                    <Badge variant="outline" className="text-[9px] h-4 border-amber/30 text-amber">QUARANTINED</Badge>
-                  )}
-                  {inc.c2paVerified && (
-                    <span className="flex items-center gap-1 text-emerald"><ShieldCheck className="h-3 w-3" />C2PA</span>
-                  )}
-                </div>
-              </motion.div>
+              <IncidentCard
+                key={report.id}
+                inc={report as ReportIncident & { _type: 'incident' }}
+                idx={idx}
+                showReporter={showReporter}
+                onOpenMedia={openMedia}
+              />
             );
           })}
         </AnimatePresence>

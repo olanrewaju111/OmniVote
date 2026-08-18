@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, type RefObject } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, Bell, Search, Shield, User, Vote, Calendar, Check, CheckCheck, AlertTriangle, Info, Radio, Clock, X, Mail, Building2, WifiOff, Wifi, Command, Signal, Settings, Lock, Eye, EyeOff, ChevronRight, Zap, Megaphone, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ import { BroadcastBriefing } from '@/components/dashboard/broadcast-briefing';
 import { WinProbabilityHeader } from '@/components/dashboard/win-probability-header';
 import { SoundToggle } from '@/components/dashboard/sound-toggle';
 import { ProfileSettingsDialog } from '@/components/dashboard/profile-settings';
+import { DashboardExport } from '@/components/dashboard/dashboard-export';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface BreadcrumbData {
@@ -41,6 +42,7 @@ interface HeaderProps {
     unreadAlerts: number;
     securityAlerts: number;
   };
+  containerRef?: RefObject<HTMLDivElement | null>;
 }
 
 const TIER_STYLES: Record<string, string> = {
@@ -237,7 +239,7 @@ function getPasswordStrength(pw: string) {
   return { score, label: labels[score], color: colors[score] };
 }
 
-export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
+export function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
   const { electionTier, electionInfo, setSelectedTab, tenantId, user, logout, globalSearch, setGlobalSearch, sseConnected } = useDashboardStore();
   const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -278,8 +280,11 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
     refetchInterval: 60_000,
   });
 
-  const unreadAlerts = (alertsRes?.alerts || []).filter(a => !a.isRead);
-  const recentUnread = unreadAlerts.slice(0, 5);
+  const unreadAlerts = useMemo(
+    () => (alertsRes?.alerts || []).filter(a => !a.isRead),
+    [alertsRes?.alerts],
+  );
+  const recentUnread = useMemo(() => unreadAlerts.slice(0, 5), [unreadAlerts]);
 
   const markRead = useMutation({
     mutationFn: (alertId: string) =>
@@ -456,6 +461,9 @@ export function AppHeader({ breadcrumb, kpis }: HeaderProps) {
 
           {/* Sound toggle */}
           <SoundToggle />
+
+          {/* Dashboard export */}
+          {containerRef && <DashboardExport containerRef={containerRef} size="sm" />}
 
           <Separator orientation="vertical" className="h-6 bg-border/60" />
 
