@@ -42,6 +42,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'situation', label: 'Situation Room', icon: <BarChart3 className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
       { id: 'map', label: 'Geo Map', icon: <Map className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] },
       { id: 'feed', label: 'Live Feed', icon: <Radio className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'] },
+      { id: 'activity-stream', label: 'Activity Stream', icon: <Activity className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'], keywords: ['real-time', 'events', 'ticker', 'notifications'] },
     ],
   },
   {

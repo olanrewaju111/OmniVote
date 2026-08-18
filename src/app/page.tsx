@@ -136,6 +136,8 @@ const CampaignAnalyticsPanel = createDynamic(() => import('@/components/dashboar
 const SocialCardsPanel = createDynamic(() => import('@/components/dashboard/social-cards').then(m => ({ default: m.SocialCards })), 'social-cards');
 const NarrativeBuilderPanel = createDynamic(() => import('@/components/dashboard/narrative-builder').then(m => ({ default: m.NarrativeBuilder })), 'narrative');
 const ReportsCenter = createDynamic(() => import('@/components/dashboard/reports-center').then(m => ({ default: m.ReportsCenter })), 'reports');
+const LiveActivityStream = createDynamic(() => import('@/components/dashboard/live-activity-ticker').then(m => ({ default: m.LiveActivityTicker })), 'activity-stream');
+const SituationalKPIPanel = createDynamic(() => import('@/components/dashboard/situational-kpi').then(m => ({ default: m.SituationalKPI })), 'overview');
 const ElectionManagementPanel = createDynamic(() => import('@/components/dashboard/election-management').then(m => ({ default: m.ElectionManagement })), 'system');
 
 // ---- Types ----
@@ -705,6 +707,13 @@ export default function Home() {
                   </div>
                 </ErrorBoundary>
               )}
+              {activeTab === 'activity-stream' && (
+                <ErrorBoundary title="Activity Stream">
+                  <div className="h-full">
+                    <LiveActivityStream />
+                  </div>
+                </ErrorBoundary>
+              )}
             </motion.div>
           </AnimatePresence>
         </main>
@@ -777,6 +786,11 @@ function OverviewTab({
             { label: 'Pending Review', value: dashData.kpis.pendingIncidents, color: 'amber' },
           ] : undefined}
         />
+      </div>
+
+      {/* Situational Awareness KPI — Phase 5 */}
+      <div className="shrink-0">
+        <SituationalKPIPanel />
       </div>
 
       {/* Quick action cards — stack on small screens */}
