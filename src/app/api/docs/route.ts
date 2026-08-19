@@ -164,6 +164,9 @@ const tags: OpenAPIV3.TagObject[] = [
   { name: 'Tenants', description: 'Multi-tenant management and configuration' },
   { name: 'Settings', description: 'Tenant and application settings' },
   { name: 'Field Operations', description: 'Field-level operations including flashpoint, honeypot, engagement, and voter suppression tracking' },
+  { name: 'Admin', description: 'Data retention, tenant statistics, and audit operations' },
+  { name: 'Notifications', description: 'Notification routing rules and delivery management' },
+  { name: 'Export', description: 'Data export pipeline and background job management' },
 ];
 
 // ─── Paths ──────────────────────────────────────────────────────────────────
@@ -1201,6 +1204,67 @@ const paths: OpenAPIV3.PathsObject = {
       responses: ok(schema({ enabled: boolProp('false') })),
     }),
   },
+
+  // ── Phase 18 routes ──────────────────────────────────────────────────────
+
+  '/api/admin/audit/retention': {
+    get: op('Scan data retention eligibility', ['Admin'], {
+      parameters: [queryParam('tenantId', 'Specific tenant (SUPER_ADMIN)'), queryParam('execute', 'Set to "true" to delete (SUPER_ADMIN only)')],
+      responses: ok(schema({
+        tenantId: prop(''), tenantName: prop(''), retentionDays: numProp('Configured retention period'),
+        totalScanned: numProp('Total records scanned'), totalDeleted: numProp('Records deleted'),
+        scanned: arrayProp(schema({ entityType: prop(''), tableName: prop(''), totalCount: numProp(''), eligibleCount: numProp('') }), 'Per-entity breakdown'),
+      })),
+    }),
+    post: op('Execute data retention cleanup', ['Admin'], {
+      requestBody: body(schema({ tenantId: prop('Target tenant'), execute: boolProp('Whether to actually delete'), retentionDays: numProp('Custom retention days') }, [])),
+      responses: ok(schema({ tenantId: prop(''), totalDeleted: numProp('') })),
+    }),
+  },
+
+  '/api/admin/audit/stats': {
+    get: op('Get tenant data statistics', ['Admin'], {
+      parameters: [queryParam('tenantId', 'Specific tenant'), queryParam('global', 'Global summary across all tenants')],
+      responses: ok(schema({
+        tenantId: prop(''), tenantName: prop(''), totalRecords: numProp(''), estimatedSizeKb: numProp(''),
+        entities: arrayProp(schema({ entityType: prop(''), tableName: prop(''), count: numProp(''), estimatedSizeKb: numProp('') }), 'Per-entity stats'),
+        topEntities: arrayProp(schema({ entityType: prop(''), count: numProp('') }), 'Top 5 entities by record count'),
+      })),
+    }),
+  },
+
+  '/api/notifications/rules': {
+    get: op('List notification routing rules and stats', ['Notifications'], {
+      responses: ok(schema({
+        rules: arrayProp(schema({
+          id: prop(''), name: prop(''), description: prop(''), isActive: boolProp(''),
+          match: { type: 'object', description: 'Match conditions', properties: { eventTypes: arrayProp(prop(''), 'Event types'), categories: arrayProp(prop(''), 'Categories'), priorities: arrayProp(prop(''), 'Priority levels'), severities: arrayProp(prop(''), 'Severity levels') } },
+          target: { type: 'object', description: 'Target recipients', properties: { roles: arrayProp(prop(''), 'Target roles'), userIds: arrayProp(prop(''), 'Target user IDs') } },
+          channels: arrayProp(prop('Delivery channel'), 'Channels'), cooldownSeconds: numProp('Per-user cooldown'),
+        }), 'Routing rules'),
+        stats: { type: 'object', description: 'Router delivery statistics' },
+      })),
+    }),
+    post: op('Add or update a routing rule', ['Notifications'], {
+      requestBody: body(schema({ id: prop('Rule ID'), name: prop('Rule name'), description: prop(''), isActive: boolProp(''), match: { type: 'object' }, target: { type: 'object' }, channels: arrayProp(prop(''), 'Channels'), cooldownSeconds: numProp('Cooldown seconds') }, ['id', 'name', 'channels'])),
+      responses: ok(schema({ success: boolProp('true'), rule: { type: 'object' } })),
+    }),
+    delete: op('Remove a routing rule', ['Notifications'], {
+      parameters: [queryParam('id', 'Rule ID to remove', true)],
+      responses: ok(schema({ success: boolProp('true') })),
+    }),
+  },
+
+  '/api/export/jobs': {
+    get: op('List export jobs for current tenant', ['Export'], {
+      responses: ok(schema({
+        jobs: arrayProp(schema({ id: prop(''), tenantId: prop(''), status: prop('QUEUED | RUNNING | COMPLETED | FAILED'), format: prop(''), entityType: prop(''), filename: prop(''), size: numProp('Bytes'), rowCount: numProp(''), error: prop(''), requestedBy: prop(''), createdAt: prop(''), completedAt: prop('') }), 'Export jobs'),
+        stats: { type: 'object', description: 'Queue statistics' },
+      })),
+    }),
+  },
+
+  // ── Auth continued ────────────────────────────────────────────────────────
 
   '/api/auth/invite': {
     post: op('Invite a new user', ['Authentication'], {
