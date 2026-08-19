@@ -22,7 +22,7 @@ interface WsClient {
 }
 
 interface BroadcastEvent {
-  type: 'incident' | 'alert' | 'pvt' | 'chat' | 'agent' | 'osint' | 'dashboard' | 'geofence' | 'honeypot' | 'security' | 'presence';
+  type: 'incident' | 'alert' | 'pvt' | 'chat' | 'agent' | 'osint' | 'dashboard' | 'geofence' | 'honeypot' | 'security' | 'presence' | 'web-vitals';
   action: string;
   data: unknown;
   tenantId: string;
