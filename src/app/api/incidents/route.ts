@@ -82,16 +82,24 @@ export async function GET(req: NextRequest) {
 // POST /api/incidents — submit a new incident/infraction report
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { reporterId, pollingUnitId, type, severity, description } = body;
-
-    if (!reporterId || !type || !description) {
-      return NextResponse.json({ error: 'reporterId, type, and description are required' }, { status: 400 });
+    // ─── Authentication required (security fix: was previously unauthenticated) ──
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Resolve reporter's tenant
-    const reporter = await db.user.findUnique({ where: { id: reporterId }, select: { tenantId: true } });
-    if (!reporter) return NextResponse.json({ error: 'Reporter not found' }, { status: 404 });
+    const body = await req.json();
+    const { pollingUnitId, type, severity, description } = body;
+
+    // Use authenticated user's ID as reporter (ignore reporterId from body)
+    const reporterId = authUser.userId;
+
+    if (!type || !description) {
+      return NextResponse.json({ error: 'type and description are required' }, { status: 400 });
+    }
+
+    // Use authenticated user's tenant (defense-in-depth)
+    const tenantId = authUser.tenantId;
 
     const validTypes = [
       'OBSERVATION', 'VIOLENCE', 'INTIMIDATION', 'BALLOT_STUFFING',
@@ -108,7 +116,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid severity' }, { status: 400 });
     }
 
-    const tenant = await db.tenant.findUnique({ where: { id: reporter.tenantId } });
+    const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
     if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 });
 
     // Get reporter's PU GPS if no coordinates provided
@@ -133,7 +141,7 @@ export async function POST(req: NextRequest) {
 
     const incident = await db.incident.create({
       data: {
-        tenantId: reporter.tenantId,
+        tenantId,
         pollingUnitId: pollingUnitId || null,
         reportedById: reporterId,
         type,
@@ -151,7 +159,7 @@ export async function POST(req: NextRequest) {
       try {
         await db.alert.create({
           data: {
-            tenantId: reporter.tenantId,
+            tenantId,
             incidentId: incident.id,
             type: type === 'VIOLENCE' || type === 'BALLOT_STUFFING' ? 'SECURITY' : 'OPERATIONAL',
             category: severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING',
@@ -175,7 +183,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Broadcast incident via WebSocket to all connected clients
-    broadcastIncident(reporter.tenantId, 'new', {
+    broadcastIncident(tenantId, 'new', {
       incidents: [{
         id: incident.id,
         type: incident.type,

@@ -64,24 +64,30 @@ export async function GET(req: NextRequest) {
 // POST /api/results — submit election results for a polling unit
 export async function POST(req: NextRequest) {
   try {
+    // ─── Authentication required (security fix: was previously unauthenticated) ──
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
     const body = await req.json();
     const {
-      reporterId, pollingUnitId,
+      pollingUnitId,
       accreditedVoters, totalValidVotes, rejectedBallots, totalVotesCast,
       partyResults, bvasUsed, materialsArrivedOnTime, securityPresent,
       violenceOccurred, notes,
     } = body;
 
-    if (!reporterId || !pollingUnitId) {
-      return NextResponse.json({ error: 'reporterId and pollingUnitId are required' }, { status: 400 });
+    // Use authenticated user's ID as reporter (ignore reporterId from body)
+    const reporterId = authUser.userId;
+    const tenantId = authUser.tenantId;
+
+    if (!pollingUnitId) {
+      return NextResponse.json({ error: 'pollingUnitId is required' }, { status: 400 });
     }
     if (totalVotesCast === undefined || totalVotesCast === null) {
       return NextResponse.json({ error: 'totalVotesCast is required' }, { status: 400 });
     }
-
-    // Resolve reporter's tenant
-    const reporter = await db.user.findUnique({ where: { id: reporterId }, select: { tenantId: true } });
-    if (!reporter) return NextResponse.json({ error: 'Reporter not found' }, { status: 404 });
 
     const pu = await db.pollingUnit.findUnique({
       where: { id: pollingUnitId },
@@ -91,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     // Check for existing result (only one per PU)
     const existing = await db.electionResult.findFirst({
-      where: { tenantId: reporter.tenantId, pollingUnitId },
+      where: { tenantId: tenantId, pollingUnitId },
     });
     if (existing) {
       return NextResponse.json({
@@ -103,7 +109,7 @@ export async function POST(req: NextRequest) {
     // Create the result
     const result = await db.electionResult.create({
       data: {
-        tenantId: reporter.tenantId,
+        tenantId: tenantId,
         pollingUnitId,
         reportedById: reporterId,
         accreditedVoters: accreditedVoters || 0,
@@ -145,7 +151,7 @@ export async function POST(req: NextRequest) {
       try {
         await db.incident.create({
           data: {
-            tenantId: reporter.tenantId,
+            tenantId: tenantId,
             pollingUnitId,
             reportedById: reporterId,
             type: 'VIOLENCE',
@@ -155,7 +161,7 @@ export async function POST(req: NextRequest) {
         });
         await db.alert.create({
           data: {
-            tenantId: reporter.tenantId,
+            tenantId: tenantId,
             type: 'SECURITY',
             category: 'WARNING',
             title: 'Violence reported during result submission',
