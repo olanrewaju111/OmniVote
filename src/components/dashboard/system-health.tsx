@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useDashboardStore } from '@/store/dashboard';
 import { fetchJson } from '@/lib/api';
+import { WebVitalsPanel } from '@/components/dashboard/web-vitals-panel';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -464,6 +465,19 @@ function SystemHealthInner() {
           </CardContent>
         </Card>
       )}
+
+      {/* Web Vitals Performance (Phase 20) */}
+      <Card>
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Gauge className="h-4 w-4 text-violet" aria-hidden="true" />
+            Core Web Vitals
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 pb-2">
+          <WebVitalsPanel />
+        </CardContent>
+      </Card>
 
       {/* Runbooks Section (Phase 12) */}
       <Card>

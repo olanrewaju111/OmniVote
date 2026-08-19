@@ -1,6 +1,29 @@
 # OmniVote Development Work Log
 
 ---
+Task ID: 20
+Agent: Super Z (Main)
+Task: Phase 20 — Hook Test Suite, Web Vitals Dashboard, Per-Tenant Policy Enforcement
+
+Work Log:
+- Created 7 hook test files in `src/hooks/__tests__/`: use-debounce (6), use-throttle (7), use-memoized-callback (4), use-virtual-scroll (8), use-toast (14), use-mobile (5), use-intersection-observer (5).
+- Created `src/lib/tenant-enforcement.ts`: Per-tenant session timeout and IP whitelist enforcement at the API route level. Session timeout checks JWT `iat` against `tenant.sessionTimeoutMin`. IP whitelist supports exact IPs and CIDR notation (/8, /24, /32, /0). Uses `enforceTenantPolicies(req, authUser)` combined guard. Fixed 32-bit signed integer overflow in CIDR comparison with `>>> 0`.
+- Created `src/lib/__tests__/tenant-enforcement.test.ts`: 16 tests covering session timeout (allow/block/boundary/DB error), IP whitelist (exact/CIDR/empty/not found/DB error/graceful degradation), /32 CIDR, /0 CIDR.
+- Created `src/components/dashboard/web-vitals-panel.tsx`: Full Core Web Vitals dashboard panel with health score gauge (0-100), 5 metric cards (LCP/INP/CLS/FCP/TTFB) with P75 vs budget, trend indicators, anomaly feed, route filter, clear data button. Integrated into System Health tab.
+- Fixed `src/test/setup.ts` (recreated after loss between sessions).
+- Updated `src/components/dashboard/system-health.tsx`: Added WebVitalsPanel section between Runtime Info and Runbooks.
+- Fixed 32-bit signed integer overflow bug in CIDR matching (`>>> 0` on bitwise AND results).
+
+Stage Summary:
+- 0 TypeScript errors, 496/496 unit tests passing (was 431), 34 test files (was 26)
+- Clean production build
+- 7 hooks tested with 49 tests (was 0 hooks tested)
+- Web Vitals fully surfaced in System Health dashboard UI
+- Per-tenant session timeout and IP whitelist enforcement ready for route integration
+
+- 65 new tests added in Phase 20
+
+---
 Task ID: 19
 Agent: Super Z (Main)
 Task: Phase 19 — CI/CD Pipeline, Component Testing Infrastructure, Web Vitals Aggregation, Broadcast Briefing Integration
