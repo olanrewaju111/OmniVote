@@ -24,7 +24,9 @@
     "test:load": "k6 run load-tests/load.js",
     "test:load:spike": "k6 run load-tests/spike.js",
     "test:load:stress": "k6 run load-tests/stress.js",
-    "test:load:auth": "k6 run load-tests/auth.js"
+    "test:load:auth": "k6 run load-tests/auth.js",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -100,7 +102,13 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "latest",
     "@playwright/test": "^1.62.1",
+    "@storybook/addon-a11y": "^10.5.9",
+    "@storybook/addon-docs": "^10.5.9",
+    "@storybook/addon-mcp": "latest",
+    "@storybook/addon-vitest": "^10.5.9",
+    "@storybook/nextjs-vite": "^10.5.9",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
@@ -114,16 +122,22 @@
     "@types/web-push": "^3.6.4",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/browser-playwright": "4.1.11",
+    "@vitest/coverage-v8": "4.1.11",
     "bun-types": "^1.3.4",
     "concurrently": "^10.0.5",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
+    "eslint-plugin-storybook": "^10.5.9",
     "jsdom": "^30.0.1",
     "openapi-types": "^12.1.3",
+    "playwright": "latest",
+    "storybook": "^10.5.9",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5",
+    "vite": "latest",
     "vitest": "^4.1.11"
   }
 }

@@ -1,6 +1,30 @@
 # OmniVote Development Work Log
 
 ---
+Task ID: 23
+Agent: Super Z (Main)
+Task: Phase 23 — Storybook Setup & Component Stories
+
+Work Log:
+- Installed Storybook 10.5.9 with @storybook/nextjs-vite framework for Next.js 16 + React 19.
+- Installed addons: @chromatic-com/storybook, @storybook/addon-vitest, @storybook/addon-a11y, @storybook/addon-docs, @storybook/addon-mcp.
+- Configured .storybook/main.ts: autodocs on tag, react-docgen-typescript, staticDirs for public assets.
+- Configured .storybook/preview.tsx: imports globals.css (Tailwind 4 + custom animations), dark/light theme background switcher via globalTypes toolbar.
+- Updated vitest.config.ts: added storybook test project with @vitest/browser-playwright, excluded story files from unit test project.
+- Created 15 story files across UI and Dashboard components:
+  - UI (11): Button (13 stories), Badge (6), Card (5), Input (6), Textarea (4), Switch (4), Tabs (2), Progress (4), Dialog (2), Skeleton (4), Select (3)
+  - Dashboard (4): KPI Grid (4), Empty State (5), Confirm Dialog (2), Dashboard Skeletons (10)
+- Removed default Storybook boilerplate (src/stories/).
+- Added scripts: storybook (dev on :6006), build-storybook.
+
+Stage Summary:
+- Storybook 10.5.9 fully configured and smoke-tested
+- 15 story files with ~77 individual stories covering core UI + dashboard components
+- 807/807 unit tests still passing (no regressions)
+- Stories feature OmniVote's custom theme: dark/light toggle, glassmorphism, glow effects, custom animations, map-grid pattern
+- Run: npm run storybook (dev) or npm run build-storybook (static build)
+
+---
 Task ID: 22
 Agent: Super Z (Main)
 Task: Phase 22 — Pending Items Resolution (Type Fix, Hook Tests, Component Tests, E2E Fixes)
