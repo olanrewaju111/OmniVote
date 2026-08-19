@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { sloTracker, latencyHistogram, requestCounter, activeConnections } from '@/lib/sre';
 import { errorTracker, alertManager } from '@/lib/monitoring';
 import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
+import { broadcastWebVitals } from '@/lib/ws-broadcast';
 
 let initialized = false;
 async function ensureInit() {
@@ -243,6 +244,8 @@ export async function POST(req: NextRequest) {
         deviceType: body.deviceType,
         connectionType: body.connectionType,
       });
+      // Phase 21: Broadcast aggregated vitals to connected dashboards
+      broadcastVitalsSnapshot(aggregator, body.tenantId);
     }
     if (type === 'web-vitals') {
       const aggregator = getWebVitalsAggregator();
@@ -255,6 +258,8 @@ export async function POST(req: NextRequest) {
           route: body.route,
         }))
       );
+      // Phase 21: Broadcast aggregated vitals to connected dashboards
+      broadcastVitalsSnapshot(aggregator, body.tenantId);
     }
 
     return NextResponse.json({ ok: true });
@@ -262,3 +267,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true }); // always 200 to not break fire-and-forget
   }
 }
+
+/**
+ * Broadcast a vitals snapshot to connected dashboards via WebSocket.
+ * Extracted as a helper to keep the POST handler clean.
+ * Uses a default tenant for the global dashboard view.
+ */
+function broadcastVitalsSnapshot(
+  aggregator: ReturnType<typeof getWebVitalsAggregator>,
+  tenantId?: string,
+) {
+  // Only broadcast every ~5s to avoid flooding WebSocket clients
+  const now = Date.now();
+  if (!broadcastVitalsSnapshot.lastBroadcast || now - broadcastVitalsSnapshot.lastBroadcast > 5000) {
+    broadcastVitalsSnapshot.lastBroadcast = now;
+    const tid = tenantId || 'default';
+    broadcastWebVitals(tid, {
+      stats: aggregator.getAllStats() as Record<string, unknown>,
+      healthScore: aggregator.getHealthScore(),
+      anomalies: aggregator.getAnomalies({ limit: 20 }),
+      anomalyCounts: aggregator.getAnomalyCounts(),
+      totalEvents: aggregator.getTotalEvents(),
+      budgetCompliance: aggregator.getBudgetCompliance() as Record<string, unknown>,
+      routes: aggregator.getRoutes(),
+      bufferUtilization: aggregator.getBufferUtilization(),
+    });
+  }
+}
+broadcastVitalsSnapshot.lastBroadcast = 0;

@@ -9,7 +9,7 @@ const WS_INTERNAL_URL = process.env.WS_INTERNAL_URL || 'http://localhost:3003';
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
 interface BroadcastPayload {
-  type: 'incident' | 'alert' | 'pvt' | 'chat' | 'agent' | 'osint' | 'dashboard' | 'geofence' | 'honeypot' | 'security' | 'presence';
+  type: 'incident' | 'alert' | 'pvt' | 'chat' | 'agent' | 'osint' | 'dashboard' | 'geofence' | 'honeypot' | 'security' | 'presence' | 'web-vitals';
   action: string;
   data: unknown;
   tenantId: string;
@@ -75,4 +75,22 @@ export function broadcastChat(tenantId: string, action: string, data: unknown) {
  */
 export function broadcastDashboard(tenantId: string, data: unknown) {
   return broadcastEvent({ type: 'dashboard', action: 'kpi_update', data, tenantId });
+}
+
+/**
+ * Broadcast a web vitals update to a tenant.
+ * Phase 21: Enables real-time Web Vitals streaming to connected dashboards.
+ * The data shape matches the WebVitalsData interface consumed by WebVitalsPanel.
+ */
+export function broadcastWebVitals(tenantId: string, data: {
+  stats: Record<string, unknown>;
+  healthScore: number;
+  anomalies: unknown[];
+  anomalyCounts: { total: number; warning: number; critical: number };
+  totalEvents: number;
+  budgetCompliance: Record<string, unknown>;
+  routes: string[];
+  bufferUtilization: number;
+}) {
+  return broadcastEvent({ type: 'web-vitals', action: 'update', data, tenantId });
 }

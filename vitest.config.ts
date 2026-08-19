@@ -18,6 +18,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'web-vitals': path.resolve(__dirname, './src/__mocks__/web-vitals.ts'),
     },
   },
 });

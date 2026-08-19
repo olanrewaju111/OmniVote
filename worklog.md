@@ -1,6 +1,30 @@
 # OmniVote Development Work Log
 
 ---
+Task ID: 21
+Agent: Super Z (Main)
+Task: Phase 21 — Real-Time Web Vitals Pipeline, Hook Test Suite, Core API Integration Tests
+
+Work Log:
+- Extended `ws-broadcast.ts` with `broadcastWebVitals()` helper for live vitals streaming to dashboard WebSocket clients. Added `web-vitals` to BroadcastPayload type union.
+- Updated `/api/metrics` POST handler: after aggregating web-vital/web-vitals payloads, calls `broadcastVitalsSnapshot()` which throttles WebSocket broadcasts to every ~5s to avoid flooding.
+- Created `src/hooks/use-web-vitals.ts`: Client-side RUM hook that collects Core Web Vitals (LCP, INP, CLS, FCP, TTFB) via the `web-vitals` library (with raw PerformanceObserver fallback). Features: batching (5s interval, max 20 items), page visibility awareness, `beforeunload` flush, `keepalive` fetch, custom reporting callback, device/connection type detection. Created `src/types/web-vitals.d.ts` for optional dependency typing.
+- Enhanced `WebVitalsPanel` with real-time WebSocket streaming: subscribes to `ws:message` DOM events for `web-vitals:update` type, merges live data with React Query cache, shows LIVE badge when streaming is active, reduces polling to 60s fallback when live.
+- Created `src/__mocks__/web-vitals.ts` for test environment, added vitest alias in `vitest.config.ts`.
+- Created 7 hook test files (8 total including web-vitals): use-websocket (8), use-sse (6), use-offline-submit (6), use-push-notifications (6), use-sound (7), use-tab-prefetch (5), use-web-vitals (5). Total: 43 new hook tests.
+- Created `src/lib/__tests__/ws-broadcast.test.ts`: 9 tests covering all broadcast helpers, error handling, abort, and the new broadcastWebVitals function.
+- Created `src/app/api/__tests__/api-core-integration.test.ts`: 19 integration tests for 6 core API routes (incidents, elections, results, pvt, agents, campaigns) covering GET/POST with auth, RBAC, validation, query filtering, and response shape.
+- Updated `vitest.config.ts` coverage paths to include web-vitals mock directory.
+
+Stage Summary:
+- 0 TypeScript errors, 567/567 tests passing (was 496), 43 test files (was 34)
+- Clean production build with all routes compiling
+- 71 new tests added in Phase 21
+- Full real-time Web Vitals pipeline: client RUM → POST /api/metrics → aggregation → WebSocket broadcast → dashboard live panel
+- All 14 hooks now have test coverage (was 7 tested)
+- Core API routes covered by integration tests
+
+---
 Task ID: 20
 Agent: Super Z (Main)
 Task: Phase 20 — Hook Test Suite, Web Vitals Dashboard, Per-Tenant Policy Enforcement

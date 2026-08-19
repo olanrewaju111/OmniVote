@@ -1,20 +1,21 @@
 /**
- * WebVitalsPanel — Phase 20
+ * WebVitalsPanel — Phase 20 + 21
  *
  * Dashboard panel showing real-time Core Web Vitals aggregation:
  *   - Health score gauge (0-100)
  *   - Per-metric cards (LCP, INP, CLS, FCP, TTFB) with P75 and budget status
  *   - Anomaly feed (recent threshold violations)
  *   - Route breakdown
+ *   - Phase 21: Real-time streaming via WebSocket `web-vitals:update` events
  */
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { m, AnimatePresence } from 'framer-motion';
 import {
   Gauge, AlertTriangle, CheckCircle2, XCircle, Clock,
-  TrendingUp, TrendingDown, Minus, RefreshCw, Trash2,
+  TrendingUp, TrendingDown, Minus, RefreshCw, Trash2, Radio,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -109,7 +110,45 @@ function trendIcon(current: number, target: number) {
 
 export function WebVitalsPanel() {
   const [selectedRoute, setSelectedRoute] = useState<string | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const [liveData, setLiveData] = useState<WebVitalsData | null>(null);
+  const liveDataRef = useRef<WebVitalsData | null>(null);
   const queryClient = useQueryClient();
+
+  // ── Phase 21: Listen for real-time WebSocket updates ──
+  const handleMessage = useCallback((event: MessageEvent) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'web-vitals' && msg.action === 'update' && msg.data) {
+        const newData = msg.data as WebVitalsData;
+        setLiveData(newData);
+        liveDataRef.current = newData;
+        // Also update React Query cache so the query data stays fresh
+        queryClient.setQueryData(['web-vitals', selectedRoute], newData);
+      }
+    } catch {
+      // Ignore non-JSON or malformed messages
+    }
+  }, [queryClient, selectedRoute]);
+
+  // Subscribe to the shared WebSocket instance for web-vitals events
+  useEffect(() => {
+    // Listen on the custom event bus for WebSocket messages
+    // (The dashboard WebSocket dispatches events via a custom DOM event)
+    const handler = (e: Event) => {
+ const customEvent = e as unknown as { detail: { type: string; action: string; data: unknown } };
+      if (customEvent.detail?.type === 'web-vitals' && customEvent.detail?.action === 'update') {
+        const newData = customEvent.detail.data as WebVitalsData;
+        setLiveData(newData);
+        liveDataRef.current = newData;
+        setIsLive(true);
+        queryClient.setQueryData(['web-vitals', selectedRoute], newData);
+      }
+    };
+
+    window.addEventListener('ws:message', handler);
+    return () => window.removeEventListener('ws:message', handler);
+  }, [queryClient, selectedRoute]);
 
   const { data, isLoading, refetch } = useQuery<WebVitalsData>({
     queryKey: ['web-vitals', selectedRoute],
@@ -120,7 +159,8 @@ export function WebVitalsPanel() {
       if (!res.ok) throw new Error('Failed to fetch web vitals');
       return res.json();
     },
-    refetchInterval: 15_000,
+    // When live streaming is active, reduce polling to 60s as fallback
+    refetchInterval: isLive ? 60_000 : 15_000,
   });
 
   const clearMutation = useMutation({
@@ -129,17 +169,24 @@ export function WebVitalsPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['web-vitals'] });
+      setLiveData(null);
+      liveDataRef.current = null;
       toast.success('Web vitals data cleared');
     },
   });
 
-  const stats = data?.stats || {};
-  const anomalies = data?.anomalies || [];
-  const healthScore = data?.healthScore ?? 100;
-  const routes = data?.routes || [];
-  const budgetCompliance = data?.budgetCompliance || {};
-  const anomalyCounts = data?.anomalyCounts || { total: 0, warning: 0, critical: 0 };
-  const totalEvents = data?.totalEvents || 0;
+  // Merge live data with query data (live takes priority for real-time fields)
+  const displayData: WebVitalsData = liveData && isLive
+    ? { ...data, ...liveData }
+    : (data || {} as WebVitalsData);
+
+  const stats = displayData?.stats || {};
+  const anomalies = displayData?.anomalies || [];
+  const healthScore = displayData?.healthScore ?? 100;
+  const routes = displayData?.routes || [];
+  const budgetCompliance = displayData?.budgetCompliance || {};
+  const anomalyCounts = displayData?.anomalyCounts || { total: 0, warning: 0, critical: 0 };
+  const totalEvents = displayData?.totalEvents || 0;
 
   const metricNames = Object.keys(METRIC_CONFIG);
 
@@ -151,6 +198,12 @@ export function WebVitalsPanel() {
           <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <h3 className="text-sm font-semibold">Core Web Vitals</h3>
           <Badge variant="outline" className="text-[10px]">{totalEvents} events</Badge>
+          {isLive && (
+            <Badge variant="outline" className="text-[10px] text-emerald border-emerald/30 gap-1">
+              <Radio className="h-2.5 w-2.5 animate-pulse" />
+              LIVE
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <Button
