@@ -1,191 +1,177 @@
-# ──────────────────────────────────────────────────────────────────────
-# OmniVote CI Pipeline — Task ID: 6, Phase 14
-# ──────────────────────────────────────────────────────────────────────────────
-# Triggers:
-#   - Push to main
-#   - Pull request to main
-#
-# Jobs:
-#   1. lint-and-typecheck — ESLint + TypeScript
-#   2. test              — Vitest with coverage upload
-#   3. build             — Next.js production build
-#   4. docker            — Build & push to GHCR (main only)
-# ──────────────────────────────────────────────────────────────────────────────
+# OmniVote CI Pipeline
+# Phase 19: Continuous Integration — lint, type-check, unit tests, build
 
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'phase-*']
   pull_request:
-    branches: [main]
-
-env:
-  NODE_VERSION: '20'
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/omnivote
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  NODE_VERSION: '20'
+  NEXT_TELEMETRY_DISABLED: '1'
+  JWT_SECRET: 'test-secret-for-ci-do-not-use-in-prod'
+  DATABASE_URL: 'file:./dev.db'
+
 jobs:
-  # ─── Lint & Type Check ────────────────────────────────────────────────
-  lint-and-typecheck:
-    name: Lint & TypeCheck
+  # ─── Lint ──────────────────────────────────────────────────────────
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+      - run: npm ci
+      - run: npm run lint -- --max-warnings=0
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        id: cache-node
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'bun.lock') }}
-          restore-keys: |
-            node-modules-${{ runner.os }}-
-
-      - name: Install dependencies
-        if: steps.cache-node.outputs.cache-hit != 'true'
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Run ESLint
-        run: npx eslint . --max-warnings=0
-
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-
-  # ─── Test ─────────────────────────────────────────────────────────────
-  test:
-    name: Test
+  # ─── Type Check ────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        id: cache-node
+  # ─── Unit Tests ────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'bun.lock') }}
-          restore-keys: |
-            node-modules-${{ runner.os }}-
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push --force-reset
+      - run: npm test -- --reporter=verbose
 
-      - name: Install dependencies
-        if: steps.cache-node.outputs.cache-hit != 'true'
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Run tests with coverage
-        run: npx vitest run --coverage
-
+  # ─── Unit Tests with Coverage ─────────────────────────────────────
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push --force-reset
+      - run: npm run test:coverage
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: coverage-report
           path: coverage/
-          retention-days: 14
+          retention-days: 7
 
-  # ─── Build ────────────────────────────────────────────────────────────
+  # ─── Build ─────────────────────────────────────────────────────────
   build:
-    name: Build
+    name: Production Build
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, test]
+    needs: [lint, typecheck, unit-tests]
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
-      - name: Cache .next build
-        uses: actions/cache@v4
-        with:
-          path: |
-            .next
-            node_modules
-          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json', 'bun.lock', 'src/**/*.ts', 'src/**/*.tsx') }}
-          restore-keys: |
-            nextjs-${{ runner.os }}-
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Generate Prisma client
-        run: npx prisma generate
-
-      - name: Build Next.js
-        run: npx next build
-        env:
-          DATABASE_URL: file:/tmp/test.db
-          JWT_SECRET: ci-test-secret-for-build-only
-          OMNIVOTE_ENCRYPTION_KEY: ci-test-encryption-key-32-chars!!
-
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: nextjs-build
-          path: |
-            .next/standalone
-            .next/static
-          retention-days: 7
+          path: .next/standalone/
+          retention-days: 3
 
-  # ─── Docker (main branch only) ───────────────────────────────────────
-  docker:
-    name: Docker Build & Push
+  # ─── E2E Tests ─────────────────────────────────────────────────────
+  e2e:
+    name: E2E Tests
     runs-on: ubuntu-latest
     needs: [build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: actions/setup-node@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
+          name: nextjs-build
+          path: .next/standalone/
+      - name: Copy static assets
+        run: |
+          cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
+          cp -r public .next/standalone/ 2>/dev/null || true
+      - name: Seed database
+        run: |
+          npx prisma generate
+          npx prisma db push --force-reset
+      - name: Start production server
+        run: |
+          cd .next/standalone
+          NODE_ENV=production JWT_SECRET='test-secret' node server.js &
+          # Wait for server to be ready
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            sleep 2
+          done
+      - name: Run Playwright tests
+        run: npx playwright test --reporter=list
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: playwright-report
+          path: test-results/
+          retention-days: 7
+
+  # ─── Security Audit ────────────────────────────────────────────────
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Run npm audit
+        run: npm audit --audit-level=high --json > audit-report.json || true
+      - name: Check for known vulnerabilities
+        run: |
+          if [ -s audit-report.json ]; then
+            VULNS=$(node -e "const r=require('./audit-report.json');console.log(r.metadata?.vulnerabilities||0)")
+            echo "Found ${VULNS} high/critical vulnerabilities"
+            # Don't fail CI, just report
+          else
+            echo "No vulnerabilities found"
+          fi

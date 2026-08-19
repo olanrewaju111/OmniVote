@@ -20,6 +20,7 @@ import {
   TenantManagement, CampaignAnalyticsPanel, SocialCardsPanel,
   NarrativeBuilderPanel, ReportsCenter, LiveActivityStream,
   ElectionManagementPanel, OsintMonitor, OverviewTab, DataExplorerPanel,
+  BroadcastBriefingPanel,
 } from '@/components/dashboard/lazy-components';
 import type { TabContentProps } from '@/types/dashboard';
 
@@ -248,6 +249,12 @@ function TabContentInner({ activeTab, dashData, incidents, alertsData, liveIncid
       return (
         <ErrorBoundary title="Data Explorer">
           <div className="h-full"><DataExplorerPanel /></div>
+        </ErrorBoundary>
+      );
+    case 'broadcast':
+      return (
+        <ErrorBoundary title="Broadcast Briefing">
+          <div className="h-full"><BroadcastBriefingPanel /></div>
         </ErrorBoundary>
       );
     default:

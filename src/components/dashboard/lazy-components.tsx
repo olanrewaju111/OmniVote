@@ -97,3 +97,4 @@ export const SituationalKPIPanel = createDynamic(() => import('@/components/dash
 export const ElectionManagementPanel = createDynamic(() => import('@/components/dashboard/election-management').then(m => ({ default: m.ElectionManagement })), 'system');
 export const OverviewTab = createDynamic(() => import('@/components/dashboard/overview-tab').then(m => ({ default: m.OverviewTab })), 'overview');
 export const DataExplorerPanel = createDynamic(() => import('@/components/dashboard/data-explorer').then(m => ({ default: m.DataExplorer })), 'data-explorer');
+export const BroadcastBriefingPanel = createDynamic(() => import('@/components/dashboard/broadcast-briefing').then(m => ({ default: m.BroadcastBriefing })), 'reports');

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { sloTracker, latencyHistogram, requestCounter, activeConnections } from '@/lib/sre';
 import { errorTracker, alertManager } from '@/lib/monitoring';
+import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
 
 let initialized = false;
 async function ensureInit() {
@@ -185,6 +186,10 @@ export async function GET() {
   }
   lines.push('');
 
+  // ─── Web Vitals aggregation (Phase 19) ──────────────────────────────
+  const vitalsAgg = getWebVitalsAggregator();
+  lines.push(vitalsAgg.toPrometheus());
+
   // ─── Build response ───────────────────────────────────────────────
   const body = lines.join('\n');
 
@@ -226,8 +231,31 @@ export async function POST(req: NextRequest) {
         fingerprint: `client:${body.message || 'unknown'}`,
       });
     }
-    // For 'web-vital' and 'web-vitals' — accepted but not yet aggregated.
-    // Future: track CLS/LCP/FCP distributions here.
+    // Phase 19: Aggregate web vitals for real-time analysis
+    if (type === 'web-vital') {
+      const aggregator = getWebVitalsAggregator();
+      aggregator.record({
+        name: body.name,
+        value: body.value,
+        timestamp: body.timestamp || new Date().toISOString(),
+        route: body.route,
+        navigationId: body.navigationId,
+        deviceType: body.deviceType,
+        connectionType: body.connectionType,
+      });
+    }
+    if (type === 'web-vitals') {
+      const aggregator = getWebVitalsAggregator();
+      const vitals = body.vitals || [];
+      aggregator.recordBatch(
+        vitals.map((v: { name: string; value: number; timestamp?: string }) => ({
+          name: v.name,
+          value: v.value,
+          timestamp: v.timestamp || new Date().toISOString(),
+          route: body.route,
+        }))
+      );
+    }
 
     return NextResponse.json({ ok: true });
   } catch {

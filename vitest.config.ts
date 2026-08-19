@@ -11,7 +11,7 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**', 'src/hooks/**'],
+      include: ['src/lib/**', 'src/hooks/**', 'src/components/dashboard/empty-state.tsx', 'src/components/dashboard/confirm-dialog.tsx', 'src/components/dashboard/notification-center.tsx'],
       exclude: ['**/__tests__/**', '**/*.test.*', '**/*.config.*'],
     },
   },
