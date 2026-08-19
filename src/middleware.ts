@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
+import { getCorrelationIdFromRequest, generateCorrelationId } from '@/lib/monitoring/correlation';
 
 /**
  * Parse a comma-separated list of IPs/CIDRs from an env var.
@@ -241,6 +242,12 @@ export async function middleware(req: NextRequest) {
       { status: 403, headers: response.headers },
     );
   }
+
+  // ─── Correlation ID (Phase 15 integration) ──────────────────────────────
+  // Forward existing correlation ID or generate a new one.
+  // The api-handler wrapper will pick this up and use it for structured logging.
+  const correlationId = getCorrelationIdFromRequest(req) || generateCorrelationId();
+  response.headers.set('X-Correlation-ID', correlationId);
 
   // Token valid + RBAC check passed — continue to route handler
   return response;

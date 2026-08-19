@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { sloTracker, latencyHistogram, requestCounter, activeConnections } from '@/lib/sre';
 import { errorTracker, alertManager } from '@/lib/monitoring';
 
@@ -195,4 +195,42 @@ export async function GET() {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
     },
   });
+}
+
+/**
+ * POST /api/metrics — Accept client-side metrics (web vitals, client errors).
+ *
+ * Phase 15: This endpoint now accepts fire-and-forget POST payloads from:
+ *   - PerformanceObserver component (web vitals)
+ *   - ErrorBoundary (client errors)
+ *   - usePerformanceMetrics hook
+ *
+ * Body shape:
+ *   { type: 'web-vital', name, value, timestamp }
+ *   { type: 'web-vitals', component, renderTime, fcp, lcp, cls, timestamp }
+ *   { type: 'client-error', message, stack, componentStack, severity?, tags?, route? }
+ */
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { type } = body;
+
+    if (type === 'client-error') {
+      // Forward client errors to the error tracker
+      errorTracker.capture(body.message || 'Unknown client error', {
+        severity: body.severity || 'error',
+        context: {
+          route: body.route,
+        },
+        tags: body.tags || ['client'],
+        fingerprint: `client:${body.message || 'unknown'}`,
+      });
+    }
+    // For 'web-vital' and 'web-vitals' — accepted but not yet aggregated.
+    // Future: track CLS/LCP/FCP distributions here.
+
+    return NextResponse.json({ ok: true });
+  } catch {
+    return NextResponse.json({ ok: true }); // always 200 to not break fire-and-forget
+  }
 }

@@ -4,48 +4,45 @@ import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { withApiHandler } from '@/lib/api-handler';
 
-// GET /api/agents — list all users with details
-export async function GET(req: NextRequest) {
-  try {
-    const { id: tenantId, error } = await resolveTenant(req);
-    if (error) return error;
+// GET /api/agents — list all users with details (Phase 15: wrapped with api-handler)
+export const GET = withApiHandler('GET', '/api/agents', async (req, ctx) => {
+  const { id: tenantId, error } = await resolveTenant(req);
+  if (error) return error;
 
-    const authUser = await getAuthUser(req);
-    if (!authUser) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-    const tenantErr = requireTenantMatch(authUser, tenantId);
-    if (tenantErr) return tenantErr;
-
-    const { searchParams } = new URL(req.url || "", "http://localhost");
-    const search = searchParams.get('search') || '';
-    const role = searchParams.get('role') || 'ALL';
-
-    const where: Record<string, unknown> = { tenantId };
-    if (role !== 'ALL') where.role = role;
-    if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { email: { contains: search } },
-      ];
-    }
-
-    const users = await db.user.findMany({
-      where,
-      select: {
-        id: true, email: true, name: true, role: true,
-        isOnline: true, lastSeenAt: true, createdAt: true,
-        _count: { select: { incidents: true, auditLogs: true } },
-      },
-      orderBy: { role: 'asc' },
-    });
-
-    return NextResponse.json({ users });
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 });
+  const authUser = ctx.user || await getAuthUser(req);
+  if (!authUser) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
-}
+  const tenantErr = requireTenantMatch(authUser, tenantId);
+  if (tenantErr) return tenantErr;
+
+  const { searchParams } = new URL(req.url || "http://localhost");
+  const search = searchParams.get('search') || '';
+  const role = searchParams.get('role') || 'ALL';
+
+  const where: Record<string, unknown> = { tenantId };
+  if (role !== 'ALL') where.role = role;
+  if (search) {
+    where.OR = [
+      { name: { contains: search } },
+      { email: { contains: search } },
+    ];
+  }
+
+  const users = await db.user.findMany({
+    where,
+    select: {
+      id: true, email: true, name: true, role: true,
+      isOnline: true, lastSeenAt: true, createdAt: true,
+      _count: { select: { incidents: true, auditLogs: true } },
+    },
+    orderBy: { role: 'asc' },
+  });
+
+  return NextResponse.json({ users });
+});
 
 // POST /api/agents — add a new agent
 export async function POST(req: NextRequest) {
@@ -155,7 +152,6 @@ export async function PATCH(req: NextRequest) {
         break;
 
       case 'REMOTE_WIPE':
-        // Remote wipe: marks device offline and logs the action. Actual MDM wipe requires a mobile device management integration (e.g. Firebase, Microsoft Intune).
         updated = await db.user.update({
           where: { id: userId },
           data: { isOnline: false, lastSeenAt: null },
@@ -177,22 +173,18 @@ export async function PATCH(req: NextRequest) {
         break;
 
       case 'DELETE': {
-        // Prevent self-deletion
         if (userId === authUser.userId) {
           return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
         }
-        // Prevent deleting SUPER_ADMIN accounts (only another SUPER_ADMIN can, via tenant mgmt)
         if (user.role === 'SUPER_ADMIN' && authUser.role !== 'SUPER_ADMIN') {
           return NextResponse.json({ error: 'Cannot delete a SUPER_ADMIN' }, { status: 403 });
         }
-        // Check for related incidents - can't delete users with reports
         const incidentCount = await db.incident.count({ where: { reportedById: userId } });
         if (incidentCount > 0) {
           return NextResponse.json({
             error: `Cannot delete: this user has ${incidentCount} incident report(s). Deactivate instead.`,
           }, { status: 409 });
         }
-        // Delete audit logs first (FK constraint), then the user
         await db.auditLog.deleteMany({ where: { userId } });
         await db.user.delete({ where: { id: userId } });
         void logAudit({ userId: authUser.userId, action: 'DELETE_USER', entityType: 'User', entityId: userId, metadata: { name: user.name }, ipAddress: extractIp(req) });

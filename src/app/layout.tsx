@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster as SonnerToaster } from "sonner";
 import { Providers } from "@/components/providers";
 import { OfflineBar } from "@/components/pwa-registration";
+import { PerformanceObserver } from "@/components/performance-observer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +52,7 @@ export default function RootLayout({
             Skip to main content
           </a>
           <OfflineBar />
+          <PerformanceObserver />
           {children}
           <SonnerToaster
             position="top-right"

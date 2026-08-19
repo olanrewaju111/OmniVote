@@ -262,3 +262,30 @@ Stage Summary:
 - New authenticated /api/monitoring/alerts endpoint
 - 39 tests across 4 test files, all passing
 - Build: 0 errors, clean production build
+
+---
+Task ID: 15
+Agent: Super Z (Main)
+Task: Phase 15 — Integration & Cross-Cutting Wiring
+
+Work Log:
+- Created `src/lib/api-handler.ts`: Unified `withApiHandler()` wrapper integrating correlation ID (Phase 13), SRE request logging + SLO tracking (Phase 12), error tracking (Phase 13), structured logging (Phase 13), and active connections gauge. Returns `ApiContext` with correlationId and user to handler.
+- Created `src/lib/client-error-reporter.ts`: Fire-and-forget client-to-server error reporting bridge. `reportClientError()` POSTs to /api/metrics. `reportBoundaryError()` extracts error info from React ErrorBoundary.
+- Enhanced `src/components/error-boundary.tsx`: Added `name` prop, wired `componentDidCatch` to `reportBoundaryError()` for automatic error tracker integration.
+- Enhanced `src/middleware.ts`: Imported correlation ID module, injects `X-Correlation-ID` header on all authenticated API responses.
+- Created `src/components/performance-observer.tsx`: Renderless component that mounts PerformanceObservers for navigation/paint/layout-shift timings and reports to /api/metrics.
+- Enhanced `src/app/layout.tsx`: Added PerformanceObserver component for automatic Web Vitals collection.
+- Enhanced `src/app/api/metrics/route.ts`: Added POST handler accepting `client-error` and `web-vital` payloads from client-side code. Client errors forwarded to error tracker.
+- Integrated `withApiHandler` into `src/app/api/agents/route.ts` (GET) and `src/app/api/dashboard/route.ts` (GET) as exemplars.
+- Created 2 test files (16 tests, all passing):
+  - `api-handler.test.ts` (10 tests): correlation ID propagation, error capture, active connections, SLO recording, production error hiding
+  - `client-error-reporter.test.ts` (6 tests): POST payload shape, fetch error handling, boundary error extraction
+
+Stage Summary:
+- All Phase 10-14 modules now cross-wired: security, monitoring, SRE, and performance modules work together
+- ErrorBoundary automatically reports to error tracker via client bridge
+- Middleware injects correlation IDs for distributed tracing
+- PerformanceObserver collects Web Vitals at root layout level
+- `withApiHandler` provides drop-in observability wrapper for any API route
+- /api/metrics accepts client-side error and vital reports
+- Build: 0 TS errors, 291/291 tests passing across 17 test suites
