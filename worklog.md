@@ -198,3 +198,67 @@ Stage Summary:
 - Health check endpoint returns clean {status:'ok', version, uptime, timestamp, database, websocket} response
 - .dockerignore optimized for minimal build context
 - Helper scripts: healthcheck.sh (standalone) and deploy.sh (full deployment flow)
+
+---
+Task ID: 11
+Agent: Super Z (Sub)
+Task: Phase 11 — Advanced Security Hardening
+
+Work Log:
+- Created `src/lib/security/csrf.ts`: CSRF protection using Double-Submit Cookie pattern — `generateCsrfToken()` creates 32-byte hex token with non-httpOnly cookie (readable by JS), `validateCsrfToken()` uses constant-time comparison, `CsrfError` class
+- Created `src/lib/security/brute-force.ts`: In-memory brute-force login protection with escalating lockouts (5→15min, 10→30min, 15→60min), auto-cleanup of stale entries every 10 minutes, `checkLoginAttempt()`, `recordFailedAttempt()`, `recordSuccessfulLogin()`, `isAccountLocked()`
+- Created `src/lib/security/input-validator.ts`: Enhanced input validation — `validateEmail()` (RFC 5322-ish, length limits, TLD check), `validatePassword()` (min 10 chars, uppercase/lowercase/number/special, common password detection, strength scoring), `validateUrl()` (http/https only, javascript: protocol blocking, sanitization), `validateJsonDepth()` (default max 10, prevents stack overflow), `validatePhoneNumber()` (Nigerian format normalization), `validateId()` (UUID v4, CUID, NanoID), `sanitizeObject()` (key whitelist, string sanitization, max lengths)
+- Created `src/lib/security/cors.ts`: CORS configuration utility — `isOriginAllowed()` checks ALLOWED_ORIGINS env var, `getCorsHeaders()` returns appropriate CORS headers for allowed/disallowed origins, preflight support
+- Created `src/lib/security/security-logger.ts`: Security-specific structured JSON logging — `logSecurityEvent()` with severity-based routing (critical→console.error, warning→console.warn, info→console.info), 10 event types (LOGIN_SUCCESS, LOGIN_FAILURE, ACCOUNT_LOCKED, CSRF_FAILURE, RATE_LIMITED, SUSPICIOUS_REQUEST, PERMISSION_DENIED, TOKEN_EXPIRED, BRUTE_FORCE_DETECTED, IP_BLOCKED)
+- Created `src/lib/security/request-guard.ts`: Unified API route guard — `createRouteGuard()` composes auth check, CSRF validation, rate limiting, and CORS into a single async guard function, simplifies API route security boilerplate
+- Created `src/lib/security/index.ts`: Barrel export for all security modules
+- Enhanced `src/app/api/auth/route.ts`: Added brute-force protection layer (in-memory, before DB rate limiter), random 500-2000ms delay on failed login to prevent timing attacks, security event logging for ACCOUNT_LOCKED and LOGIN_SUCCESS events, clear brute-force counter on successful login
+- Created 5 test files (98 tests total, all passing):
+  - `csrf.test.ts` (12 tests): token generation (64 hex chars, uniqueness, Secure flag), validation (match/mismatch/missing cookie/empty token/different length/multi-cookie), CsrfError class
+  - `brute-force.test.ts` (14 tests): initial allowance, case-insensitivity, 5-attempt lockout, remaining attempts countdown, escalation tiers (15/30/60 min), successful login reset, unlock on success, isAccountLocked, auto-cleanup, lock expiry
+  - `input-validator.test.ts` (53 tests): email (valid/invalid formats, length, TLD, dots), password (all requirements, common passwords, strength scoring), URL (http/https, javascript:/data:/ftp: blocking, sanitization), JSON depth (flat/nested/exceeding/custom), phone (Nigerian formats, normalization), ID (UUID/CUID/NanoID), sanitizeObject (strip/sanitize/maxLength)
+  - `cors.test.ts` (9 tests): origin validation (configured/unconfigured/whitespace/empty entries), CORS headers (null origin, disallowed, allowed, X-CSRF-Token header)
+  - `request-guard.test.ts` (10 tests): no-options passthrough, auth required (allowed/denied), CSRF (missing/valid/GET skip), CORS preflight, rate limiting (pass/limited)
+
+Stage Summary:
+- 7 new security modules in src/lib/security/ with barrel export
+- Defense-in-depth login protection: in-memory brute-force (escalating) + DB-backed rate limiting + random timing delay
+- CSRF double-submit cookie pattern ready for integration
+- Enhanced input validation covering emails, passwords, URLs, JSON depth, phone numbers, IDs
+- CORS configuration from ALLOWED_ORIGINS env var
+- Structured security event logging with severity levels
+- Unified route guard reduces API security boilerplate
+- 98 tests across 5 test files, all passing
+- Build: 0 errors, clean production build
+
+---
+Task ID: 13
+Agent: Super Z (Sub)
+Task: Phase 13 — Monitoring & Observability
+
+Work Log:
+- Created `src/lib/monitoring/correlation.ts`: Request correlation ID management — `generateCorrelationId()` (ov-prefixed UUID), `getCorrelationIdFromRequest()` (reads X-Correlation-ID / X-Request-ID), `withCorrelationId()` (returns headers object)
+- Created `src/lib/monitoring/error-tracker.ts`: In-memory error tracker (Sentry-swappable design) — `ErrorEvent` interface with id/message/stack/severity/context/tags/fingerprint, `ErrorTracker` class with `capture()`, `getRecent()`, `getByRoute()`, `getStats()` (total/bySeverity/byRoute/topRoutes/lastHour/last24h), `clear()`, auto-trim at 10,000 entries, singleton `errorTracker` export
+- Created `src/lib/monitoring/alerting.ts`: Alerting rules engine — `AlertRule` interface with condition function and cooldown, `Alert` interface with acknowledgement/resolution state, `AlertManager` class with `addRule()`, `evaluate()` (cooldown-respecting), `getActiveAlerts()`, `acknowledgeAlert()`, `resolveAlert()`, `getAlertHistory()`, 5 built-in rules registered by default (high 5xx rate, high p95 latency, SLO budget < 30%, DB connection issues, WebSocket disconnect spike), singleton `alertManager` export
+- Created `src/lib/monitoring/performance-monitor.ts`: Client-side performance monitoring — `usePerformanceMetrics()` React hook measuring render time via useRef, FCP/LCP/CLS via PerformanceObserver, fire-and-forget POST to /api/metrics, `reportWebVitals()` with cleanup function, `createPerformanceMarker()` for arbitrary code section timing with performance.mark/measure
+- Created `src/lib/monitoring/log-aggregator.ts`: Structured JSON logging — `LogEntry` interface, `StructuredLogger` class with info/warn/error/debug methods, `setCorrelationId()` for propagation, `withContext()` for child loggers with bound context fields, metadata merging, singleton `logger` export
+- Created `src/lib/monitoring/index.ts`: Barrel export for all monitoring modules
+- Enhanced `src/app/api/metrics/route.ts`: Added error tracker stats (total/by severity/by route/last hour/last 24h), alert manager active alerts (total + by severity), external memory gauge in Prometheus text format
+- Created `src/app/api/monitoring/alerts/route.ts`: GET endpoint returning active alerts, alert history (last 50), and error stats, requires authentication via getAuthUser
+- Created 4 test files (39 tests total, all passing):
+  - `correlation.test.ts` (7 tests): generate ID (ov- prefix, uniqueness), get from request (X-Correlation-ID/X-Request-ID/priority/null fallback), withCorrelationId
+  - `error-tracker.test.ts` (12 tests): capture string/Error, default/custom severity, context fields, getRecent ordering/limit, getByRoute filter, getStats aggregation, topRoutes sorting, auto-trim, clear
+  - `alerting.test.ts` (11 tests): condition false/true, cooldown respected, re-trigger after cooldown, disabled rules, getActiveAlerts, acknowledgeAlert, resolveAlert, history with resolved, multiple independent rules
+  - `log-aggregator.test.ts` (9 tests): info/warn/error/debug routing, metadata inclusion, correlationId propagation, withContext binding, child metadata merging
+
+Stage Summary:
+- 5 new monitoring modules in src/lib/monitoring/ with barrel export
+- Request correlation ID management for distributed tracing
+- In-memory error tracker with aggregation stats (Sentry-compatible interface)
+- Alerting rules engine with 5 built-in rules, cooldown, acknowledgement, resolution
+- Client-side performance monitoring hook and Web Vitals reporting
+- Structured JSON logger with child context binding and correlation ID propagation
+- Enhanced Prometheus /api/metrics endpoint with error tracker and alert metrics
+- New authenticated /api/monitoring/alerts endpoint
+- 39 tests across 4 test files, all passing
+- Build: 0 errors, clean production build

@@ -7,6 +7,12 @@ import {
   deleteSessionCookie,
   getAuthUser,
 } from '@/lib/auth';
+import {
+  checkLoginAttempt,
+  recordFailedAttempt as recordBruteForceFailure,
+  recordSuccessfulLogin,
+} from '@/lib/security/brute-force';
+import { logSecurityEvent } from '@/lib/security/security-logger';
 
 // ─── SQLite-backed login rate limiter ───────────────────────────────────
 // Uses the database for persistence across server restarts.
@@ -73,7 +79,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
-    // Rate limiting check
+    // ─── Brute-force protection (in-memory, escalating lockout) ──────────
+    const bfCheck = checkLoginAttempt(email);
+    if (!bfCheck.allowed) {
+      logSecurityEvent({
+        type: 'ACCOUNT_LOCKED',
+        severity: 'warning',
+        ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown',
+        details: { email, attempts: 'max', retryAfterMs: bfCheck.retryAfterMs },
+      });
+      const retryAfterSecs = Math.ceil(bfCheck.retryAfterMs / 1000);
+      return NextResponse.json(
+        { error: `Account temporarily locked due to too many failed attempts. Try again in ${retryAfterSecs} seconds.` },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(retryAfterSecs) },
+        },
+      );
+    }
+
+    // ─── DB-backed rate limiting (secondary, persistent across restarts) ──
     const rateCheck = await isRateLimited(email);
     if (rateCheck.limited) {
       const retryAfterSecs = Math.ceil((rateCheck.retryAfterMs || 0) / 1000);
@@ -100,6 +125,9 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       await recordFailedAttempt(email);
+      recordBruteForceFailure(email);
+      // Random delay on failed login to prevent timing attacks (500ms–2000ms)
+      await new Promise(r => setTimeout(r, 500 + Math.random() * 1500));
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -121,11 +149,23 @@ export async function POST(req: NextRequest) {
 
     if (!passwordValid) {
       await recordFailedAttempt(email);
+      recordBruteForceFailure(email);
+      // Random delay on failed login to prevent timing attacks (500ms–2000ms)
+      await new Promise(r => setTimeout(r, 500 + Math.random() * 1500));
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Successful login — clear rate limit counter
+    // Successful login — clear rate limit and brute-force counters
     await clearAttempts(email);
+    recordSuccessfulLogin(email);
+    logSecurityEvent({
+      type: 'LOGIN_SUCCESS',
+      severity: 'info',
+      userId: user.id,
+      tenantId: user.tenantId,
+      ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown',
+      details: { email },
+    });
 
     const tenant = await db.tenant.findUnique({ where: { id: user.tenantId } });
     if (!tenant) {

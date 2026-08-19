@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sloTracker, latencyHistogram, requestCounter, activeConnections } from '@/lib/sre';
+import { errorTracker, alertManager } from '@/lib/monitoring';
 
 let initialized = false;
 async function ensureInit() {
@@ -43,6 +44,11 @@ export async function GET() {
   lines.push('# HELP omnivote_process_memory_heap_total_bytes Process heap total in bytes');
   lines.push('# TYPE omnivote_process_memory_heap_total_bytes gauge');
   lines.push(`omnivote_process_memory_heap_total_bytes ${memUsage.heapTotal}`);
+  lines.push('');
+
+  lines.push('# HELP omnivote_process_memory_external_bytes Process external memory in bytes');
+  lines.push('# TYPE omnivote_process_memory_external_bytes gauge');
+  lines.push(`omnivote_process_memory_external_bytes ${memUsage.external || 0}`);
   lines.push('');
 
   // ─── WebSocket connections ────────────────────────────────────────
@@ -127,6 +133,55 @@ export async function GET() {
   lines.push('# TYPE omnivote_slo_burn_rate gauge');
   for (const report of reports) {
     lines.push(`omnivote_slo_burn_rate{slo="${report.slo.name}"} ${report.errorBudget.burnRate}`);
+  }
+  lines.push('');
+
+  // ─── Error tracker stats ──────────────────────────────────────────
+  const errorStats = errorTracker.getStats();
+
+  lines.push('# HELP omnivote_errors_total Total captured errors');
+  lines.push('# TYPE omnivote_errors_total counter');
+  lines.push(`omnivote_errors_total ${errorStats.total}`);
+  lines.push('');
+
+  lines.push('# HELP omnivote_errors_by_severity Errors grouped by severity');
+  lines.push('# TYPE omnivote_errors_by_severity gauge');
+  for (const [severity, count] of Object.entries(errorStats.bySeverity)) {
+    lines.push(`omnivote_errors_by_severity{severity="${severity}"} ${count}`);
+  }
+  lines.push('');
+
+  lines.push('# HELP omnivote_errors_by_route Errors grouped by route');
+  lines.push('# TYPE omnivote_errors_by_route gauge');
+  for (const [route, count] of Object.entries(errorStats.byRoute)) {
+    const escapedRoute = route.replace(/[^a-zA-Z0-9_]/g, '_');
+    lines.push(`omnivote_errors_by_route{route="${escapedRoute}"} ${count}`);
+  }
+  lines.push('');
+
+  lines.push('# HELP omnivote_errors_last_hour Errors in the last hour');
+  lines.push('# TYPE omnivote_errors_last_hour gauge');
+  lines.push(`omnivote_errors_last_hour ${errorStats.lastHour}`);
+  lines.push('');
+
+  lines.push('# HELP omnivote_errors_last_24h Errors in the last 24 hours');
+  lines.push('# TYPE omnivote_errors_last_24h gauge');
+  lines.push(`omnivote_errors_last_24h ${errorStats.last24h}`);
+  lines.push('');
+
+  // ─── Alert manager stats ──────────────────────────────────────────
+  const activeAlerts = alertManager.getActiveAlerts();
+
+  lines.push('# HELP omnivote_alerts_active Number of currently active alerts');
+  lines.push('# TYPE omnivote_alerts_active gauge');
+  lines.push(`omnivote_alerts_active ${activeAlerts.length}`);
+  lines.push('');
+
+  lines.push('# HELP omnivote_alerts_by_severity Active alerts by severity');
+  lines.push('# TYPE omnivote_alerts_by_severity gauge');
+  for (const severity of ['info', 'warning', 'critical'] as const) {
+    const count = activeAlerts.filter(a => a.severity === severity).length;
+    lines.push(`omnivote_alerts_by_severity{severity="${severity}"} ${count}`);
   }
   lines.push('');
 
