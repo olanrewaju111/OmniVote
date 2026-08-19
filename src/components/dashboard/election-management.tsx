@@ -318,7 +318,7 @@ function ElectionManagementInner() {
 
   // ---- Render ----
   return (
-    <div className="h-full flex flex-col p-4 gap-4 overflow-y-auto">
+    <div className="h-full flex flex-col p-4 gap-4 overflow-y-auto" aria-label="Election Management">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>

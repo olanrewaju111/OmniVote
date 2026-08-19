@@ -274,6 +274,7 @@ export const QuickActionsFab = React.memo(function QuickActionsFab() {
           onClick={toggleMenu}
           aria-label="Quick actions"
           aria-expanded={isOpen}
+          aria-haspopup="true"
           className={cn(
             'relative flex items-center justify-center w-14 h-14 rounded-full',
             'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white',

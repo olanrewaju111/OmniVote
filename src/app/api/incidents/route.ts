@@ -6,6 +6,7 @@ import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { broadcastIncident } from '@/lib/ws-broadcast';
 import { logAudit, extractIp } from '@/lib/audit';
+import { sendPushNotification } from '@/lib/push-sender';
 
 export async function GET(req: NextRequest) {
   try {
@@ -169,6 +170,16 @@ export async function POST(req: NextRequest) {
         });
       } catch {
         // Non-fatal: alert creation failure should not block incident submission
+      }
+
+      // Send push notification for CRITICAL/VIOLENCE incidents
+      if (severity === 'CRITICAL' || type === 'VIOLENCE') {
+        sendPushNotification(tenantId, {
+          title: `${severity === 'CRITICAL' ? 'CRITICAL' : 'SECURITY'} Alert`,
+          body: `${type.replace(/_/g, ' ')} reported${pollingUnitId ? ' at polling unit' : ''}`,
+          url: '/',
+          actions: [{ action: 'view', title: 'View Details' }],
+        }).catch(() => {});
       }
     }
 

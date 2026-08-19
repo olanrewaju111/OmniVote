@@ -113,7 +113,7 @@ function SituationRoomInner() {
   ];
 
   return (
-    <div className="h-full flex flex-col p-4 sm:p-6 gap-4 overflow-hidden">
+    <div className="h-full flex flex-col p-4 sm:p-6 gap-4 overflow-hidden" aria-label="Situation Room overview">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3 shrink-0">
         <div>
@@ -340,7 +340,7 @@ function MiniStat({
     rose: 'text-rose', foreground: 'text-foreground',
   };
   return (
-    <div className="rounded-lg border border-border bg-card/40 px-3 py-2.5">
+    <div className="rounded-lg border border-border bg-card/40 px-3 py-2.5" aria-label={`${label}: ${value}`}>
       <div className="flex items-center gap-1.5 mb-1">
         <span className={colorMap[color] || 'text-muted-foreground'}>{icon}</span>
         <span className="text-[10px] text-muted-foreground">{label}</span>

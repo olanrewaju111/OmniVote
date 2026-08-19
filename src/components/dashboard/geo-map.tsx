@@ -153,7 +153,7 @@ export function GeoMapView({ points, bounds: propBounds, liveIncidents }: GeoMap
   const selectedPoint = selectedId ? points.find(p => p.id === selectedId) : null;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" aria-label="Election map showing polling units">
       <MapHeader
         area={area}
         pointCount={points.length}
@@ -170,7 +170,7 @@ export function GeoMapView({ points, bounds: propBounds, liveIncidents }: GeoMap
           liveIncidents={liveIncidents}
         />
         {/* Turnout heatmap legend */}
-        <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2.5 space-y-1.5 z-[1000] pointer-events-none">
+        <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-2.5 space-y-1.5 z-[1000] pointer-events-none" role="img" aria-label="Map legend: Turnout heatmap from low (rose) to high (emerald)">
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Turnout Heat</p>
           <div className="flex items-center gap-2">
             <div className="flex gap-0.5">

@@ -383,7 +383,7 @@ export const ReportsCenter = React.memo(function ReportsCenter() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 gap-4 overflow-y-auto">
+    <div className="h-full flex flex-col p-4 gap-4 overflow-y-auto" aria-label="Reports Center">
       {/* Header */}
       <div className="shrink-0">
         <div className="flex items-center gap-3 mb-1">

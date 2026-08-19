@@ -81,7 +81,7 @@ function OverviewTabInner({
   ] : undefined, [alertsData, dashData.kpis.quarantinedIncidents, dashData.election.openUnits, dashData.kpis.pendingIncidents, c2paCount]);
 
   return (
-    <div className="h-full flex flex-col p-4 gap-3 overflow-y-auto">
+    <div className="h-full flex flex-col p-4 gap-3 overflow-y-auto" aria-label="Dashboard Overview">
       {/* Top: KPI grid */}
       <div className="shrink-0">
         <KpiGrid

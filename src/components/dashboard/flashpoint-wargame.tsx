@@ -382,7 +382,7 @@ export const FlashpointWargame = React.memo(function FlashpointWargame() {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className="h-full flex flex-col gap-4" aria-label="Flashpoint and Wargame analysis">
       <Tabs defaultValue="forecast" className="h-full flex flex-col gap-3">
         <TabsList>
           <TabsTrigger value="forecast" className="gap-1.5">

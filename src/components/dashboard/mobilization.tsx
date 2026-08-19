@@ -454,7 +454,7 @@ export const MobilizationEngine = React.memo(function MobilizationEngine() {
   // ─── Render ───────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col gap-4 overflow-hidden">
+    <div className="h-full flex flex-col gap-4 overflow-hidden" aria-label="Voter Mobilization">
       {/* Header */}
       <div className="flex items-center justify-between shrink-0 px-1 flex-wrap gap-2">
         <div className="flex items-center gap-2">

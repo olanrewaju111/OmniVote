@@ -212,7 +212,7 @@ function MediaGalleryInner() {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" aria-label="Media gallery">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-3">
@@ -279,7 +279,7 @@ function MediaGalleryInner() {
                 role="button"
               >
                 {/* Thumbnail placeholder */}
-                <div className={cn('aspect-video bg-gradient-to-br relative', getGradient(item.id))}>
+                <div className={cn('aspect-video bg-gradient-to-br relative', getGradient(item.id))} role="img" aria-label={`${item.type} media: ${item.title || 'Untitled'}`}>
                   <div className="absolute inset-0 flex items-center justify-center">
                     {typeIcon(item.type)}
                   </div>

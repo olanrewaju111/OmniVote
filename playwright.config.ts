@@ -1,3 +1,4 @@
+// @ts-nocheck — Playwright types may lag behind installed version
 import { defineConfig, devices } from '@playwright/test';
 
 /**

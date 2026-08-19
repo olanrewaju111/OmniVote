@@ -243,7 +243,7 @@ export function BroadcastBriefing({ open, onOpenChange }: BroadcastBriefingProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" aria-label="Broadcast Briefing">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Megaphone className="h-5 w-5 text-amber" />

@@ -126,7 +126,7 @@ function AiInsightsInner({ incidents, stateAgg }: AiInsightsProps) {
   }));
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div className="h-full overflow-y-auto p-4 space-y-4" aria-label="AI Insights panel">
       {/* Defense metrics summary */}
       <Card className="border-emerald/20 bg-emerald/5">
         <CardHeader className="pb-2 pt-4 px-4">
@@ -143,7 +143,7 @@ function AiInsightsInner({ incidents, stateAgg }: AiInsightsProps) {
               { label: 'Geo Anomalies Flagged', value: defenseMetrics.geoAnomalies, color: 'text-amber' },
               { label: 'Total Quarantined', value: defenseMetrics.totalQuarantined, color: 'text-cyan' },
             ].map(m => (
-              <div key={m.label} className="text-center">
+              <div key={m.label} className="text-center" aria-label={`${m.label}: ${m.value}`}>
                 <p className={`text-xl font-bold tabular-nums ${m.color}`}>{m.value}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">{m.label}</p>
               </div>

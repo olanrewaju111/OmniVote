@@ -266,7 +266,7 @@ function DataExplorerInner() {
   }
 
   return (
-    <div ref={exportContainerRef} className="h-full flex flex-col p-4 gap-4 overflow-y-auto">
+    <div ref={exportContainerRef} className="h-full flex flex-col p-4 gap-4 overflow-y-auto" aria-label="Data Explorer">
       {/* Phase 13: Export button */}
       <div className="flex items-center justify-end">
         <DashboardExport

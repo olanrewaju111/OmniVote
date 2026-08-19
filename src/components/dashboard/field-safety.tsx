@@ -314,7 +314,7 @@ export const FieldSafety = React.memo(function FieldSafety() {
   }
 
   return (
-    <div className="h-full flex flex-col gap-4 p-4 overflow-hidden">
+    <div className="h-full flex flex-col gap-4 p-4 overflow-hidden" aria-label="Field Safety monitoring">
       {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-3">
@@ -367,7 +367,7 @@ export const FieldSafety = React.memo(function FieldSafety() {
                   <Badge variant="outline" className="text-[10px]">{activeSwitches.length} active</Badge>
                 </div>
                 <ScrollArea className="max-h-72">
-                  <div className="p-2 space-y-2">
+                  <div className="p-2 space-y-2" aria-live="polite">
                     {activeSwitches.length === 0 && (
                       <div className="text-center text-muted-foreground text-xs py-6">No active switches</div>
                     )}

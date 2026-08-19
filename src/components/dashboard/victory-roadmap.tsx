@@ -668,7 +668,7 @@ export const VictoryRoadmap = React.memo(function VictoryRoadmap() {
   }
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="h-full flex overflow-hidden" aria-label="Victory Roadmap">
       {/* Main content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Header with party selector */}

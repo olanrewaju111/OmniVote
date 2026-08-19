@@ -251,7 +251,7 @@ function LiveFeedInner({ incidents, loading, onLoadMore, hasMore, onIncidentClic
   }, [onIncidentClick]);
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col" aria-label="Live incident feed">
       {/* Header */}
       <div className="px-4 py-2.5 border-b border-border flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <div className="flex items-center gap-3">
@@ -311,7 +311,7 @@ function LiveFeedInner({ incidents, loading, onLoadMore, hasMore, onIncidentClic
 
       {/* Feed */}
       <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2" role="log" aria-live="polite">
           {/* New incidents banner */}
           {newCount > 0 && !liveFeedPaused && (
             <m.div

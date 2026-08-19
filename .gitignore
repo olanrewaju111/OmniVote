@@ -60,6 +60,12 @@ db/
 *.db-shm
 *.db-wal
 
+# Push subscription data
+data/
+
+# VAPID keys (secret)
+.vapid-keys.json
+
 # Tool results (debug artifacts)
 tool-results/
 

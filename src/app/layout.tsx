@@ -3,7 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster as SonnerToaster } from "sonner";
 import { Providers } from "@/components/providers";
-import { OfflineBar } from "@/components/pwa-registration";
+import { OfflineBar, PwaRegistration } from "@/components/pwa-registration";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { PerformanceObserver } from "@/components/performance-observer";
 
 const geistSans = Geist({
@@ -52,6 +53,8 @@ export default function RootLayout({
             Skip to main content
           </a>
           <OfflineBar />
+          <PwaRegistration />
+          <PwaInstallPrompt />
           <PerformanceObserver />
           {children}
           <SonnerToaster
