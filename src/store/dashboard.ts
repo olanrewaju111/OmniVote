@@ -13,6 +13,13 @@ export interface ElectionInfo {
   date: string | null;
 }
 
+export interface TenantOption {
+  id: string;
+  name: string;
+  slug: string;
+  primaryColor: string | null;
+}
+
 export interface UserInfo {
   id: string;
   email: string;
@@ -60,6 +67,8 @@ interface DashboardState {
   // Tenant
   tenantId: string;
   setTenantId: (id: string) => void;
+  availableTenants: TenantOption[];
+  setAvailableTenants: (tenants: TenantOption[]) => void;
 
   // Navigation
   activeTab: ViewTab;
@@ -100,13 +109,19 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     set({ user, isAuthenticated: true, activeTab: defaultTab, alertFilter: 'ALL' });
   },
   logout: () => {
-    const currentSlug = get().user?.tenantSlug || '';
+    const { user } = get();
     // Clear server-side session
     fetch('/api/auth', { method: 'DELETE', credentials: 'include' }).catch(() => {});
-    set({ user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL', electionInfo: null, electionTier: 'PRESIDENTIAL', tenantId: '', unreadAlerts: 0, globalSearch: '' });
-    // Redirect to tenant-specific login page
-    if (currentSlug) {
-      window.location.href = `/t/${currentSlug}`;
+    set({
+      user: null, isAuthenticated: false, activeTab: 'overview', alertFilter: 'ALL',
+      electionInfo: null, electionTier: 'PRESIDENTIAL', tenantId: '', unreadAlerts: 0,
+      globalSearch: '', availableTenants: [],
+    });
+    // SUPER_ADMIN goes to platform login, others to their tenant login
+    if (user?.role === 'SUPER_ADMIN') {
+      window.location.href = '/';
+    } else if (user?.tenantSlug) {
+      window.location.href = `/t/${user.tenantSlug}`;
     }
   },
 
@@ -118,6 +133,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   // Tenant
   tenantId: '',
   setTenantId: (id) => set({ tenantId: id }),
+  availableTenants: [],
+  setAvailableTenants: (tenants) => set({ availableTenants: tenants }),
 
   // Navigation
   activeTab: 'overview',

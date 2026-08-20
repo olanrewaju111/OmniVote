@@ -112,9 +112,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Find user — if tenantSlug provided, scope to that tenant for security
+    // For SUPER_ADMIN platform login (no tenantSlug), find any matching SUPER_ADMIN
     const whereClause = tenantSlug
       ? { email, tenant: { slug: tenantSlug, isActive: true } }
-      : { email };
+      : { email, role: 'SUPER_ADMIN' };
     const user = await db.user.findFirst({
       where: whereClause,
       select: {
@@ -202,6 +203,17 @@ export async function POST(req: NextRequest) {
     // Set httpOnly session cookie
     const sessionCookie = createSessionCookie(token);
 
+    // For SUPER_ADMIN, fetch all active tenants for tenant switching
+    let availableTenants: Array<{ id: string; name: string; slug: string; primaryColor: string | null }> | undefined;
+    if (user.role === 'SUPER_ADMIN') {
+      const allTenants = await db.tenant.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, slug: true, primaryColor: true },
+        orderBy: { name: 'asc' },
+      });
+      availableTenants = allTenants;
+    }
+
     const response = NextResponse.json({
       user: {
         id: user.id,
@@ -219,6 +231,7 @@ export async function POST(req: NextRequest) {
         date: activeElection.date,
       } : null,
       meta: { totalAgents: agents, onlineAgents },
+      ...(availableTenants && { availableTenants }),
     });
 
     response.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.options);
@@ -242,6 +255,16 @@ export async function GET(req: NextRequest) {
       if (user) {
         const tenant = await db.tenant.findUnique({ where: { id: user.tenantId } });
         if (tenant) {
+          // For SUPER_ADMIN, also return available tenants for switching
+          let availableTenants: Array<{ id: string; name: string; slug: string; primaryColor: string | null }> | undefined;
+          if (user.role === 'SUPER_ADMIN') {
+            const allTenants = await db.tenant.findMany({
+              where: { isActive: true },
+              select: { id: true, name: true, slug: true, primaryColor: true },
+              orderBy: { name: 'asc' },
+            });
+            availableTenants = allTenants;
+          }
           return NextResponse.json({
             authenticated: true,
             user: {
@@ -253,6 +276,7 @@ export async function GET(req: NextRequest) {
               tenantName: tenant.name,
               tenantSlug: tenant.slug,
             },
+            ...(availableTenants && { availableTenants }),
           });
         }
       }

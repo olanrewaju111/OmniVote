@@ -52,7 +52,7 @@ const item = {
 
 export function LoginScreen() {
   const router = useRouter();
-  const { login, setElectionInfo, setTenantId } = useDashboardStore();
+  const { login, setElectionInfo, setTenantId, setAvailableTenants } = useDashboardStore();
 
   // Platform admin form state
   const [showPlatformLogin, setShowPlatformLogin] = useState(false);
@@ -101,6 +101,7 @@ export function LoginScreen() {
       login(data.user);
       if (data.electionInfo) setElectionInfo(data.electionInfo);
       if (data.user.tenantId) setTenantId(data.user.tenantId);
+      if (data.availableTenants) setAvailableTenants(data.availableTenants);
       router.replace('/');
     } catch (err: unknown) {
       setPlatformError(err instanceof Error ? err.message : 'Login failed');

@@ -68,7 +68,7 @@ export default function Home() {
   const mainContentRef = useRef<HTMLDivElement>(null);
   const {
     isAuthenticated, user, activeTab, setElectionInfo, tenantId,
-    setUnreadAlerts, login, setTenantId, setSelectedTab,
+    setUnreadAlerts, login, setTenantId, setSelectedTab, setAvailableTenants,
   } = useDashboardStore();
   const queryClient = useQueryClient();
 
@@ -105,6 +105,7 @@ export default function Home() {
   const sessionRestore = useQuery<{
     authenticated: boolean;
     user?: { id: string; email: string; name: string; role: string; tenantId: string; tenantName: string; tenantSlug: string };
+    availableTenants?: Array<{ id: string; name: string; slug: string; primaryColor: string | null }>;
   }>({
     queryKey: ['session-check'],
     queryFn: () => fetchJson('/api/auth'),
@@ -122,8 +123,11 @@ export default function Home() {
         tenantId: u.tenantId, tenantName: u.tenantName, tenantSlug: u.tenantSlug,
       });
       setTenantId(u.tenantId);
+      if (sessionRestore.data.availableTenants) {
+        setAvailableTenants(sessionRestore.data.availableTenants);
+      }
     }
-  }, [sessionRestore.data, isAuthenticated, login, setTenantId]);
+  }, [sessionRestore.data, isAuthenticated, login, setTenantId, setAvailableTenants]);
 
   const tenantParam = tenantId ? `?tenantId=${tenantId}` : '';
 

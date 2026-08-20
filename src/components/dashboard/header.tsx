@@ -242,49 +242,41 @@ function getPasswordStrength(pw: string) {
 }
 
 // Tenant switcher for platform SUPER_ADMIN
-// The platform admin has a single account but can view any tenant's data.
-// Switching updates the active tenantId and refreshes all queries.
+// Uses /api/auth/switch-tenant with existing JWT — no password re-submission.
 function TenantSwitcher() {
-  const { user, login, setTenantId, setElectionInfo, setSelectedTab } = useDashboardStore();
+  const { user, login, setTenantId, setElectionInfo, setSelectedTab, setAvailableTenants, availableTenants } = useDashboardStore();
   const queryClient = useQueryClient();
   const [switching, setSwitching] = useState(false);
 
-  const { data: tenantsData } = useQuery<{ tenants: { id: string; name: string; slug: string; primaryColor: string }[] }>({
-    queryKey: ['auth-tenants-switcher'],
-    queryFn: () => fetchJson('/api/auth'),
-    staleTime: 60_000,
-  });
+  const currentId = user?.tenantId || '';
 
-  const tenants = tenantsData?.tenants || [];
-  const currentSlug = user?.tenantSlug || '';
-
-  const handleSwitch = useCallback(async (targetSlug: string) => {
-    if (targetSlug === currentSlug || switching) return;
+  const handleSwitch = useCallback(async (targetTenantId: string) => {
+    if (targetTenantId === currentId || switching) return;
     setSwitching(true);
     try {
-      // Re-authenticate scoped to the target tenant to get its election info
-      const res = await fetch('/api/auth', {
+      const res = await fetch('/api/auth/switch-tenant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: user!.email, password: 'password', tenantSlug: targetSlug }),
+        body: JSON.stringify({ tenantId: targetTenantId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Switch failed');
 
       login(data.user);
+      setTenantId(data.user.tenantId);
       if (data.electionInfo) setElectionInfo(data.electionInfo);
-      if (data.user.tenantId) setTenantId(data.user.tenantId);
+      if (data.availableTenants) setAvailableTenants(data.availableTenants);
       setSelectedTab('overview');
       queryClient.invalidateQueries();
     } catch {
-      // Non-critical: tenant switch failed
+      // Non-critical: tenant switch failed silently
     } finally {
       setSwitching(false);
     }
-  }, [currentSlug, switching, user, login, setTenantId, setElectionInfo, setSelectedTab, queryClient]);
+  }, [currentId, switching, user, login, setTenantId, setElectionInfo, setSelectedTab, setAvailableTenants, queryClient]);
 
-  if (tenants.length <= 1) return null;
+  if (availableTenants.length <= 1) return null;
 
   return (
     <DropdownMenuSub>
@@ -293,14 +285,14 @@ function TenantSwitcher() {
         {switching ? 'Switching...' : 'Switch Tenant'}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent>
-        {tenants.map(t => (
+        {availableTenants.map(t => (
           <DropdownMenuItem
             key={t.id}
-            onClick={() => handleSwitch(t.slug)}
-            className={cn(t.slug === currentSlug && 'bg-accent')}
+            onClick={() => handleSwitch(t.id)}
+            className={cn(t.id === currentId && 'bg-accent')}
           >
-            {t.slug === currentSlug && <Check className="mr-2 h-4 w-4 text-emerald" />}
-            {t.slug !== currentSlug && <span className="mr-2 w-4" />}
+            {t.id === currentId && <Check className="mr-2 h-4 w-4 text-emerald" />}
+            {t.id !== currentId && <span className="mr-2 w-4" />}
             {t.name}
           </DropdownMenuItem>
         ))}

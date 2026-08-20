@@ -42,7 +42,7 @@ export function TenantLogin() {
   const router = useRouter();
   const slug = params.slug;
 
-  const { login, setElectionInfo, setTenantId, isAuthenticated, user } = useDashboardStore();
+  const { login, setElectionInfo, setTenantId, setAvailableTenants, isAuthenticated, user } = useDashboardStore();
 
   const [view, setView] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
@@ -105,6 +105,7 @@ export function TenantLogin() {
       login(data.user);
       if (data.electionInfo) setElectionInfo(data.electionInfo);
       if (data.user.tenantId) setTenantId(data.user.tenantId);
+      if (data.availableTenants) setAvailableTenants(data.availableTenants);
       router.replace('/');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');

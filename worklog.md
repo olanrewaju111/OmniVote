@@ -692,3 +692,28 @@ Stage Summary:
 - All Dockerfiles upgraded to Node 24 Alpine
 - docker-compose.yml, Dockerfile, Dockerfile.ws, .dockerignore, .env.example updated
 - Note: nginx/ directory and Caddyfile still exist on disk but are no longer referenced by Docker
+
+---
+Task ID: 25
+Agent: Super Z (Main)
+Task: SUPER_ADMIN platform-level login and tenant switching
+
+Work Log:
+- Analyzed auth architecture: LoginScreen already had Platform Administrator section but the API and switching were broken
+- Fixed POST /api/auth: when no tenantSlug, scope query to `role: 'SUPER_ADMIN'` only (prevents non-admin tenantless login)
+- Added `availableTenants` to POST /api/auth response for SUPER_ADMIN users (all active tenants)
+- Added `availableTenants` to GET /api/auth session restoration for SUPER_ADMIN
+- Created POST /api/auth/switch-tenant endpoint: issues new JWT with target tenantId, returns fresh election/agent data, logs TENANT_SWITCH security event
+- Updated Zustand store: added TenantOption interface, availableTenants state, setAvailableTenants action
+- Fixed store logout: SUPER_ADMIN now redirects to '/' (platform login) instead of '/t/{slug}'
+- Updated LoginScreen: stores availableTenants after platform admin login
+- Updated TenantLogin: stores availableTenants for SUPER_ADMIN logging in via tenant-scoped URL
+- Updated page.tsx session restoration: restores availableTenants from GET /api/auth response
+- Replaced broken TenantSwitcher in header: was re-authenticating with hardcoded password 'password', now uses /api/auth/switch-tenant with existing JWT; uses store's availableTenants instead of broken query
+
+Stage Summary:
+- SUPER_ADMIN can now log in at '/' via the Platform Administrator section (no tenant URL needed)
+- After login, SUPER_ADMIN sees all tenants in user menu dropdown under "Switch Tenant"
+- Tenant switching uses proper JWT re-issuance, not password re-submission
+- SUPER_ADMIN logout returns to platform login, not a tenant-specific URL
+- All 721 tests pass, TypeScript compiles cleanly
