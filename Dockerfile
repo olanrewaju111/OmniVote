@@ -1,6 +1,5 @@
 # ─── OmniVote Production Dockerfile ─────────────────────────────────
-# Multi-stage build: deps → build → runner
-# Task ID: 6 — Phase 14: Deployment & DevOps
+# Multi-stage build: deps -> build -> runner
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─── Stage 1: Dependencies ───────────────────────────────────────────────
@@ -13,15 +12,14 @@ RUN apk update && \
 WORKDIR /app
 
 # Copy lockfiles first for best layer caching
-COPY package.json bun.lock* package-lock.json* ./
+COPY package.json package-lock.json* bun.lock* ./
 
-# Install dependencies (bun preferred, npm fallback)
+# Install dependencies (prefer npm ci with lockfile, fallback to npm install)
 RUN \
-  if [ -f bun.lock ]; then \
-    npm install -g bun && \
-    bun install --frozen-lockfile --production=false; \
-  elif [ -f package-lock.json ]; then \
+  if [ -f package-lock.json ]; then \
     npm ci; \
+  elif [ -f bun.lock ]; then \
+    npm install -g bun && bun install --frozen-lockfile --production=false; \
   else \
     npm install; \
   fi
@@ -55,15 +53,18 @@ RUN cp -r .next/static .next/standalone/.next/ && \
 FROM node:20-alpine AS runner
 
 LABEL maintainer="OmniVote Team <dev@omnivote.app>"
-LABEL description="OmniVote — Real-time election monitoring dashboard"
+LABEL description="OmniVote - Real-time election monitoring dashboard"
 LABEL version="0.2.0"
 LABEL org.opencontainers.image.source="https://github.com/omnivote/omnivote"
 
 # Security: minimal runtime deps + security updates
 RUN apk update && \
     apk upgrade --no-cache && \
-    apk add --no-cache wget ca-certificates dumb-init && \
+    apk add --no-cache wget ca-certificates dumb-init tzdata && \
     rm -rf /var/cache/apk/*
+
+# Set timezone
+ENV TZ=Africa/Lagos
 
 WORKDIR /app
 
@@ -83,12 +84,14 @@ RUN mkdir -p /app/data /app/logs && \
 # Copy standalone build output
 COPY --from=builder /app/.next/standalone ./
 
-# Copy Prisma schema (for migrations at runtime)
+# Copy Prisma schema and engine (for migrations at runtime)
 COPY --from=builder /app/prisma ./prisma/
-
-# Copy node_modules with Prisma client
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy init script
+COPY docker/init-entrypoint.sh /app/init-entrypoint.sh
+RUN chmod +x /app/init-entrypoint.sh
 
 # Set ownership
 RUN chown -R omnivote:nodejs /app
@@ -105,4 +108,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 
 # Use dumb-init as PID 1 for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "server.js"]
+CMD ["/app/init-entrypoint.sh"]

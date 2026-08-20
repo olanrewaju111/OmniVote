@@ -1,16 +1,29 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # OmniVote — Production Overrides
-# Task ID: 6 — Phase 14: Deployment & DevOps
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   OR: make up
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
+  # ─── Nginx (Production) ───────────────────────────────────────────────
+  nginx:
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+
   # ─── App (Production Overrides) ──────────────────────────────────────────
   app:
     restart: unless-stopped
-    # No source code volume mounts in production
     volumes:
       - app-data:/app/data
       - app-logs:/app/logs
@@ -33,6 +46,29 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+  # ─── WebSocket Server (Production Overrides) ────────────────────────────
+  ws:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
   # ─── PostgreSQL (Production Overrides) ──────────────────────────────────
   postgres:
@@ -57,25 +93,47 @@ services:
         max-size: "20m"
         max-file: "3"
 
-  # ─── WebSocket Server (Production Overrides) ────────────────────────────
-  ws:
+  # ─── Redis (Production Overrides) ───────────────────────────────────────
+  redis:
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 64M
+          cpus: '0.1'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ─── Prometheus (Production) ────────────────────────────────────────────
+  prometheus:
+    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 512M
-          cpus: '1'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
+          cpus: '0.5'
     logging:
       driver: json-file
       options:
         max-size: "20m"
+        max-file: "3"
+
+  # ─── Grafana (Production) ───────────────────────────────────────────────
+  grafana:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
         max-file: "3"

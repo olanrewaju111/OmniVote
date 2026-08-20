@@ -1,0 +1,70 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# OmniVote — Development Override
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#   OR: make dev
+#
+# Features:
+#   - Hot-reload via volume mounts
+#   - Exposes all ports directly (no nginx)
+#   - No resource limits
+#   - Debug-level logging
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ─── App (Dev Override: hot-reload) ────────────────────────────────────
+  app:
+    build:
+      target: deps
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: omnivote-app-dev
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app:cached
+      - /app/node_modules  # Prevent host node_modules from overwriting container's
+      - app-data:/app/data
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true  # Ensure Next.js detects file changes in Docker
+    command: ["npm", "run", "dev"]
+    # No healthcheck in dev (restarts are manual)
+
+  # ─── WebSocket (Dev Override: hot-reload) ─────────────────────────────
+  ws:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: omnivote-ws-dev
+    ports:
+      - "${WS_PORT:-3001}:3001"
+    volumes:
+      - .:/app:cached
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: ["npm", "run", "dev:ws"]
+
+  # ─── Postgres (Dev: expose port, lower resources) ──────────────────────
+  postgres:
+    container_name: omnivote-postgres-dev
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  # ─── Redis (Dev: expose port) ──────────────────────────────────────────
+  redis:
+    container_name: omnivote-redis-dev
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  # ─── Disable nginx in dev (direct access to ports) ─────────────────────
+  nginx:
+    profiles: []  # Effectively disables nginx in dev
+
+  # ─── Disable monitoring in dev ─────────────────────────────────────────
+  prometheus:
+    profiles: []
+  grafana:
+    profiles: []

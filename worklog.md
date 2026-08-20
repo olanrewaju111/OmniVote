@@ -1,6 +1,36 @@
 # OmniVote Development Work Log
 
 ---
+Task ID: 24
+Agent: Super Z (Main)
+Task: Phase 24 — Complete Dockerization
+
+Work Log:
+- Fixed .dockerignore: removed lockfile exclusion (was blocking both bun.lock and package-lock.json), added stories/storybook to exclusions.
+- Updated Dockerfile: fixed lockfile priority (npm ci > bun install > npm install), added tzdata (Africa/Lagos), added docker/init-entrypoint.sh for auto-migration on first start, switched CMD to init script.
+- Created Dockerfile.ws: lightweight multi-stage image for standalone WebSocket server with only required source files.
+- Created docker/init-entrypoint.sh: runs prisma migrate deploy on first container start (idempotent via marker file), then exec node server.js.
+- Rewrote docker-compose.yml: added Nginx reverse proxy (port 80), Redis 7 (AOF, 128MB max), Prometheus + Grafana as optional --profile monitoring services. All internal services use expose (not ports) except explicitly needed ones. Health checks on all services.
+- Updated nginx/conf.d/default.conf: added WebSocket proxy (/ws -> ws:3001 with 86ks timeouts), removed duplicate upstream block.
+- Fixed nginx/nginx.conf: removed duplicate upstream block (now defined solely in conf.d/default.conf).
+- Created docker-compose.dev.yml: dev overrides with Dockerfile.dev (single-stage, all deps), volume-mounted source for hot-reload, WATCHPACK_POLLING=true, direct port exposure (no nginx), disables monitoring profile.
+- Created Dockerfile.dev: single-stage dev image with all dependencies (including dev), source code mounted via compose volume.
+- Updated docker-compose.prod.yml: added production overrides for nginx, redis, prometheus, grafana with resource limits and logging.
+- Created Makefile: 20+ convenience targets (help, dev, up, up-monitoring, down, build, logs-*, db-push/migrate/seed/reset/studio, test, shell, shell-db, shell-redis, ps, clean).
+- Fixed vitest.config.ts: named unit project 'unit' so `npm test` doesn't fail on storybook's Playwright dependency.
+- Recreated src/test/setup.ts (lost between sessions).
+- Updated package.json: test/test:coverage scripts now target --project unit explicitly.
+
+Stage Summary:
+- Full Docker stack: Nginx -> Next.js App + WS Server -> PostgreSQL 16 + Redis 7
+- Optional monitoring: Prometheus + Grafana via `--profile monitoring`
+- Dev mode: hot-reload via `make dev` (docker-compose.dev.yml)
+- Production mode: `make up` (nginx + resource limits + log rotation)
+- Auto DB migrations on first start via init-entrypoint.sh
+- 721/721 unit tests passing, zero regressions
+- 11 Docker-related files: Dockerfile, Dockerfile.ws, Dockerfile.dev, docker-compose.yml, docker-compose.dev.yml, docker-compose.prod.yml, .dockerignore, Makefile, docker/init-entrypoint.sh, nginx/nginx.conf, nginx/conf.d/default.conf
+
+---
 Task ID: 23
 Agent: Super Z (Main)
 Task: Phase 23 — Storybook Setup & Component Stories

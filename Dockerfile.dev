@@ -1,0 +1,35 @@
+# ─── OmniVote Dev Dockerfile ──────────────────────────────────────
+# Single-stage: install deps + mount source for hot-reload
+# ─────────────────────────────────────────────────────────────────────────
+
+FROM node:20-alpine
+
+RUN apk update && apk upgrade --no-cache && \
+    apk add --no-cache libc6-compat git
+
+WORKDIR /app
+
+# Copy lockfiles
+COPY package.json package-lock.json* bun.lock* ./
+
+# Install ALL dependencies (including dev deps for tests, storybook, etc.)
+RUN \
+  if [ -f package-lock.json ]; then \
+    npm ci; \
+  elif [ -f bun.lock ]; then \
+    npm install -g bun && bun install --frozen-lockfile; \
+  else \
+    npm install; \
+  fi
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Source code is mounted via docker-compose volume
+
+EXPOSE 3000 3001
+
+ENV NODE_ENV=development
+ENV WATCHPACK_POLLING=true
+
+CMD ["npm", "run", "dev"]

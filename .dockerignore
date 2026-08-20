@@ -1,6 +1,4 @@
 # ─── OmniVote .dockerignore ──────────────────────────────────────
-# Task ID: 6 — Phase 14: Deployment & DevOps
-# ─────────────────────────────────────────────────────────────────────────
 
 # Dependencies
 node_modules
@@ -20,20 +18,24 @@ LICENSE*
 Dockerfile
 docker-compose*.yml
 .dockerignore
+Makefile
 
 # Environment files (injected at runtime)
 .env
 .env.*
 !.env.example
 
-# Prisma migrations (included via prisma generate in build)
-prisma/migrations
-
 # Test files & coverage
 coverage
 src/**/*.test.ts
 src/**/*.test.tsx
+src/**/*.stories.tsx
 src/**/__tests__
+src/stories
+src/__mocks
+
+# Storybook
+.storybook
 
 # Development & tooling
 skills
@@ -41,6 +43,7 @@ download
 agent-ctx
 examples
 whatsapp-bridge
+load-tests
 *.bak
 
 # Monitoring (not needed in app image)
@@ -64,6 +67,5 @@ logs/
 
 # Misc
 Caddyfile
-bun.lock
-package-lock.json
 start-bridge.sh
+tool-results
