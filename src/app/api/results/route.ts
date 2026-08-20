@@ -91,9 +91,18 @@ export async function POST(req: NextRequest) {
 
     const pu = await db.pollingUnit.findUnique({
       where: { id: pollingUnitId },
-      select: { id: true, electionId: true, registeredVoters: true },
     });
     if (!pu) return NextResponse.json({ error: 'Polling unit not found' }, { status: 404 });
+
+    // SECURITY: Verify polling unit belongs to the authenticated user's tenant
+    // Look up the election to get the tenantId
+    const election = await db.election.findUnique({
+      where: { id: pu.electionId },
+      select: { tenantId: true },
+    });
+    if (!election || election.tenantId !== tenantId) {
+      return NextResponse.json({ error: 'Polling unit not found' }, { status: 404 });
+    }
 
     // Check for existing result (only one per PU)
     const existing = await db.electionResult.findFirst({

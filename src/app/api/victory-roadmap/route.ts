@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const tenantId = req.nextUrl.searchParams.get('tenantId') || session.tenantId;
+    const tenantId = session.tenantId;
 
     // Get all results with polling unit info
     const results = await db.electionResult.findMany({

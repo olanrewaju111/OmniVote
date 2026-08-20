@@ -98,15 +98,30 @@ export function getSubscriptions(tenantId: string): PushSubscriptionData[] {
   return subs.map(({ endpoint, keys }) => ({ endpoint, keys }));
 }
 
-/** Remove a subscription by endpoint */
-export function removeSubscription(endpoint: string): void {
+/** Check if a subscription belongs to a specific user (ownership verification) */
+export function getSubscriptionOwner(endpoint: string): { userId: string; tenantId: string } | null {
+  load();
+  for (const tenantId of Object.keys(store)) {
+    const found = store[tenantId].find((s) => s.endpoint === endpoint);
+    if (found) return { userId: found.userId, tenantId };
+  }
+  return null;
+}
+
+/** Remove a subscription by endpoint — scoped to a specific userId for ownership verification */
+export function removeSubscription(endpoint: string, userId?: string): boolean {
   load();
   for (const tenantId of Object.keys(store)) {
     const before = store[tenantId].length;
-    store[tenantId] = store[tenantId].filter((s) => s.endpoint !== endpoint);
+    store[tenantId] = store[tenantId].filter((s) => {
+      if (s.endpoint !== endpoint) return true; // not the one we're looking for
+      if (userId && s.userId !== userId) return true; // ownership check: skip if not owner
+      return false; // remove this one
+    });
     if (store[tenantId].length < before) {
       persist();
-      return;
+      return true;
     }
   }
+  return false;
 }

@@ -132,6 +132,10 @@ export async function POST(req: NextRequest) {
     const { action } = body;
 
     if (action === 'CREATE_ZONE') {
+      const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+      if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
       const { name, state, lga, centerLat, centerLng, radiusMeters, pollingUnitIds, assignedAgentIds, checkInIntervalMin, maxMissedCheckIns } = body;
       if (!name || !state || centerLat == null || centerLng == null || !radiusMeters) {
         return NextResponse.json({ error: 'name, state, centerLat, centerLng, radiusMeters required' }, { status: 400 });
@@ -212,6 +216,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'RESOLVE_SWITCH') {
+      const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+      if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
       const { switchId, resolvedById, notes } = body;
       if (!switchId) return NextResponse.json({ error: 'switchId required' }, { status: 400 });
       await db.deadMansSwitch.update({
@@ -223,6 +231,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'TOGGLE_ZONE') {
+      const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+      if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
       const { zoneId, isActive } = body;
       if (!zoneId) return NextResponse.json({ error: 'zoneId required' }, { status: 400 });
       const zone = await db.geofenceZone.update({

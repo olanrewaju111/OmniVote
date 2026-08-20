@@ -97,8 +97,20 @@ export async function POST(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
+    // RBAC: only SUPER_ADMIN, TENANT_ADMIN, TRUST_SAFETY can perform security actions
+    const ALLOWED_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'TRUST_SAFETY'];
+    if (!ALLOWED_ROLES.includes(authUser.role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { action, ...data } = body;
+
+    // Additional restriction: LOCK_USER, UNLOCK_USER, UPDATE_POLICY require TENANT_ADMIN or SUPER_ADMIN
+    const SENSITIVE_ACTIONS = ['LOCK_USER', 'UNLOCK_USER', 'UPDATE_POLICY'];
+    if (SENSITIVE_ACTIONS.includes(action) && authUser.role === 'TRUST_SAFETY') {
+      return NextResponse.json({ error: 'Insufficient permissions for this action' }, { status: 403 });
+    }
 
     if (action === 'LOG_EVENT') {
       const { eventType, severity, userId, description, ipAddress, userAgent, metadata } = data;

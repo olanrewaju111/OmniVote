@@ -3,10 +3,15 @@ import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { logAudit, extractIp } from '@/lib/audit';
 
+const BROADCAST_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] as const;
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!BROADCAST_ROLES.includes(session.role as typeof BROADCAST_ROLES[number])) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
 
     const { title, body, priority, targetRole, channel, includeSummary } = await req.json();
 
@@ -83,7 +88,7 @@ export async function GET(req: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const tenantId = req.nextUrl.searchParams.get('tenantId') || session.tenantId;
+    const tenantId = session.tenantId;
 
     // Get recent broadcasts (agent messages with BROADCAST type)
     const broadcasts = await db.agentMessage.findMany({

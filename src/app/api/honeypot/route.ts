@@ -206,6 +206,10 @@ export async function POST(req: NextRequest) {
 
     switch (action) {
       case 'CREATE_HONEYPOT': {
+        const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+        if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+          return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+        }
         const { pollingUnitId, name, state, lga, trapType, expectedResults, notes } = body;
 
         if (!pollingUnitId || !name || !state || !trapType) {
@@ -258,6 +262,10 @@ export async function POST(req: NextRequest) {
       }
 
       case 'UPDATE_OFFICIAL_RESULTS': {
+        const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+        if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+          return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+        }
         const { honeypotId, officialResults } = body;
 
         if (!honeypotId || !officialResults) {

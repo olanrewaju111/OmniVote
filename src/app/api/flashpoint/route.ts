@@ -155,6 +155,11 @@ export async function POST(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
+    const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+    if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { action } = body;
 

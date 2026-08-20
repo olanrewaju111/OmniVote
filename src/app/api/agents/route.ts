@@ -44,6 +44,10 @@ export const GET = withApiHandler('GET', '/api/agents', async (req, ctx) => {
   return NextResponse.json({ users });
 });
 
+// Roles allowed to create users
+const USER_CREATE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN'] as const;
+const USER_MANAGE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN'] as const;
+
 // POST /api/agents — add a new agent
 export async function POST(req: NextRequest) {
   try {
@@ -69,6 +73,21 @@ export async function POST(req: NextRequest) {
     }
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
+
+    // RBAC: only TENANT_ADMIN+ can create users
+    if (!USER_CREATE_ROLES.includes(authUser.role as typeof USER_CREATE_ROLES[number])) {
+      return NextResponse.json({ error: 'Only administrators can create users' }, { status: 403 });
+    }
+
+    // Prevent creating SUPER_ADMIN accounts
+    if (role === 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Cannot create SUPER_ADMIN users via this endpoint' }, { status: 403 });
+    }
+
+    // TENANT_ADMIN cannot create other TENANT_ADMIN users (only SUPER_ADMIN can)
+    if (role === 'TENANT_ADMIN' && authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Only SUPER_ADMIN can create TENANT_ADMIN users' }, { status: 403 });
+    }
 
     // Check for duplicate email
     const existing = await db.user.findFirst({
@@ -119,6 +138,11 @@ export async function PATCH(req: NextRequest) {
     const tenantErr = requireTenantMatch(authUser, tenantId);
     if (tenantErr) return tenantErr;
 
+    // RBAC: only TENANT_ADMIN+ can manage users
+    if (!USER_MANAGE_ROLES.includes(authUser.role as typeof USER_MANAGE_ROLES[number])) {
+      return NextResponse.json({ error: 'Only administrators can manage users' }, { status: 403 });
+    }
+
     const body = await req.json();
     const { userId, action } = body;
 
@@ -164,6 +188,18 @@ export async function PATCH(req: NextRequest) {
         if (!body.newRole) return NextResponse.json({ error: 'newRole is required' }, { status: 400 });
         const validRoles = ['FIELD_AGENT', 'ANALYST', 'TRUST_SAFETY', 'TENANT_ADMIN'];
         if (!validRoles.includes(body.newRole)) return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
+        // Only SUPER_ADMIN can assign TENANT_ADMIN role
+        if (body.newRole === 'TENANT_ADMIN' && authUser.role !== 'SUPER_ADMIN') {
+          return NextResponse.json({ error: 'Only SUPER_ADMIN can assign TENANT_ADMIN role' }, { status: 403 });
+        }
+        // Prevent any role change to SUPER_ADMIN
+        if (body.newRole === 'SUPER_ADMIN') {
+          return NextResponse.json({ error: 'Cannot assign SUPER_ADMIN role' }, { status: 403 });
+        }
+        // Cannot change own role
+        if (userId === authUser.userId) {
+          return NextResponse.json({ error: 'Cannot change your own role' }, { status: 400 });
+        }
         updated = await db.user.update({
           where: { id: userId },
           data: { role: body.newRole },

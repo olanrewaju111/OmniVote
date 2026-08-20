@@ -1,8 +1,15 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { getAuthUser } from '@/lib/auth';
 import { sloTracker, latencyHistogram, requestCounter, activeConnections } from '@/lib/sre';
 import { errorTracker, alertManager } from '@/lib/monitoring';
 import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
 import { broadcastWebVitals } from '@/lib/ws-broadcast';
+
+async function requireAuth(req: Request) {
+  const user = await getAuthUser(req);
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  return null;
+}
 
 let initialized = false;
 async function ensureInit() {
@@ -18,7 +25,10 @@ async function ensureInit() {
  * Returns metrics in Prometheus text exposition format.
  * This endpoint is meant to be scraped by a Prometheus server.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const authErr = await requireAuth(req);
+  if (authErr) return authErr;
+
   await ensureInit();
 
   const now = Date.now();

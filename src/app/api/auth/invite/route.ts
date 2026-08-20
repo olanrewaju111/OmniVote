@@ -27,7 +27,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }, { status: 400 });
     }
 
-    const targetTenantId = tenantId || authUser.tenantId;
+    // SECURITY: TENANT_ADMIN can only invite to their OWN tenant.
+    // SUPER_ADMIN can invite to any tenant.
+    let targetTenantId: string;
+    if (authUser.role === 'SUPER_ADMIN' && tenantId) {
+      // Verify the target tenant exists
+      const targetTenant = await db.tenant.findUnique({ where: { id: tenantId } });
+      if (!targetTenant) {
+        return NextResponse.json({ error: 'Target tenant not found' }, { status: 404 });
+      }
+      targetTenantId = tenantId;
+    } else {
+      // TENANT_ADMIN must use their own tenant; ignore any provided tenantId
+      targetTenantId = authUser.tenantId!;
+    }
+
+    // TENANT_ADMIN cannot invite TENANT_ADMIN role (only SUPER_ADMIN can)
+    if (role === 'TENANT_ADMIN' && authUser.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Only SUPER_ADMIN can invite TENANT_ADMIN users' }, { status: 403 });
+    }
 
     // Check for duplicate email
     const existing = await db.user.findFirst({ where: { email, tenantId: targetTenantId } });
@@ -50,18 +68,24 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Store invite token in AuditLog
+    // Store invite token in AuditLog (DO NOT return in response body)
     void logAudit({
       userId: authUser.userId,
       action: 'USER_INVITE',
       entityType: 'User',
       entityId: user.id,
-      metadata: { inviteToken, email, invitedRole: role },
+      metadata: { inviteToken, email, invitedRole: role, tenantId: targetTenantId },
       ipAddress: extractIp(req),
     });
 
-    // In a real app, would send an email with the invite link containing the token
-    return NextResponse.json({ success: true, message: 'Invitation sent', inviteToken });
+    // SECURITY: Do NOT return the invite token in the response.
+    // In production, this would be sent via email. For dev, the token
+    // is available in the audit log (which requires admin access).
+    return NextResponse.json({
+      success: true,
+      message: `Invitation created for ${email}. Check audit logs for the invite token (dev mode).`,
+      userId: user.id,
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'Failed to create invitation';
     return NextResponse.json({ error: msg }, { status: 500 });

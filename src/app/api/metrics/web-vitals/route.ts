@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth';
 import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
+
+async function requireAuth(req: Request) {
+  const user = await getAuthUser(req);
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  return null;
+}
 
 /**
  * GET /api/metrics/web-vitals — Web Vitals dashboard data.
@@ -12,6 +19,9 @@ import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
  *   { stats, anomalies, healthScore, routes, budgetCompliance, anomalyCounts, totalEvents }
  */
 export async function GET(req: Request) {
+  const authErr = await requireAuth(req);
+  if (authErr) return authErr;
+
   const url = new URL(req.url);
   const route = url.searchParams.get('route') || undefined;
   const metric = url.searchParams.get('metric') || undefined;
@@ -50,7 +60,10 @@ export async function GET(req: Request) {
  * DELETE /api/metrics/web-vitals — Clear all aggregated vitals.
  * Useful for testing or after deployment resets.
  */
-export async function DELETE() {
+export async function DELETE(req: Request) {
+  const authErr = await requireAuth(req);
+  if (authErr) return authErr;
+
   const agg = getWebVitalsAggregator();
   agg.clear();
   return NextResponse.json({ ok: true });

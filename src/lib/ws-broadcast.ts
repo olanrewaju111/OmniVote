@@ -6,7 +6,8 @@
  */
 
 const WS_INTERNAL_URL = process.env.WS_INTERNAL_URL || 'http://localhost:3003';
-const JWT_SECRET = process.env.JWT_SECRET || '';
+// SECURITY: Use WS_INTERNAL_SECRET for inter-process auth, NOT JWT_SECRET
+const WS_INTERNAL_SECRET = process.env.WS_INTERNAL_SECRET || process.env.JWT_SECRET || '';
 
 interface BroadcastPayload {
   type: 'incident' | 'alert' | 'pvt' | 'chat' | 'agent' | 'osint' | 'dashboard' | 'geofence' | 'honeypot' | 'security' | 'presence' | 'web-vitals';
@@ -30,7 +31,7 @@ export async function broadcastEvent(payload: BroadcastPayload): Promise<void> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Internal-Secret': JWT_SECRET,
+        'X-Internal-Secret': WS_INTERNAL_SECRET,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,

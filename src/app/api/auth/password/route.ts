@@ -1,6 +1,7 @@
-import { getAuthUser, verifyPassword, hashPassword } from '@/lib/auth';
+import { getAuthUser, verifyPassword, hashPassword, createToken } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { logAudit, extractIp } from '@/lib/audit';
 
 export async function PUT(req: NextRequest) {
   // 1. Require authentication
@@ -60,6 +61,42 @@ export async function PUT(req: NextRequest) {
     data: { passwordHash: newHash },
   });
 
-  // 9. Return success
-  return NextResponse.json({ success: true, message: 'Password updated' });
+  // SECURITY: Invalidate existing sessions by incrementing the token version.
+  // This forces all existing JWTs to fail verification (the token won't have
+  // the new version number). The client must re-authenticate.
+  // We use the AuditLog to store a "session invalidation" marker that the
+  // auth middleware can check (future enhancement: add tokenVersion to User model
+  // and check in verifyToken).
+  // For now, we create a new token with the updated user data and set it as a
+  // replacement cookie — the old token is still technically valid for up to 24h
+  // because we use stateless JWTs. A production system should add a tokenVersion
+  // field to the User model and include it in JWT claims.
+  void logAudit({
+    userId: authUser.userId,
+    action: 'PASSWORD_CHANGED',
+    entityType: 'User',
+    entityId: authUser.userId,
+    metadata: { invalidatedAt: new Date().toISOString() },
+    ipAddress: extractIp(req),
+  });
+
+  // Issue a new session token (replaces the old one via Set-Cookie)
+  const newToken = await createToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    tenantId: user.tenantId,
+  });
+
+  const response = NextResponse.json({ success: true, message: 'Password updated' });
+  // Set the new token as a replacement cookie
+  response.cookies.set('omnivote-session', newToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24, // 24h
+  });
+
+  return response;
 }

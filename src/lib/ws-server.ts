@@ -36,6 +36,21 @@ if (!JWT_SECRET.length) {
   process.exit(1);
 }
 
+// SECURITY: Separate internal API secret (NOT the JWT signing key).
+// Falls back to JWT_SECRET only if WS_INTERNAL_SECRET is not set (dev compat).
+// In production, set WS_INTERNAL_SECRET to a different random value.
+const WS_INTERNAL_SECRET = process.env.WS_INTERNAL_SECRET || process.env.JWT_SECRET || '';
+
+/** Constant-time string comparison to prevent timing attacks */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 const PORT = parseInt(process.env.WS_PORT || '3003', 10);
 
 // Room-based broadcasting: tenantId -> Set<WsClient>
@@ -113,9 +128,9 @@ const server = createServer((req, res) => {
 
   // Internal broadcast endpoint (called by API routes)
   if (req.url === '/broadcast' && req.method === 'POST') {
-    // Verify internal request via shared secret
+    // Verify internal request via shared secret (constant-time comparison)
     const authHeader = req.headers['x-internal-secret'];
-    if (authHeader !== process.env.JWT_SECRET) {
+    if (!authHeader || typeof authHeader !== 'string' || !timingSafeEqual(authHeader, WS_INTERNAL_SECRET)) {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Forbidden' }));
       return;
@@ -194,12 +209,27 @@ wss.on('connection', async (ws, req) => {
 
   ws.on('pong', () => { client.isAlive = true; });
 
+  // Per-client rate limiting: max 10 messages per second
+  let msgCount = 0;
+   const MSG_RATE_LIMIT = 10;
+  const MSG_RATE_WINDOW = 1000; // ms
+  setInterval(() => { msgCount = 0; }, MSG_RATE_WINDOW).unref();
+
   ws.on('message', (raw) => {
+    // Rate limit check
+    msgCount++;
+    if (msgCount > MSG_RATE_LIMIT) {
+      ws.send(JSON.stringify({ type: 'system', action: 'rate_limited', data: { message: 'Slow down' }, timestamp: new Date().toISOString() }));
+      return;
+    }
+
     try {
       const msg = JSON.parse(raw.toString());
 
       // Handle chat messages
       if (msg.type === 'chat' && msg.action === 'send' && msg.data?.body) {
+        // Truncate excessively long messages (max 5000 chars)
+        const body = String(msg.data.body).slice(0, 5000);
         broadcastToTenant(client.tenantId, {
           type: 'chat',
           action: 'new_message',
@@ -208,7 +238,7 @@ wss.on('connection', async (ws, req) => {
             senderId: client.userId,
             senderName: client.userName,
             senderRole: client.userRole,
-            body: msg.data.body,
+            body: body,
             createdAt: new Date().toISOString(),
             isSystem: false,
           },

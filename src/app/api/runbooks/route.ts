@@ -1,10 +1,20 @@
 import { NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth';
 import { RUNBOOKS, getRunbooksBySeverity } from '@/lib/sre';
+
+async function requireAuth(req: Request) {
+  const user = await getAuthUser(req);
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  return null;
+}
 
 /**
  * GET /api/runbooks — List all runbooks, optionally filtered by severity.
  */
 export async function GET(request: Request) {
+  const authErr = await requireAuth(request);
+  if (authErr) return authErr;
+
   const { searchParams } = new URL(request.url);
   const severity = searchParams.get('severity');
 

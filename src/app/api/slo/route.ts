@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth';
 import { sloTracker, SLO_DEFINITIONS, ELECTION_DAY_SLOS } from '@/lib/sre';
+
+async function requireAuth(req: Request) {
+  const user = await getAuthUser(req);
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  return null;
+}
 
 // Initialize tracker on first request (lazy init)
 let initialized = false;
@@ -13,7 +20,10 @@ async function ensureInit() {
 /**
  * GET /api/slo — Get all SLO reports, error budgets, and deployment freeze status.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const authErr = await requireAuth(req);
+  if (authErr) return authErr;
+
   await ensureInit();
 
   const reports = sloTracker.getAllReports();

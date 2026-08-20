@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
-import { addSubscription, removeSubscription } from '@/lib/push-store';
+import { addSubscription, removeSubscription, getSubscriptionOwner } from '@/lib/push-store';
 
 /**
  * POST /api/notifications/subscribe
@@ -63,7 +63,19 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    removeSubscription(endpoint);
+    // SECURITY: Verify ownership — user can only delete their own subscriptions
+    const owner = getSubscriptionOwner(endpoint);
+    if (!owner) {
+      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+    }
+    if (owner.userId !== authUser.userId) {
+      return NextResponse.json({ error: 'Cannot delete another user\'s subscription' }, { status: 403 });
+    }
+
+    const removed = removeSubscription(endpoint, authUser.userId);
+    if (!removed) {
+      return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+    }
 
     return NextResponse.json({ success: true });
   } catch {

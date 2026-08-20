@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
+import { logAudit, extractIp } from '@/lib/audit';
 
 // POST /api/auth/reset-password — reset password using token
 export async function POST(req: NextRequest) {
@@ -27,12 +28,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid or expired reset token' }, { status: 400 });
     }
 
-    const meta = JSON.parse(resetLog.metadata) as { resetToken: string; expiresAt: string; email: string };
+    const meta = JSON.parse(resetLog.metadata) as { resetToken: string; expiresAt: string; email: string; used: boolean };
     if (meta.resetToken !== token) {
       return NextResponse.json({ error: 'Invalid reset token' }, { status: 400 });
     }
     if (new Date(meta.expiresAt) < new Date()) {
       return NextResponse.json({ error: 'Reset token has expired' }, { status: 400 });
+    }
+    // SECURITY: Check if token has already been used (prevent replay)
+    if (meta.used) {
+      return NextResponse.json({ error: 'Reset token has already been used' }, { status: 400 });
     }
 
     // Update password
@@ -42,15 +47,22 @@ export async function POST(req: NextRequest) {
       data: { passwordHash },
     });
 
-    // Invalidate all existing sessions by creating a log entry
-    await db.auditLog.create({
+    // SECURITY: Mark the reset token as used IMMEDIATELY to prevent replay
+    await db.auditLog.update({
+      where: { id: resetLog.id },
       data: {
-        userId: resetLog.userId,
-        action: 'PASSWORD_RESET_COMPLETED',
-        entityType: 'User',
-        entityId: resetLog.userId,
-        metadata: JSON.stringify({ email: meta.email }),
+        metadata: JSON.stringify({ ...meta, used: true, usedAt: new Date().toISOString() }),
       },
+    });
+
+    // Log the successful reset (separate from the token entry)
+    void logAudit({
+      userId: resetLog.userId,
+      action: 'PASSWORD_RESET_COMPLETED',
+      entityType: 'User',
+      entityId: resetLog.userId,
+      metadata: { email: meta.email },
+      ipAddress: extractIp(req),
     });
 
     return NextResponse.json({ success: true, message: 'Password has been reset. Please log in with your new password.' });

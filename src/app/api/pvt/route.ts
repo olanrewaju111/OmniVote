@@ -292,6 +292,10 @@ export async function POST(req: NextRequest) {
     // VERIFY_PVT
     // =========================================================================
     if (action === 'VERIFY_PVT') {
+      const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY'] as const;
+      if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
       const { pvtId, verifiedById } = body;
 
       if (!pvtId || !verifiedById) {
@@ -335,6 +339,10 @@ export async function POST(req: NextRequest) {
     // RUN_COMPARISON
     // =========================================================================
     if (action === 'RUN_COMPARISON') {
+      const WRITE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST'] as const;
+      if (!WRITE_ROLES.includes(authUser.role as typeof WRITE_ROLES[number])) {
+        return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      }
       const { pollingUnitId, electionId } = body;
 
       if (!pollingUnitId || !electionId) {
