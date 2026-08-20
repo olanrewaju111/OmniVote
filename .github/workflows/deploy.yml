@@ -29,14 +29,15 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY,DEPLOY_PATH,DEPLOY_BRANCH
+          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY
           env: |
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
             OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
-            DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}
-            DEPLOY_BRANCH: main
           script: |
             set -euo pipefail
+
+            DEPLOY_PATH="${DEPLOY_PATH:-/opt/omnivote}"
+            DEPLOY_BRANCH="main"
 
             # ── Clone or pull ────────────────────────────────────────────────
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
