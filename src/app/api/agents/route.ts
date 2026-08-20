@@ -5,6 +5,7 @@ import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
 import { withApiHandler } from '@/lib/api-handler';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/agents — list all users with details (Phase 15: wrapped with api-handler)
 export const GET = withApiHandler('GET', '/api/agents', async (req, ctx) => {
@@ -50,6 +51,10 @@ const USER_MANAGE_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN'] as const;
 
 // POST /api/agents — add a new agent
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const body = await req.json();
     const { name, email, role } = body;
@@ -97,12 +102,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 });
     }
 
+    const { hashSync } = await import('bcryptjs');
     const user = await db.user.create({
       data: {
         name,
         email,
         role,
         tenantId,
+        passwordHash: hashSync('changeme', 10), // must reset on first login
         isOnline: false,
       },
       select: { id: true, email: true, name: true, role: true, isOnline: true },
@@ -127,6 +134,10 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/agents — toggle agent status, remote wipe, etc.
 export async function PATCH(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // ─── GET /api/engagement ─────────────────────────────────────────────
 // Fetches: idle agents, agents with no data, message history, engagement stats
@@ -139,6 +140,10 @@ export async function GET(req: NextRequest) {
 // ─── POST /api/engagement ────────────────────────────────────────────
 // Send a message to a single agent
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
@@ -280,6 +285,10 @@ export async function POST(req: NextRequest) {
 // ─── PATCH /api/engagement ───────────────────────────────────────────
 // Bulk engage idle/no-data/infraction agents, or mark message as read
 export async function PATCH(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,10 @@ export async function GET(req: NextRequest) {
 // ─── POST /api/scheduled-reports ──────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
@@ -121,6 +126,10 @@ export async function POST(req: NextRequest) {
 // ─── PATCH /api/scheduled-reports ─────────────────────────────────────────
 
 export async function PATCH(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
@@ -172,6 +181,10 @@ export async function PATCH(req: NextRequest) {
 // ─── DELETE /api/scheduled-reports ────────────────────────────────────────
 
 export async function DELETE(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

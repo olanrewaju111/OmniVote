@@ -8,8 +8,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser, createToken, createSessionCookie } from '@/lib/auth';
 import { logSecurityEvent } from '@/lib/security/security-logger';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser) {

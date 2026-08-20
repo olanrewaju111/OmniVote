@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/campaigns?tenantId=X — list campaigns with contact lists, stats, and contact list info
 export async function GET(req: NextRequest) {
@@ -83,6 +84,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/campaigns — create a new campaign
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
@@ -153,6 +158,10 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/campaigns — update campaign status
 export async function PUT(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;
@@ -281,6 +290,10 @@ export async function PUT(req: NextRequest) {
 
 // DELETE /api/campaigns?id=X — delete campaign and its messages
 export async function DELETE(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

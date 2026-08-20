@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 const BRIDGE_URL = process.env.WHATSAPP_BRIDGE_URL || 'http://localhost:9090';
 
@@ -106,6 +107,10 @@ export async function GET(req: NextRequest) {
 
 // ─── POST: Link / Start linking ────────────────────────────────────────
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const body = await req.json();
     const { tenantId, phone } = body;
@@ -198,6 +203,10 @@ export async function POST(req: NextRequest) {
 
 // ─── PUT: Disconnect / Send ─────────────────────────────────────────────
 export async function PUT(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { searchParams } = new URL(req.url || "", "http://localhost");
     const action = searchParams.get('action');

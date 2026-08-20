@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 const VALID_ROLES = ['SUPER_ADMIN', 'TENANT_ADMIN', 'ANALYST', 'TRUST_SAFETY', 'FIELD_AGENT'];
 
@@ -33,6 +34,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/tenants/users — create a new user in a tenant
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {
@@ -61,7 +66,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await db.user.create({
-      data: { tenantId, name, email, role, phone: phone || null },
+      data: { tenantId, name, email, role, phone: phone || null, passwordHash: '$2b$10$4LmX8q2qnZUkvT6mDrWOme03TnKfuSYKConfRURFNj1Suqnu7r7ma' }, // bcrypt('changeme') — must reset
       select: { id: true, email: true, name: true, role: true, phone: true, createdAt: true },
     });
 
@@ -74,6 +79,10 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/tenants/users — update a user's role or name
 export async function PATCH(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {
@@ -114,6 +123,10 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/tenants/users?id=X — remove a user from a tenant
 export async function DELETE(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {

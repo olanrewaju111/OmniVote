@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { runRetention, runRetentionForAllTenants } from '@/lib/audit-engine';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 /**
  * GET /api/admin/audit/retention?tenantId=xxx&execute=false
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   const authUser = await getAuthUser(req);
   if (!authUser) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

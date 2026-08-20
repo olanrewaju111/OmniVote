@@ -5,6 +5,7 @@ import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/results — fetch results for a polling unit or all
 export async function GET(req: NextRequest) {
@@ -63,6 +64,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/results — submit election results for a polling unit
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     // ─── Authentication required (security fix: was previously unauthenticated) ──
     const authUser = await getAuthUser(req);

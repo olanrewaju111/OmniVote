@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { generateSecret, generateTOTP, verifyTOTP, generateOTPAuthURI } from '@/lib/totp';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // Temporary pending 2FA secrets (userId → { secret, uri, expires })
 const pendingSecrets = new Map<string, { secret: string; uri: string; expires: number }>();
@@ -36,6 +37,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/auth/2fa — Step 1: Generate new TOTP secret (doesn't save yet)
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -60,6 +65,10 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/auth/2fa — Step 2: Verify code and enable 2FA
 export async function PATCH(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -100,6 +109,10 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/auth/2fa — Disable 2FA (requires current code)
 export async function DELETE(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

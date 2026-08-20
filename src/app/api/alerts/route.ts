@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 export async function GET(req: NextRequest) {
   try {
@@ -53,6 +54,10 @@ export async function GET(req: NextRequest) {
 
 // PATCH /api/alerts — mark one or all alerts as read
 export async function PATCH(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 async function requireAuth(req: Request) {
   const user = await getAuthUser(req);
@@ -61,6 +62,10 @@ export async function GET(req: Request) {
  * Useful for testing or after deployment resets.
  */
 export async function DELETE(req: Request) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   const authErr = await requireAuth(req);
   if (authErr) return authErr;
 

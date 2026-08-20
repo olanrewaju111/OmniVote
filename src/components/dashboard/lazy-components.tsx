@@ -75,6 +75,7 @@ export const MyReports = createDynamic(() => import('@/components/dashboard/fiel
 export const AgentRoster = createDynamic(() => import('@/components/dashboard/agent-roster').then(m => ({ default: m.AgentRoster })), 'agents');
 export const SystemHealth = createDynamic(() => import('@/components/dashboard/system-health').then(m => ({ default: m.SystemHealth })), 'system');
 export const TenantManagement = createDynamic(() => import('@/components/dashboard/tenant-mgmt').then(m => ({ default: m.TenantManagement })), 'tenants');
+export const PlatformAdminPanel = createDynamic(() => import('@/components/dashboard/platform-admin-panel').then(m => ({ default: m.default })), 'tenants');
 export const SituationRoom = createDynamic(() => import('@/components/dashboard/situation-room').then(m => ({ default: m.SituationRoom })), 'situation');
 export const AgentEngagement = createDynamic(() => import('@/components/dashboard/agent-engagement').then(m => ({ default: m.AgentEngagement })), 'engagement');
 export const OsintMonitor = createDynamic(() => import('@/components/dashboard/osint-monitor').then(m => ({ default: m.OsintMonitor })), 'osint');

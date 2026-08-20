@@ -5,6 +5,7 @@ import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { broadcastChat } from '@/lib/ws-broadcast';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // ─── Seed Messages (auto-seeded once per tenant when chat is empty) ──────
 
@@ -109,6 +110,10 @@ export async function GET(req: Request) {
 // ─── POST ────────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

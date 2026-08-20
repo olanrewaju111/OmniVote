@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { notificationRouter } from '@/lib/notification-router';
 import type { RoutingRule } from '@/lib/notification-router/types';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 /**
  * GET /api/notifications/rules — List all routing rules.
@@ -26,6 +27,10 @@ export async function GET(req: NextRequest) {
  * SUPER_ADMIN only.
  */
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   const authUser = await getAuthUser(req);
   if (!authUser) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -54,6 +59,10 @@ export async function POST(req: NextRequest) {
  * SUPER_ADMIN only.
  */
 export async function DELETE(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   const authUser = await getAuthUser(req);
   if (!authUser) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });

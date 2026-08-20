@@ -79,7 +79,7 @@ model User {
   name          String
   role          String    @default("FIELD_AGENT") // FIELD_AGENT, ANALYST, TENANT_ADMIN, SUPER_ADMIN, TRUST_SAFETY
   tenantId      String
-  passwordHash  String    @default("changeme") // bcrypt hash; default allows seed login
+  passwordHash  String    // bcrypt hash — no default; must be set explicitly on creation
   phone         String?   // WhatsApp number e.g. "+2348012345678"
   whatsappJid   String?   // resolved JID after first message
   isOnline      Boolean   @default(false)
@@ -98,7 +98,7 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   incidents     Incident[]
   results       ElectionResult[]
   auditLogs     AuditLog[]
@@ -108,6 +108,8 @@ model User {
   agentCheckIns  AgentCheckIn[]
   deadMansSwitches DeadMansSwitch[]
   chatMessages             ChatMessage[]
+
+  @@unique([tenantId, email])  // prevent duplicate emails within a tenant
 }
 
 model Election {
@@ -120,7 +122,7 @@ model Election {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   pollingUnits PollingUnit[]
 }
 
@@ -141,7 +143,7 @@ model PollingUnit {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  election      Election  @relation(fields: [electionId], references: [id])
+  election      Election  @relation(fields: [electionId], references: [id], onDelete: Cascade)
   incidents     Incident[]
   results       ElectionResult[]
   pvtSubmissions PvtSubmission[]
@@ -172,9 +174,11 @@ model ElectionResult {
   submittedAt     DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tenant          Tenant      @relation(fields: [tenantId], references: [id])
-  pollingUnit     PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pollingUnit     PollingUnit @relation(fields: [pollingUnitId], references: [id], onDelete: Cascade)
   reporter        User        @relation(fields: [reportedById], references: [id])
+
+  @@unique([pollingUnitId, reportedById])  // one result per reporter per polling unit
 }
 
 model Incident {
@@ -450,8 +454,8 @@ model SecurityEvent {
   resolvedAt      DateTime?
   createdAt       DateTime  @default(now())
 
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
-  user            User?     @relation(fields: [userId], references: [id])
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   @@index([tenantId, eventType])
   @@index([tenantId, severity])
   @@index([tenantId, createdAt])
@@ -553,11 +557,12 @@ model PvtSubmission {
   verifiedById      String?
   verifiedAt        DateTime?
 
-  tenant            Tenant      @relation(fields: [tenantId], references: [id])
-  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id])
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pollingUnit       PollingUnit @relation(fields: [pollingUnitId], references: [id], onDelete: Cascade)
   @@index([tenantId, electionId])
   @@index([tenantId, pollingUnitId])
   @@index([tenantId, submittedAt])
+  @@unique([pollingUnitId, submittedById, source])  // prevent duplicate PVT submissions
 }
 
 model ResultComparison {

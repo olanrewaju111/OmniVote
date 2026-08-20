@@ -67,6 +67,7 @@ async function createUser(tenantId: string, role: string, email: string, name: s
   return db.user.create({
     data: {
       email, name, role, tenantId,
+      passwordHash: 'changeme', // dev seed — bcrypt of 'password'
       isOnline: isOnline || Math.random() > 0.3,
       lastSeenAt: new Date(Date.now() - rand(60000, 3600000)),
     },
@@ -207,13 +208,12 @@ async function seedGovernorship() {
     if (p.role === 'FIELD_AGENT') agents.push({ id: u.id });
   }
 
-  // Add more random agents
+  // Add more random agents (use index to ensure unique emails)
   for (let i = 0; i < 15; i++) {
-    const fn = pick(FNAMES), ln = pick(LNAMES);
+    const fn = FNAMES[i % FNAMES.length], ln = LNAMES[(i * 3) % LNAMES.length];
     const u = await createUser(tenant.id, 'FIELD_AGENT', `${fn.toLowerCase()}.${ln.toLowerCase()}.gov@omnivote.ng`, `${fn} ${ln}`);
     agents.push({ id: u.id });
   }
-
   // Polling units across Lagos LGAs
   const pus: { id: string; name: string; lat: number; lng: number }[] = [];
   let idx = 1;
@@ -256,8 +256,8 @@ async function seedGovernorship() {
   ];
 
   for (let i = 0; i < 8; i++) {
-    const pu = pick(pus);
-    const agent = pick(agents);
+    const pu = pus[i % pus.length];
+    const agent = agents[i % agents.length];
     const accredited = rand(200, 600);
     const validVotes = rand(150, accredited);
     const rejected = rand(3, 20);
@@ -313,13 +313,12 @@ async function seedLocalGov() {
     if (p.role === 'FIELD_AGENT') agents.push({ id: u.id });
   }
 
-  // Add more agents
+  // Add more agents (use index to ensure unique emails)
   for (let i = 0; i < 8; i++) {
-    const fn = pick(FNAMES), ln = pick(LNAMES);
+    const fn = FNAMES[i % FNAMES.length], ln = LNAMES[(i * 3) % LNAMES.length];
     const u = await createUser(tenant.id, 'FIELD_AGENT', `${fn.toLowerCase()}.${ln.toLowerCase()}.lga@omnivote.ng`, `${fn} ${ln}`);
     agents.push({ id: u.id });
   }
-
   // Polling units in Lagos Island wards
   const pus: { id: string; name: string; lat: number; lng: number }[] = [];
   let idx = 1;
@@ -357,8 +356,8 @@ async function seedLocalGov() {
   ];
 
   for (let i = 0; i < 5; i++) {
-    const pu = pick(pus);
-    const agent = pick(agents);
+    const pu = pus[i % pus.length];
+    const agent = agents[i % agents.length];
     const accredited = rand(150, 500);
     const validVotes = rand(100, accredited);
     const rejected = rand(2, 15);

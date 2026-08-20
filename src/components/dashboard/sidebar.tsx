@@ -95,8 +95,12 @@ const NAV_SECTIONS: NavSection[] = [
     id: 'admin',
     label: 'Admin',
     items: [
+      { id: 'tenants', label: 'Platform Admin', icon: <Shield className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
+      { id: 'security', label: 'Security Events', icon: <ShieldAlert className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
+      { id: 'audit-logs', label: 'Audit Logs', icon: <FileText className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
+      { id: 'reports', label: 'Reports', icon: <FileDown className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
+      { id: 'engagement', label: 'User Activity', icon: <Activity className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
       { id: 'system', label: 'System Health', icon: <Server className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN'] },
-      { id: 'tenants', label: 'Tenant Management', icon: <Settings className="h-4.5 w-4.5" />, roles: ['SUPER_ADMIN', 'TENANT_ADMIN'] },
     ],
   },
 ];
@@ -249,8 +253,8 @@ function renderNavContent({
         collapsed ? 'px-2 py-2.5 flex justify-center' : 'px-4 py-3'
       )}>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald animate-pulse-dot" />
-          {!collapsed && <span className="text-[11px] text-emerald font-medium tracking-wide">ELECTION LIVE</span>}
+          <span className="w-2 h-2 rounded-full bg-violet animate-pulse-dot" />
+          {!collapsed && <span className="text-[11px] text-violet font-medium tracking-wide">PLATFORM</span>}
         </div>
       </div>
 

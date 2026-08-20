@@ -717,3 +717,24 @@ Stage Summary:
 - Tenant switching uses proper JWT re-issuance, not password re-submission
 - SUPER_ADMIN logout returns to platform login, not a tenant-specific URL
 - All 721 tests pass, TypeScript compiles cleanly
+---
+Task ID: 25
+Agent: Super Z (Main)
+Task: CSP, CSRF enforcement, DB schema fixes, SUPER_ADMIN platform admin panel
+
+Work Log:
+- Removed unsafe-eval from CSP in middleware.ts
+- Created csrf-enforce.ts with requireCsrf() and setCsrfCookie()
+- Updated fetchJson to auto-attach x-csrf-token header
+- Batch-patched 36 mutating routes with requireCsrf guard
+- DB schema: removed password default, added 3 unique constraints, cascading deletes
+- Built PlatformAdminPanel component for SUPER_ADMIN
+- Restricted SUPER_ADMIN to platform admin tabs only
+- Updated sidebar labels and ROLE_TABS
+- Zero type errors after all changes
+
+Stage Summary:
+- CSP: removed unsafe-eval, added object-src none
+- CSRF: enforced on 36 mutating routes
+- DB: unique constraints + cascading deletes
+- SUPER_ADMIN: dedicated platform admin panel, no operational access

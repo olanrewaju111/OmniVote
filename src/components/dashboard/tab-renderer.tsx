@@ -20,7 +20,7 @@ import {
   TenantManagement, CampaignAnalyticsPanel, SocialCardsPanel,
   NarrativeBuilderPanel, ReportsCenter, LiveActivityStream,
   ElectionManagementPanel, OsintMonitor, OverviewTab, DataExplorerPanel,
-  BroadcastBriefingPanel,
+  BroadcastBriefingPanel, PlatformAdminPanel,
 } from '@/components/dashboard/lazy-components';
 import type { TabContentProps } from '@/types/dashboard';
 

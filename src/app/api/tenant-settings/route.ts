@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/tenant-settings — fetch current tenant settings
 export async function GET(req: NextRequest) {
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
 
 // PUT /api/tenant-settings — update tenant settings
 export async function PUT(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

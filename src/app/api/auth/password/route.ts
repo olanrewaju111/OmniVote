@@ -2,8 +2,13 @@ import { getAuthUser, verifyPassword, hashPassword, createToken } from '@/lib/au
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 export async function PUT(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   // 1. Require authentication
   const authUser = await getAuthUser(req);
   if (!authUser) {

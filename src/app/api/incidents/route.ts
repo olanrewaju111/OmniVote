@@ -7,6 +7,7 @@ import { requireTenantMatch } from '@/lib/rbac';
 import { broadcastIncident } from '@/lib/ws-broadcast';
 import { logAudit, extractIp } from '@/lib/audit';
 import { sendPushNotification } from '@/lib/push-sender';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 export async function GET(req: NextRequest) {
   try {
@@ -82,6 +83,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/incidents — submit a new incident/infraction report
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     // ─── Authentication required (security fix: was previously unauthenticated) ──
     const authUser = await getAuthUser(req);

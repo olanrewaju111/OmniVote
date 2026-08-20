@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/campaign-events?tenantId=X&eventType=X&party=X&state=X
 export async function GET(req: NextRequest) {
@@ -121,6 +122,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/campaign-events — log a new campaign event
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

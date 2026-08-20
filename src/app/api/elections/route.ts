@@ -4,6 +4,7 @@ import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/elections — list elections for tenant (or all for SUPER_ADMIN)
 export async function GET(req: NextRequest) {
@@ -53,6 +54,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/elections — create a new election (SUPER_ADMIN, TENANT_ADMIN)
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

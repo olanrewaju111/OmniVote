@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 /**
  * POST /api/ws-token
@@ -10,7 +11,11 @@ import { db } from '@/lib/db';
  * the WebSocket connection. The token contains userId, role, tenantId, name.
  * Valid for 30 seconds only — should be used immediately for WS handshake.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   const payload = await getSession();
   if (!payload) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

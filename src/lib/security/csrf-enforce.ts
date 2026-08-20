@@ -25,7 +25,7 @@ import { logSecurityEvent } from './security-logger';
  *
  * Safe to call on non-mutating methods — returns null for GET/HEAD/OPTIONS.
  */
-export function requireCsrf(req: NextRequest): NextResponse | null {
+export function requireCsrf(req: NextRequest | Request): NextResponse | null {
   // Only enforce on state-changing methods
   const method = req.method.toUpperCase();
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {

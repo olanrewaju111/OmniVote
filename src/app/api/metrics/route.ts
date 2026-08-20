@@ -4,6 +4,7 @@ import { sloTracker, latencyHistogram, requestCounter, activeConnections } from 
 import { errorTracker, alertManager } from '@/lib/monitoring';
 import { getWebVitalsAggregator } from '@/lib/monitoring/web-vitals-aggregator';
 import { broadcastWebVitals } from '@/lib/ws-broadcast';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 async function requireAuth(req: Request) {
   const user = await getAuthUser(req);
@@ -227,6 +228,10 @@ export async function GET(req: Request) {
  *   { type: 'client-error', message, stack, componentStack, severity?, tags?, route? }
  */
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const body = await req.json();
     const { type } = body;

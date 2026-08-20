@@ -5,6 +5,7 @@ import { safeParse } from '@/lib/safe-parse';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/flashpoint?tenantId=X
 export async function GET(req: NextRequest) {
@@ -144,6 +145,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/flashpoint?tenantId=X
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

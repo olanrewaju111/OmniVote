@@ -3,9 +3,14 @@ import { randomBytes } from 'crypto';
 import { db } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { logAudit, extractIp } from '@/lib/audit';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // POST /api/auth/invite — invite a new user (SUPER_ADMIN or TENANT_ADMIN)
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser) {

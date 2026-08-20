@@ -23,6 +23,7 @@ import { ChatToggleButton, TeamChatDrawer } from '@/components/dashboard/team-ch
 import { ToastSoundEnhancer } from '@/components/dashboard/toast-sound-enhancer';
 import { PwaRegistration } from '@/components/pwa-registration';
 import { TabContent } from '@/components/dashboard/tab-renderer';
+import { PlatformAdminPanel } from '@/components/dashboard/lazy-components';
 import { useDashboardWebSocket } from '@/hooks/use-dashboard-websocket';
 import { useTabPrefetch } from '@/hooks/use-tab-prefetch';
 import { useDashboardStore, ROLE_TABS, type ViewTab } from '@/store/dashboard';
@@ -39,16 +40,15 @@ const TAB_LABELS: Record<string, string> = {
   'overview': 'Overview', 'situation': 'Situation Room', 'map': 'Geo Map',
   'feed': 'Live Feed', 'alerts': 'Alert Triage', 'osint': 'OSINT Monitor',
   'ai': 'AI Insights', 'media': 'Media Gallery', 'mobilization': 'Mobilization',
-  'campaigns': 'Campaign Monitor', 'campaign-analytics': 'Campaign Analytics', 'social-cards': 'Social Cards', 'security': 'Security Center',
-  'field-safety': 'Field Safety', 'pvt': 'PVT Quick Count',
+  'campaigns': 'Campaign Monitor', 'campaign-analytics': 'Campaign Analytics', 'social-cards': 'Social Cards', 'security': 'Security Events', 'field-safety': 'Field Safety', 'pvt': 'PVT Quick Count',
   'victory-roadmap': 'Victory Roadmap',
   'evidence': 'Evidence Dossier', 'flashpoint': 'Flashpoint & Wargame',
   'honeypot': 'Honeypot Biometrics', 'audit-logs': 'Audit Logs',
   'submit': 'Submit Report', 'my-reports': 'My Reports',
-  'agents': 'Agent Roster', 'engagement': 'Agent Engagement',
-  'system': 'System Health', 'tenants': 'Tenant Management',
+  'agents': 'Agent Roster', 'engagement': 'User Activity',
+  'system': 'System Health', 'tenants': 'Platform Admin',
   'narrative': 'Narrative Builder',
-  'reports': 'Reports Center', 'activity-stream': 'Activity Stream',
+  'reports': 'Reports', 'activity-stream': 'Activity Stream',
   'data-explorer': 'Data Explorer',
 };
 
@@ -56,9 +56,9 @@ const TAB_LABELS: Record<string, string> = {
 const TAB_SECTION: Record<string, string> = {
   'overview': 'Command', 'situation': 'Command', 'map': 'Command', 'feed': 'Command',
   'alerts': 'Intelligence', 'osint': 'Intelligence', 'ai': 'Intelligence', 'media': 'Intelligence',
-  'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'campaign-analytics': 'Operations', 'social-cards': 'Operations', 'security': 'Operations', 'field-safety': 'Operations',
+  'mobilization': 'Operations', 'narrative': 'Operations', 'campaigns': 'Operations', 'campaign-analytics': 'Operations', 'social-cards': 'Operations', 'security': 'Admin', 'field-safety': 'Operations',
   'pvt': 'Analysis', 'victory-roadmap': 'Analysis', 'data-explorer': 'Analysis', 'evidence': 'Analysis', 'flashpoint': 'Analysis', 'honeypot': 'Analysis',
-  'agents': 'Team', 'engagement': 'Team', 'audit-logs': 'Team', 'reports': 'Team',
+  'agents': 'Team', 'engagement': 'Admin', 'audit-logs': 'Admin', 'reports': 'Admin',
   'submit': 'Field Ops', 'my-reports': 'Field Ops',
   'system': 'Admin', 'tenants': 'Admin', 'activity-stream': 'Command',
 };
@@ -235,7 +235,12 @@ export default function Home() {
           <div className="sr-only" aria-live="polite" aria-atomic="true">
             Switched to {activeTab.replace(/-/g, ' ')} view
           </div>
-          <AnimatedTabTransition activeKey={activeTab}>
+          {isPlatformAdmin ? (
+            <AnimatedTabTransition activeKey={activeTab}>
+              <PlatformAdminPanel />
+            </AnimatedTabTransition>
+          ) : (
+            <AnimatedTabTransition activeKey={activeTab}>
               <TabContent
                 activeTab={activeTab}
                 dashData={dashData!}
@@ -243,7 +248,8 @@ export default function Home() {
                 alertsData={alertsData}
                 liveIncidents={liveIncidents}
               />
-          </AnimatedTabTransition>
+            </AnimatedTabTransition>
+          )}
         </main>
         {/* Election ticker — election-specific, hide for platform admin */}
         {user?.role !== 'SUPER_ADMIN' && <ElectionTicker />}

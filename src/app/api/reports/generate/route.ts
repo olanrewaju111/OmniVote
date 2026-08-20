@@ -3,11 +3,16 @@ import { db } from '@/lib/db';
 import { resolveTenant } from '@/lib/tenant';
 import { getAuthUser } from '@/lib/auth';
 import { requireTenantMatch } from '@/lib/rbac';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // POST /api/reports/generate
 // Body: { format: 'excel' | 'pdf', sections?: string[] }
 // Generates a comprehensive multi-section election report
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const { id: tenantId, error } = await resolveTenant(req);
     if (error) return error;

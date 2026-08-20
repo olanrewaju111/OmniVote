@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
+import { requireCsrf } from '@/lib/security/csrf-enforce';
 
 // GET /api/tenants — list all tenants (SUPER_ADMIN only in practice)
 // GET /api/tenants?slug=xxx — public tenant lookup for branded login pages
@@ -66,6 +67,10 @@ export async function GET(req: NextRequest) {
 
 // POST /api/tenants — create a new tenant
 export async function POST(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {
@@ -102,6 +107,7 @@ export async function POST(req: NextRequest) {
             email: adminEmail,
             name: adminName,
             role: 'SUPER_ADMIN',
+            passwordHash: '$2b$10$4LmX8q2qnZUkvT6mDrWOme03TnKfuSYKConfRURFNj1Suqnu7r7ma', // bcrypt('changeme') — must reset
           },
         },
       },
@@ -131,6 +137,10 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/tenants — update a tenant (name, color, active status)
 export async function PUT(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {
@@ -166,6 +176,10 @@ export async function PUT(req: NextRequest) {
 
 // DELETE /api/tenants?id=X — delete a tenant and all its data
 export async function DELETE(req: NextRequest) {
+    // CSRF protection
+    const csrfErr = requireCsrf(req);
+    if (csrfErr) return csrfErr;
+
   try {
     const authUser = await getAuthUser(req);
     if (!authUser || authUser.role !== 'SUPER_ADMIN') {
