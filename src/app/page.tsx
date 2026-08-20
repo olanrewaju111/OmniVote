@@ -72,10 +72,11 @@ export default function Home() {
   } = useDashboardStore();
   const queryClient = useQueryClient();
 
-  // ── Dashboard WebSocket + SSE ──
+  // ── Dashboard WebSocket + SSE ── (operational roles only — platform admin doesn't need real-time election data)
+  const isPlatformAdmin = user?.role === 'SUPER_ADMIN';
   const { liveIncidents, wsTransport } = useDashboardWebSocket({
     tenantId: tenantId || '',
-    enabled: isAuthenticated && !!tenantId,
+    enabled: isAuthenticated && !!tenantId && !isPlatformAdmin,
     userId: user?.id,
   });
 
@@ -135,12 +136,12 @@ export default function Home() {
   // instead of polling. Fall back to 30s polling when WS is disconnected.
   const wsConnected = wsTransport === 'ws' || wsTransport === 'sse';
 
-  // Fetch dashboard data
+  // Fetch dashboard data — operational roles only
   const { data: dashData, isLoading: dashLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard', tenantId],
     queryFn: () => fetchJson(`/api/dashboard${tenantParam}`),
     refetchInterval: wsConnected ? false : 30_000,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isPlatformAdmin,
   });
 
   // Sync election info from server
@@ -150,20 +151,20 @@ export default function Home() {
     }
   }, [dashData?.electionInfo, setElectionInfo]);
 
-  // Fetch incidents — smart polling with WS-aware interval
+  // Fetch incidents — operational roles only
   const { data: incidentsData, isLoading: incLoading } = useQuery<{ incidents: Incident[]; total: number; hasMore: boolean }>({
     queryKey: ['incidents', 'all', tenantId],
     queryFn: () => fetchJson(`/api/incidents?limit=50&tenantId=${tenantId}`),
     refetchInterval: wsConnected ? false : 30_000,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isPlatformAdmin,
   });
 
-  // Fetch alerts — smart polling with WS-aware interval
+  // Fetch alerts — operational roles only
   const { data: alertsData, isLoading: alertsLoading } = useQuery<AlertsData>({
     queryKey: ['alerts', 'all', tenantId],
     queryFn: () => fetchJson(`/api/alerts?tenantId=${tenantId}`),
     refetchInterval: wsConnected ? false : 30_000,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !isPlatformAdmin,
   });
 
   // Sync unread alerts count to store
@@ -244,13 +245,15 @@ export default function Home() {
               />
           </AnimatedTabTransition>
         </main>
-        <ElectionTicker />
+        {/* Election ticker — election-specific, hide for platform admin */}
+        {user?.role !== 'SUPER_ADMIN' && <ElectionTicker />}
         <MobileBottomNav />
       </div>
-      <ToastSoundEnhancer />
-      <TeamChatDrawer />
-      <ChatToggleButton />
-      <QuickActionsFab />
+      {/* Operational overlays — hide for platform admin */}
+      {user?.role !== 'SUPER_ADMIN' && <ToastSoundEnhancer />}
+      {user?.role !== 'SUPER_ADMIN' && <TeamChatDrawer />}
+      {user?.role !== 'SUPER_ADMIN' && <ChatToggleButton />}
+      {user?.role !== 'SUPER_ADMIN' && <QuickActionsFab />}
       <PwaRegistration />
     </div>
   );

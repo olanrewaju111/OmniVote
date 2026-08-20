@@ -452,21 +452,23 @@ export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, conta
             <span className="text-[10px] font-medium">{sseConnected ? 'LIVE' : '...'}</span>
           </div>
 
-          {/* Election Type Badge */}
-          <Badge
-            variant="outline"
-            className={cn(
-              'text-[10px] h-7 px-2 font-medium gap-1 cursor-default hidden sm:flex',
-              TIER_STYLES[electionTier] || 'border-border text-muted-foreground'
-            )}
-          >
-            <Vote className="h-3 w-3" aria-hidden="true" />
-            <span className="hidden md:inline">{TIER_SHORT[electionTier]}</span>
-            <span className="md:hidden">{electionTier === 'LOCAL' ? 'Local' : electionTier === 'STATE' ? 'Gov' : 'Pres'}</span>
-          </Badge>
+          {/* Election Type Badge — hide for platform admin (not election-monitoring role) */}
+          {user && user.role !== 'SUPER_ADMIN' && (
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-[10px] h-7 px-2 font-medium gap-1 cursor-default hidden sm:flex',
+                TIER_STYLES[electionTier] || 'border-border text-muted-foreground'
+              )}
+            >
+              <Vote className="h-3 w-3" aria-hidden="true" />
+              <span className="hidden md:inline">{TIER_SHORT[electionTier]}</span>
+              <span className="md:hidden">{electionTier === 'LOCAL' ? 'Local' : electionTier === 'STATE' ? 'Gov' : 'Pres'}</span>
+            </Badge>
+          )}
 
-          {/* Election date — only for larger screens */}
-          {electionInfo?.date && (
+          {/* Election date — only for operational roles on larger screens */}
+          {user && user.role !== 'SUPER_ADMIN' && electionInfo?.date && (
             <div className="hidden xl:flex items-center gap-1 text-[10px] text-muted-foreground/60">
               <Calendar className="h-3 w-3" aria-hidden="true" />
               {new Date(electionInfo.date).toLocaleDateString('en-NG', {
@@ -484,8 +486,8 @@ export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, conta
             </div>
           )}
 
-          {/* Defense button — hide for field agents */}
-          {user && user.role !== 'FIELD_AGENT' && (
+          {/* Defense button — operational only, hide for SUPER_ADMIN and field agents */}
+          {user && user.role !== 'FIELD_AGENT' && user.role !== 'SUPER_ADMIN' && (
             <Button
               variant="outline"
               size="sm"
@@ -500,8 +502,8 @@ export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, conta
             </Button>
           )}
 
-          {/* Broadcast button — admin/analyst roles */}
-          {user && user.role !== 'FIELD_AGENT' && user.role !== 'TRUST_SAFETY' && (
+          {/* Broadcast button — operational, hide for SUPER_ADMIN */}
+          {user && user.role !== 'FIELD_AGENT' && user.role !== 'TRUST_SAFETY' && user.role !== 'SUPER_ADMIN' && (
             <Button
               variant="outline"
               size="sm"
@@ -516,13 +518,13 @@ export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, conta
           {/* Notifications Bell */}
           <NotificationBell />
 
-          {/* Win Probability — compact badge for non-field roles */}
-          {user && user.role !== 'FIELD_AGENT' && (
+          {/* Win Probability — election-specific, hide for platform admin and field agents */}
+          {user && user.role !== 'FIELD_AGENT' && user.role !== 'SUPER_ADMIN' && (
             <WinProbabilityHeader />
           )}
 
-          {/* Sound toggle */}
-          <SoundToggle />
+          {/* Sound toggle — election operational, hide for platform admin */}
+          {user && user.role !== 'SUPER_ADMIN' && <SoundToggle />}
 
           {/* Dashboard export */}
           {containerRef && <DashboardExport containerRef={containerRef} size="sm" />}

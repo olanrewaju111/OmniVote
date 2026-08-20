@@ -32,7 +32,8 @@ export interface UserInfo {
 
 // Role-based tab permissions
 export const ROLE_TABS: Record<UserRole, ViewTab[]> = {
-  SUPER_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'mobilization', 'campaigns', 'campaign-analytics', 'social-cards', 'data-explorer', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'system', 'tenants', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
+  // Platform admin: tenant administration, support oversight, maintenance only
+  SUPER_ADMIN: ['tenants', 'agents', 'system', 'security', 'audit-logs', 'reports', 'activity-stream', 'engagement'],
   TENANT_ADMIN: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'mobilization', 'campaigns', 'campaign-analytics', 'social-cards', 'data-explorer', 'security', 'field-safety', 'agents', 'engagement', 'pvt', 'evidence', 'flashpoint', 'honeypot', 'audit-logs', 'my-reports', 'tenants', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
   ANALYST: ['overview', 'situation', 'map', 'feed', 'alerts', 'osint', 'ai', 'media', 'data-explorer', 'engagement', 'pvt', 'evidence', 'flashpoint', 'audit-logs', 'campaign-analytics', 'my-reports', 'victory-roadmap', 'narrative', 'reports', 'activity-stream'],
   TRUST_SAFETY: ['alerts', 'osint', 'media', 'ai', 'feed', 'security', 'engagement', 'evidence', 'honeypot', 'audit-logs', 'my-reports', 'reports', 'activity-stream'],
