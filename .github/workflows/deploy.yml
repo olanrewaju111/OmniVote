@@ -2,8 +2,7 @@
 # OmniVote — Deploy to Server (Build on Server)
 #
 # Triggers on push to main after CI passes.
-# Syncs code to server via rsync, builds Docker images on server,
-# starts all services (including postgres, redis).
+# git pull on server, then builds Docker images and starts all services.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: Deploy
@@ -33,23 +32,7 @@ jobs:
     environment: ${{ (github.event.inputs.deploy_target || (github.ref == 'refs/heads/main' && 'production')) || 'staging' }}
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # ── Step 1: Sync source to server ────────────────────────────────────
-      - name: Sync code to server
-        uses: burnett01/rsync-deployments@6.0.0
-        with:
-          switches: -avzr --delete --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='data' --exclude='*.log' --exclude='skills' --exclude='download' --exclude='agent-ctx'
-          path: ./
-          remote_path: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}/
-          remote_host: ${{ secrets.DEPLOY_HOST }}
-          remote_user: ${{ secrets.DEPLOY_USER }}
-          remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
-          remote_port: ${{ secrets.DEPLOY_PORT || 22 }}
-
-      # ── Step 2: Build images and start all containers ─────────────────────
-      - name: Build and start containers
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -60,15 +43,25 @@ jobs:
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
             OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
             DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}
+            DEPLOY_BRANCH: ${{ github.ref_name }}
           script: |
             set -euo pipefail
-            cd "$DEPLOY_PATH"
 
-            # ── Ensure .env exists (first deploy) ───────────────────────────
-            if [ ! -f .env ]; then
-              echo "No .env found — creating from .env.example"
-              cp .env.example .env
-              echo "IMPORTANT: Edit .env on the server and set real secrets, then re-run deploy."
+            # ── Clone repo on first deploy, pull on subsequent ──────────────
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              echo "=== First deploy: cloning repo ==="
+              git clone -b "$DEPLOY_BRANCH" https://github.com/olanrewaju111/OmniVote.git "$DEPLOY_PATH"
+              cd "$DEPLOY_PATH"
+              if [ ! -f .env ]; then
+                echo "Creating .env from .env.example — edit secrets on the server!"
+                cp .env.example .env
+              fi
+            else
+              echo "=== Pulling latest code ==="
+              cd "$DEPLOY_PATH"
+              git fetch origin "$DEPLOY_BRANCH"
+              git checkout "$DEPLOY_BRANCH"
+              git pull origin "$DEPLOY_BRANCH"
             fi
 
             # ── Start infrastructure (postgres, redis) ─────────────────────
@@ -76,7 +69,7 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               up -d postgres redis
 
-            # Wait for postgres to be ready
+            # Wait for postgres
             echo "=== Waiting for PostgreSQL ==="
             timeout 60 bash -c '
               until docker compose exec -T postgres pg_isready -U omnivote -d omnivote > /dev/null 2>&1; do
@@ -85,7 +78,7 @@ jobs:
             '
             echo "PostgreSQL is ready"
 
-            # Wait for redis to be ready
+            # Wait for redis
             echo "=== Waiting for Redis ==="
             timeout 30 bash -c '
               until docker compose exec -T redis redis-cli ping > /dev/null 2>&1; do
@@ -105,7 +98,7 @@ jobs:
             echo "=== Running database migrations ==="
             docker compose run --rm app npx prisma migrate deploy
 
-            # ── Start all application services ─────────────────────────────
+            # ── Start all services ─────────────────────────────────────────
             echo "=== Starting all services ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               up -d
@@ -119,14 +112,13 @@ jobs:
             echo "=== Cleaning up old images ==="
             docker image prune -f
 
-            # ── Status ─────────────────────────────────────────────────────
             echo ""
             echo "=== Running containers ==="
             docker compose ps
             echo ""
             echo "=== Deploy complete ==="
 
-      # ── Step 3: Smoke test ──────────────────────────────────────────────
+      # ── Smoke test ──────────────────────────────────────────────────────
       - name: Smoke test
         if: always()
         run: |
