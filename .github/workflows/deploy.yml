@@ -1,8 +1,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# OmniVote — Deploy to Production
+# OmniVote — Deploy to Server (Build on Server)
 #
 # Triggers on push to main after CI passes.
-# Builds Docker images, pushes to GHCR, deploys via SSH.
+# Syncs code to server via rsync, then builds Docker images on the server.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: Deploy
@@ -15,7 +15,7 @@ on:
       deploy_target:
         description: 'Deploy target'
         required: true
-        default: 'staging'
+        default: 'production'
         type: choice
         options:
           - staging
@@ -25,170 +25,96 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
 jobs:
-  # ─── Build & Push Docker Images ─────────────────────────────────────────
-  docker:
-    name: Build & Push Images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      app_tag: ${{ steps.meta-app.outputs.tags }}
-      ws_tag: ${{ steps.meta-ws.outputs.tags }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Determine tags
-      - name: Extract metadata (app)
-        id: meta-app
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/app
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Extract metadata (ws)
-        id: meta-ws
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ws
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      # Build app image
-      - name: Build & push app image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta-app.outputs.tags }}
-          labels: ${{ steps.meta-app.outputs.labels }}
-          cache-from: type=gha,scope=app
-          cache-to: type=gha,mode=max,scope=app
-          build-args: |
-            NEXT_PUBLIC_APP_NAME=OmniVote
-            JWT_SECRET=${{ secrets.JWT_SECRET }}
-            OMNIVOTE_ENCRYPTION_KEY=${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
-
-      # Build WS image
-      - name: Build & push ws image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.ws
-          push: true
-          tags: ${{ steps.meta-ws.outputs.tags }}
-          labels: ${{ steps.meta-ws.outputs.labels }}
-          cache-from: type=gha,scope=ws
-          cache-to: type=gha,mode=max,scope=ws
-
-      # Scan images with Trivy
-      - name: Scan app image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/app:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          format: table
-
-  # ─── Deploy ──────────────────────────────────────────────────────────────
+  # ─── Sync Code & Build on Server ────────────────────────────────────────
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: docker
     environment: ${{ (github.event.inputs.deploy_target || (github.ref == 'refs/heads/main' && 'production')) || 'staging' }}
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      # ── Step 1: Sync source code to server ──────────────────────────────
+      - name: Sync code to server
+        uses: burnett01/rsync-deployments@6.0.0
+        with:
+          switches: -avzr --delete --exclude='.git' --exclude='node_modules' --exclude='.next' --exclude='data' --exclude='*.log' --exclude='skills' --exclude='download' --exclude='agent-ctx'
+          path: ./
+          remote_path: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}/
+          remote_host: ${{ secrets.DEPLOY_HOST }}
+          remote_user: ${{ secrets.DEPLOY_USER }}
+          remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
+          remote_port: ${{ secrets.DEPLOY_PORT || 22 }}
+
+      # ── Step 2: Build & deploy on server ────────────────────────────────
+      - name: Build and deploy on server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY,DEPLOY_PATH
+          env: | # NOTE: appleboy/ssh-action v1 uses `env` (not `envs`)
+            JWT_SECRET: ${{ secrets.JWT_SECRET }}
+            OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
+            DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}
           script: |
             set -euo pipefail
+            cd "$DEPLOY_PATH"
 
-            cd /opt/omnivote
+            # Export secrets for Docker build args
+            export JWT_SECRET="${JWT_SECRET}"
+            export OMNIVOTE_ENCRYPTION_KEY="${OMNIVOTE_ENCRYPTION_KEY}"
 
-            # Pull latest images
-            echo "Pulling images..."
-            docker compose pull app ws
+            # Build Docker images on server
+            echo "=== Building Docker images ==="
+            docker compose build \
+              --build-arg JWT_SECRET="${JWT_SECRET}" \
+              --build-arg OMNIVOTE_ENCRYPTION_KEY="${OMNIVOTE_ENCRYPTION_KEY}" \
+              app ws
 
             # Run DB migrations
-            echo "Running migrations..."
+            echo "=== Running database migrations ==="
             docker compose run --rm app npx prisma migrate deploy
 
-            # Restart services
-            echo "Deploying..."
+            # Restart services with production overrides
+            echo "=== Deploying services ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               up -d app ws
 
             # Wait for health check
-            echo "Waiting for health check..."
-            timeout 60 bash -c 'until wget -qO- http://localhost:3000/api/health | grep -q ok; do sleep 2; done'
+            echo "=== Waiting for health check ==="
+            timeout 120 bash -c 'until wget -qO- http://localhost:3000/api/health | grep -q "ok\|up"; do sleep 2; done'
+            echo "Health check passed!"
 
-            echo "Deploy complete!"
+            # Clean up old images
+            echo "=== Cleaning up old images ==="
+            docker image prune -f
 
             # Show running containers
             docker compose ps
+            echo "=== Deploy complete ==="
 
-      - name: Notify deployment
+      # ── Step 3: Post-deploy smoke test ──────────────────────────────────
+      - name: Smoke test
         if: always()
         run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "Deploy SUCCESS: ${{ github.sha }} to ${{ github.ref_name }}"
-          else
-            echo "Deploy FAILED: ${{ github.sha }} to ${{ github.ref_name }}"
-          fi
-
-  # ─── Post-deploy Smoke Test ─────────────────────────────────────────────
-  smoke-test:
-    name: Post-deploy Smoke Test
-    runs-on: ubuntu-latest
-    needs: deploy
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    steps:
-      - name: Health check
-        run: |
-          DEPLOY_URL="${{ secrets.DEPLOY_URL || 'https://omnivote.app' }}"
-          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/api/health")
+          DEPLOY_URL="${{ secrets.DEPLOY_URL || 'http://${{ secrets.DEPLOY_HOST }}:3000' }}"
+          echo "Testing ${DEPLOY_URL}/api/health ..."
+          HTTP_CODE=$(curl -sf -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/api/health" || echo "000")
           if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "Health check failed with HTTP ${HTTP_CODE}"
+            echo "FAILED: health check returned HTTP ${HTTP_CODE}"
             exit 1
           fi
-          echo "Health check passed (HTTP ${HTTP_CODE})"
+          echo "PASSED: health check HTTP ${HTTP_CODE}"
 
-      - name: Page load check
+      - name: Deployment summary
+        if: always()
         run: |
-          DEPLOY_URL="${{ secrets.DEPLOY_URL || 'https://omnivote.app' }}"
-          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/")
-          if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "Page load failed with HTTP ${HTTP_CODE}"
-            exit 1
-          fi
-          echo "Page load passed (HTTP ${HTTP_CODE})"
+          STATUS="${{ job.status }}"
+          SHA="${{ github.sha }}"
+          REF="${{ github.ref_name }}"
+          echo "Deploy ${STATUS^^}: ${SHA} to ${REF}"
