@@ -189,12 +189,20 @@ export function useDashboardWebSocket({
   }), [userId]);
 
   // ── WebSocket connection ──
+  // Stable ref for onConnectionChange to prevent infinite re-render loop
+  // (Zustand setWsConnected triggers re-render → new callback ref → useEffect re-fires)
+  const onConnectionChangeRef = useRef<(connected: boolean, transport: 'ws' | 'sse' | 'none') => void>();
+  onConnectionChangeRef.current = (connected, transport) => {
+    setWsConnected(connected, transport);
+  };
+  const stableOnConnectionChange = useRef<(connected: boolean, transport: 'ws' | 'sse' | 'none') => void>(
+    (connected, transport) => onConnectionChangeRef.current?.(connected, transport)
+  ).current;
+
   const { connected: wsConnected, transport: wsTransport, onlineCount } = useWebSocket(tenantId || null, {
     handlers: wsHandlers,
     enabled,
-    onConnectionChange: (connected, transport) => {
-      setWsConnected(connected, transport);
-    },
+    onConnectionChange: stableOnConnectionChange,
   });
 
   // Sync online count to store
@@ -203,15 +211,24 @@ export function useDashboardWebSocket({
   }, [onlineCount, setWsOnlineCount]);
 
   // ── SSE fallback (when WS is not connected) ──
+  // Stable ref for SSE onConnectionChange (avoids stale wsTransport closure)
+  const wsTransportRef = useRef(wsTransport);
+  wsTransportRef.current = wsTransport;
+  const sseOnConnectionChangeRef = useRef<(connected: boolean) => void>();
+  sseOnConnectionChangeRef.current = (connected) => {
+    if (connected && wsTransportRef.current !== 'ws') {
+      setWsConnected(true, 'sse');
+    }
+    setSseConnected(connected);
+  };
+  const stableSseOnConnectionChange = useRef<(connected: boolean) => void>(
+    (connected) => sseOnConnectionChangeRef.current?.(connected)
+  ).current;
+
   useSSE(tenantId || null, {
     handlers: sseHandlers,
     enabled: enabled && wsTransport !== 'ws',
-    onConnectionChange: (connected) => {
-      if (connected && wsTransport !== 'ws') {
-        setWsConnected(true, 'sse');
-      }
-      setSseConnected(connected);
-    },
+    onConnectionChange: stableSseOnConnectionChange,
   });
 
   return { liveIncidents, livePvtCount, wsConnected, wsTransport, onlineCount };

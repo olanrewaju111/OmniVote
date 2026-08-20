@@ -41,21 +41,23 @@ export function useWebSocket(tenantId: string | null, options: UseWebSocketOptio
   const { handlers, enabled = true, onConnectionChange } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const handlersRef = useRef(handlers);
+  const onConnectionChangeRef = useRef(onConnectionChange);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectAttemptRef = useRef(0);
   const [connected, setConnected] = useState(false);
   const [transport, setTransport] = useState<'ws' | 'sse' | 'none'>('none');
   const [onlineCount, setOnlineCount] = useState(0);
 
-  // Keep handlers ref current
+  // Keep refs current (avoids re-creating connections when callbacks change)
   useEffect(() => {
     handlersRef.current = handlers;
-  }, [handlers]);
+    onConnectionChangeRef.current = onConnectionChange;
+  }, [handlers, onConnectionChange]);
 
   // Notify parent of connection changes
   useEffect(() => {
-    onConnectionChange?.(connected, transport);
-  }, [connected, transport, onConnectionChange]);
+    onConnectionChangeRef.current?.(connected, transport);
+  }, [connected, transport]);
 
   // Dispatch event to matching handlers
   const dispatch = useCallback((event: WsEvent) => {
