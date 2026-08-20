@@ -44,6 +44,13 @@ RUN npx prisma generate
 # Build Next.js in standalone mode
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+
+# Build-time secrets (needed by modules that validate env vars at import)
+ARG JWT_SECRET=build-time-placeholder
+ARG OMNIVOTE_ENCRYPTION_KEY=build-time-placeholder
+ENV JWT_SECRET=${JWT_SECRET}
+ENV OMNIVOTE_ENCRYPTION_KEY=${OMNIVOTE_ENCRYPTION_KEY}
+
 RUN npx next build
 
 # Copy static assets and public into standalone output

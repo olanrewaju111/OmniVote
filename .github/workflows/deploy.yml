@@ -88,6 +88,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=app
           build-args: |
             NEXT_PUBLIC_APP_NAME=OmniVote
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            OMNIVOTE_ENCRYPTION_KEY=${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
 
       # Build WS image
       - name: Build & push ws image
