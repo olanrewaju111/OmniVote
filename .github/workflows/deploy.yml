@@ -42,6 +42,7 @@ jobs:
             # ── Clone or pull ────────────────────────────────────────────────
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
               echo "=== First deploy: cloning repo ==="
+              rm -rf "$DEPLOY_PATH"
               git clone -b "$DEPLOY_BRANCH" https://github.com/olanrewaju111/OmniVote.git "$DEPLOY_PATH"
               cd "$DEPLOY_PATH"
               if [ ! -f .env ]; then
