@@ -2,7 +2,8 @@
 # OmniVote — Deploy to Server (Build on Server)
 #
 # Triggers on push to main after CI passes.
-# Syncs code to server via rsync, then builds Docker images on the server.
+# Syncs code to server via rsync, builds Docker images on server,
+# starts all services (including postgres, redis).
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: Deploy
@@ -26,9 +27,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ─── Sync Code & Build on Server ────────────────────────────────────────
   deploy:
-    name: Deploy to Server
+    name: Build & Deploy
     runs-on: ubuntu-latest
     environment: ${{ (github.event.inputs.deploy_target || (github.ref == 'refs/heads/main' && 'production')) || 'staging' }}
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -36,7 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Step 1: Sync source code to server ──────────────────────────────
+      # ── Step 1: Sync source to server ────────────────────────────────────
       - name: Sync code to server
         uses: burnett01/rsync-deployments@6.0.0
         with:
@@ -48,16 +48,15 @@ jobs:
           remote_key: ${{ secrets.DEPLOY_SSH_KEY }}
           remote_port: ${{ secrets.DEPLOY_PORT || 22 }}
 
-      # ── Step 2: Build & deploy on server ────────────────────────────────
-      - name: Build and deploy on server
+      # ── Step 2: Build images and start all containers ─────────────────────
+      - name: Build and start containers
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY,DEPLOY_PATH
-          env: | # NOTE: appleboy/ssh-action v1 uses `env` (not `envs`)
+          env: |
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
             OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
             DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}
@@ -65,40 +64,69 @@ jobs:
             set -euo pipefail
             cd "$DEPLOY_PATH"
 
-            # Export secrets for Docker build args
-            export JWT_SECRET="${JWT_SECRET}"
-            export OMNIVOTE_ENCRYPTION_KEY="${OMNIVOTE_ENCRYPTION_KEY}"
+            # ── Ensure .env exists (first deploy) ───────────────────────────
+            if [ ! -f .env ]; then
+              echo "No .env found — creating from .env.example"
+              cp .env.example .env
+              echo "IMPORTANT: Edit .env on the server and set real secrets, then re-run deploy."
+            fi
 
-            # Build Docker images on server
-            echo "=== Building Docker images ==="
+            # ── Start infrastructure (postgres, redis) ─────────────────────
+            echo "=== Starting infrastructure ==="
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              up -d postgres redis
+
+            # Wait for postgres to be ready
+            echo "=== Waiting for PostgreSQL ==="
+            timeout 60 bash -c '
+              until docker compose exec -T postgres pg_isready -U omnivote -d omnivote > /dev/null 2>&1; do
+                sleep 2
+              done
+            '
+            echo "PostgreSQL is ready"
+
+            # Wait for redis to be ready
+            echo "=== Waiting for Redis ==="
+            timeout 30 bash -c '
+              until docker compose exec -T redis redis-cli ping > /dev/null 2>&1; do
+                sleep 2
+              done
+            '
+            echo "Redis is ready"
+
+            # ── Build application images ────────────────────────────────────
+            echo "=== Building app and ws images ==="
             docker compose build \
               --build-arg JWT_SECRET="${JWT_SECRET}" \
               --build-arg OMNIVOTE_ENCRYPTION_KEY="${OMNIVOTE_ENCRYPTION_KEY}" \
               app ws
 
-            # Run DB migrations
+            # ── Run DB migrations ──────────────────────────────────────────
             echo "=== Running database migrations ==="
             docker compose run --rm app npx prisma migrate deploy
 
-            # Restart services with production overrides
-            echo "=== Deploying services ==="
+            # ── Start all application services ─────────────────────────────
+            echo "=== Starting all services ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              up -d app ws
+              up -d
 
-            # Wait for health check
-            echo "=== Waiting for health check ==="
-            timeout 120 bash -c 'until wget -qO- http://localhost:3000/api/health | grep -q "ok\|up"; do sleep 2; done'
-            echo "Health check passed!"
+            # ── Wait for app health check ──────────────────────────────────
+            echo "=== Waiting for app health check ==="
+            timeout 120 bash -c 'until wget -qO- http://localhost:3000/api/health 2>/dev/null | grep -q "ok\|up"; do sleep 2; done'
+            echo "App is healthy!"
 
-            # Clean up old images
+            # ── Cleanup ────────────────────────────────────────────────────
             echo "=== Cleaning up old images ==="
             docker image prune -f
 
-            # Show running containers
+            # ── Status ─────────────────────────────────────────────────────
+            echo ""
+            echo "=== Running containers ==="
             docker compose ps
+            echo ""
             echo "=== Deploy complete ==="
 
-      # ── Step 3: Post-deploy smoke test ──────────────────────────────────
+      # ── Step 3: Smoke test ──────────────────────────────────────────────
       - name: Smoke test
         if: always()
         run: |
