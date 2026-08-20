@@ -10,10 +10,19 @@ rule_files:
 
 scrape_configs:
   - job_name: 'omnivote-app'
-    metrics_path: '/api/metrics'
+    metrics_path: '/metrics'
     scrape_interval: 15s
     static_configs:
-      - targets: ['app:3000']
+      - targets: ['app:9323']
         labels:
           environment: 'production'
-          service: 'omnivote'
+          service: 'omnivote-app'
+
+  - job_name: 'omnivote-ws'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['ws:9324']
+        labels:
+          environment: 'production'
+          service: 'omnivote-ws'

@@ -99,7 +99,7 @@ RUN chown -R omnivote:nodejs /app
 
 USER omnivote
 
-EXPOSE 3000
+EXPOSE 3000 9323
 
 VOLUME ["/app/data"]
 
