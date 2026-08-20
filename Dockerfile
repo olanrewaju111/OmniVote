@@ -1,9 +1,10 @@
 # ─── OmniVote Production Dockerfile ─────────────────────────────────
 # Multi-stage build: deps -> build -> runner
+# No Nginx — Next.js standalone handles all traffic directly.
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─── Stage 1: Dependencies ───────────────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 
 RUN apk update && \
     apk upgrade --no-cache && \
@@ -25,7 +26,7 @@ RUN \
   fi
 
 # ─── Stage 2: Build ──────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 RUN apk update && \
     apk upgrade --no-cache && \
@@ -50,7 +51,7 @@ RUN cp -r .next/static .next/standalone/.next/ && \
     cp -r public .next/standalone/
 
 # ─── Stage 3: Production Runner ──────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 LABEL maintainer="OmniVote Team <dev@omnivote.app>"
 LABEL description="OmniVote - Real-time election monitoring dashboard"

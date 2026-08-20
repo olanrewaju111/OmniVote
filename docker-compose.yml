@@ -1,5 +1,8 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# OmniVote — Full-Stack Docker Compose
+# OmniVote — Full-Stack Docker Compose (No Nginx)
+#
+# Next.js standalone handles all traffic directly.
+# Rate limiting is handled at the application layer.
 #
 # Usage:
 #   cp .env.example .env   # Edit with your secrets
@@ -11,43 +14,23 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
-  # ─── Nginx Reverse Proxy ──────────────────────────────────────────────
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: omnivote-nginx
-    ports:
-      - "${NGINX_HTTP_PORT:-80}:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    depends_on:
-      app:
-        condition: service_healthy
-    networks:
-      - omnivote-net
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:80/api/health || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  # ─── Next.js Application ─────────────────────────────────────────────
+  # ─── Next.js Application (directly exposed) ─────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: omnivote-app
-    expose:
-      - "3000"
+    ports:
+      - "${APP_PORT:-3000}:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-postgresql://omnivote:omnivote@postgres:5432/omnivote?schema=public}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - OMNIVOTE_ENCRYPTION_KEY=${OMNIVOTE_ENCRYPTION_KEY:-}
       - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-OmniVote}
-      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost/ws}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:3001}
+      - WS_PORT=${WS_PORT:-3001}
       - LOG_LEVEL=${LOG_LEVEL:-info}
     volumes:
       - app-data:/app/data
@@ -59,6 +42,7 @@ services:
         condition: service_healthy
     networks:
       - omnivote-net
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s
@@ -72,8 +56,8 @@ services:
       context: .
       dockerfile: Dockerfile.ws
     container_name: omnivote-ws
-    expose:
-      - "3001"
+    ports:
+      - "${WS_PORT:-3001}:3001"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-postgresql://omnivote:omnivote@postgres:5432/omnivote?schema=public}
@@ -106,8 +90,6 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    expose:
-      - "5432"
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
@@ -127,8 +109,6 @@ services:
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
-    expose:
-      - "6379"
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
@@ -149,8 +129,6 @@ services:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
-    expose:
-      - "9090"
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     command:
@@ -174,8 +152,6 @@ services:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    expose:
-      - "3000"
     ports:
       - "${GRAFANA_PORT:-3002}:3000"
     depends_on:

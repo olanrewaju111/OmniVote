@@ -2,7 +2,7 @@
 # Lightweight image for the standalone WS server
 # ─────────────────────────────────────────────────────────────────────────
 
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 
 RUN apk update && apk upgrade --no-cache && apk add --no-cache libc6-compat
 
@@ -20,7 +20,7 @@ RUN \
   fi
 
 # ─── Runner ─────────────────────────────────────────────────────────────
-FROM node:20-alpine
+FROM node:24-alpine
 
 RUN apk update && apk upgrade --no-cache && \
     apk add --no-cache wget ca-certificates dumb-init tzdata && \

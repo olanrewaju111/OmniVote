@@ -48,7 +48,6 @@ load-tests
 
 # Monitoring (not needed in app image)
 monitoring
-nginx
 
 # CI/CD
 .github

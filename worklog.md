@@ -672,3 +672,23 @@ Stage Summary:
 - Accessibility: 15 components enhanced with aria-labels, live regions, ARIA roles
 - Offline: useOfflineSubmit hook for resilient form submissions
 - 0 TypeScript errors, 305/305 unit tests, clean production build
+---
+Task ID: 1
+Agent: main
+Task: Remove Nginx from Docker setup, upgrade to Node 24
+
+Work Log:
+- Read existing Dockerfile, Dockerfile.ws, Dockerfile.dev, docker-compose.yml, .env.example, .dockerignore, nginx config
+- Updated .dockerignore: removed nginx directory exclusion
+- Updated Dockerfile: upgraded base images from node:20-alpine to node:24-alpine (all 3 stages), removed any Nginx references
+- Updated Dockerfile.ws: upgraded from node:20-alpine to node:24-alpine
+- Rewrote docker-compose.yml: removed nginx service entirely, changed app from expose-only to ports mapping (APP_PORT:3000), changed ws from expose-only to ports mapping (WS_PORT:3001), removed nginx upstream/dependency references
+- Updated .env.example: added WS_PORT and REDIS_PORT to Ports section
+- Validated docker-compose.yml YAML syntax (pass)
+
+Stage Summary:
+- Nginx completely removed from Docker stack — Next.js standalone serves traffic directly on port 3000
+- WebSocket server directly exposed on port 3001
+- All Dockerfiles upgraded to Node 24 Alpine
+- docker-compose.yml, Dockerfile, Dockerfile.ws, .dockerignore, .env.example updated
+- Note: nginx/ directory and Caddyfile still exist on disk but are no longer referenced by Docker
