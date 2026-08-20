@@ -29,10 +29,10 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY
+          envs: _BUILD_JWT_SECRET,_BUILD_ENC_KEY
           env: |
-            JWT_SECRET: ${{ secrets.JWT_SECRET }}
-            OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
+            _BUILD_JWT_SECRET: ${{ secrets.JWT_SECRET }}
+            _BUILD_ENC_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
           script: |
             set -euo pipefail
 
@@ -77,19 +77,19 @@ jobs:
             '
             echo "Redis is ready"
 
-            # ── Build application images ────────────────────────────────────
+            # ── Build application images (secrets only used as build args) ────
             echo "=== Building app and ws images ==="
             docker compose build \
-              --build-arg JWT_SECRET="${JWT_SECRET}" \
-              --build-arg OMNIVOTE_ENCRYPTION_KEY="${OMNIVOTE_ENCRYPTION_KEY}" \
+              --build-arg JWT_SECRET="${_BUILD_JWT_SECRET}" \
+              --build-arg OMNIVOTE_ENCRYPTION_KEY="${_BUILD_ENC_KEY}" \
               app ws
 
-            # ── Run DB migrations (uses prod overrides, doesn't expose port) ──
+            # ── Run DB migrations ────────────────────────────────────────────
             echo "=== Running database migrations ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               run --rm -p 3001:3000 app npx prisma migrate deploy
 
-            # ── Start all services ─────────────────────────────────────────
+            # ── Start all services (runtime vars come from server .env file) ──
             echo "=== Starting all services ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               up -d
