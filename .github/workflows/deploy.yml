@@ -36,7 +36,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            DEPLOY_PATH="${DEPLOY_PATH:-/opt/omnivote}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/home/apps/OmniVote}"
             DEPLOY_BRANCH="main"
 
             # ── Clone or pull ────────────────────────────────────────────────
