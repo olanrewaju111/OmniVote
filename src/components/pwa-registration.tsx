@@ -65,7 +65,8 @@ export function PwaRegistration() {
     if (!isPushSupported) return;
     if (Notification.permission !== 'default') return;
     if (localStorage.getItem(PUSH_BANNER_DISMISSED_KEY)) return;
-
+    // Don't show if VAPID key is missing — push can't work without it
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
     // Don't show on login page
     if (window.location.pathname === '/login') return;
 
