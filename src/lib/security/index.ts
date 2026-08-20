@@ -40,3 +40,8 @@ export {
 export {
   createRouteGuard,
 } from './request-guard';
+
+export {
+  requireCsrf,
+  setCsrfCookie,
+} from './csrf-enforce';

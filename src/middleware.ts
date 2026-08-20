@@ -143,17 +143,22 @@ export async function middleware(req: NextRequest) {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
 
-  // Content Security Policy
+  // Content Security Policy — tightened: removed unsafe-eval
+  // Note: unsafe-inline for script-src is required by Next.js SSR (hydration scripts).
+  // unsafe-inline for style-src is required by Tailwind CSS runtime.
+  // object-src 'none' blocks Flash/plugin embeds.
   response.headers.set('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-inline/eval needed for Next.js runtime
-    "style-src 'self' 'unsafe-inline'",                   // unsafe-inline needed for Tailwind/inline styles
+    "script-src 'self' 'unsafe-inline'",     // unsafe-inline required for Next.js hydration
+    "style-src 'self' 'unsafe-inline'",       // required by Tailwind CSS
     "img-src 'self' data: blob: https://z-cdn.chatglm.cn",
     "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self' ws: wss:",                         // allow WebSocket connections
-    "frame-ancestors 'none'",                               // same as X-Frame-Options: DENY
+    "connect-src 'self' ws: wss:",
+    "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    "object-src 'none'",                      // block Flash/plugin embeds
+    "media-src 'self' blob:",                 // allow inline media (recordings)
   ].join('; '));
 
   // Permission Policy — restrict browser features

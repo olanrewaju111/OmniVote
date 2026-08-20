@@ -13,6 +13,7 @@ import {
   recordSuccessfulLogin,
 } from '@/lib/security/brute-force';
 import { logSecurityEvent } from '@/lib/security/security-logger';
+import { setCsrfCookie } from '@/lib/security/csrf-enforce';
 
 // ─── SQLite-backed login rate limiter ───────────────────────────────────
 // Uses the database for persistence across server restarts.
@@ -235,6 +236,10 @@ export async function POST(req: NextRequest) {
     });
 
     response.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.options);
+
+    // Set CSRF token cookie for subsequent mutating requests
+    setCsrfCookie(response);
+
     return response;
   } catch {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });
@@ -265,7 +270,7 @@ export async function GET(req: NextRequest) {
             });
             availableTenants = allTenants;
           }
-          return NextResponse.json({
+          const sessionResponse = NextResponse.json({
             authenticated: true,
             user: {
               id: user.id,
@@ -278,6 +283,9 @@ export async function GET(req: NextRequest) {
             },
             ...(availableTenants && { availableTenants }),
           });
+          // Refresh CSRF token on session check
+          setCsrfCookie(sessionResponse);
+          return sessionResponse;
         }
       }
     }
