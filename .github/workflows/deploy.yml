@@ -1,5 +1,9 @@
-# OmniVote CD Pipeline
-# Phase 19: Continuous Deployment — deploy on merge to main
+# ──────────────────────────────────────────────────────────────────────────────
+# OmniVote — Deploy to Production
+#
+# Triggers on push to main after CI passes.
+# Builds Docker images, pushes to GHCR, deploys via SSH.
+# ──────────────────────────────────────────────────────────────────────────────
 
 name: Deploy
 
@@ -8,8 +12,8 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Deployment environment'
+      deploy_target:
+        description: 'Deploy target'
         required: true
         default: 'staging'
         type: choice
@@ -18,124 +22,171 @@ on:
           - production
 
 concurrency:
-  group: deploy-${{ github.ref }}-${{ github.event.inputs.environment || 'staging' }}
+  group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: '20'
-  NEXT_TELEMETRY_DISABLED: '1'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ─── Pre-deploy Checks ────────────────────────────────────────────
-  pre-deploy:
-    name: Pre-deploy Checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-      - run: npm ci
-      - run: npx tsc --noEmit
-      - run: npm test
-
-  # ─── Build & Push Docker Image ─────────────────────────────────────
+  # ─── Build & Push Docker Images ─────────────────────────────────────────
   docker:
-    name: Build & Push Image
+    name: Build & Push Images
     runs-on: ubuntu-latest
-    needs: [pre-deploy]
     permissions:
       contents: read
       packages: write
     outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
+      app_tag: ${{ steps.meta-app.outputs.tags }}
+      ws_tag: ${{ steps.meta-ws.outputs.tags }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
-        id: meta
+
+      # Determine tags
+      - name: Extract metadata (app)
+        id: meta-app
+        uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/omnivote
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/app
           tags: |
             type=sha,prefix=
             type=ref,event=branch
             type=raw,value=latest,enable={{is_default_branch}}
-      - uses: docker/build-push-action@v6
+
+      - name: Extract metadata (ws)
+        id: meta-ws
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/ws
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Build app image
+      - name: Build & push app image
+        uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta-app.outputs.tags }}
+          labels: ${{ steps.meta-app.outputs.labels }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,mode=max,scope=app
+          build-args: |
+            NEXT_PUBLIC_APP_NAME=OmniVote
 
-  # ─── Deploy to Staging ─────────────────────────────────────────────
-  deploy-staging:
-    name: Deploy to Staging
+      # Build WS image
+      - name: Build & push ws image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.ws
+          push: true
+          tags: ${{ steps.meta-ws.outputs.tags }}
+          labels: ${{ steps.meta-ws.outputs.labels }}
+          cache-from: type=gha,scope=ws
+          cache-to: type=gha,mode=max,scope=ws
+
+      # Scan images with Trivy
+      - name: Scan app image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/app:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          format: table
+
+  # ─── Deploy ──────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: [docker]
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
-    environment: staging
+    needs: docker
+    environment: ${{ (github.event.inputs.deploy_target || (github.ref == 'refs/heads/main' && 'production')) || 'staging' }}
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
           script: |
+            set -euo pipefail
+
             cd /opt/omnivote
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
+
+            # Pull latest images
+            echo "Pulling images..."
+            docker compose pull app ws
+
+            # Run DB migrations
+            echo "Running migrations..."
+            docker compose run --rm app npx prisma migrate deploy
+
+            # Restart services
+            echo "Deploying..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              up -d app ws
+
+            # Wait for health check
+            echo "Waiting for health check..."
+            timeout 60 bash -c 'until wget -qO- http://localhost:3000/api/health | grep -q ok; do sleep 2; done'
+
+            echo "Deploy complete!"
+
+            # Show running containers
+            docker compose ps
+
+      - name: Notify deployment
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "Deploy SUCCESS: ${{ github.sha }} to ${{ github.ref_name }}"
+          else
+            echo "Deploy FAILED: ${{ github.sha }} to ${{ github.ref_name }}"
+          fi
+
+  # ─── Post-deploy Smoke Test ─────────────────────────────────────────────
+  smoke-test:
+    name: Post-deploy Smoke Test
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
       - name: Health check
         run: |
-          for i in $(seq 1 30); do
-            STATUS=$(curl -sf -o /dev/null -w '%{http_code}' ${{ secrets.STAGING_URL }}/api/health || echo '000')
-            if [ "$STATUS" = "200" ]; then
-              echo "Staging healthy after ${i}s"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Staging health check failed"
-          exit 1
+          DEPLOY_URL="${{ secrets.DEPLOY_URL || 'https://omnivote.app' }}"
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/api/health")
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Health check failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "Health check passed (HTTP ${HTTP_CODE})"
 
-  # ─── Deploy to Production (manual trigger) ────────────────────────
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: github.event.inputs.environment == 'production'
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            cd /opt/omnivote
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
-            docker image prune -f
-      - name: Production health check
+      - name: Page load check
         run: |
-          for i in $(seq 1 60); do
-            STATUS=$(curl -sf -o /dev/null -w '%{http_code}' ${{ secrets.PROD_URL }}/api/health || echo '000')
-            if [ "$STATUS" = "200" ]; then
-              echo "Production healthy after ${i}s"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Production health check failed"
-          exit 1
+          DEPLOY_URL="${{ secrets.DEPLOY_URL || 'https://omnivote.app' }}"
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/")
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Page load failed with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "Page load passed (HTTP ${HTTP_CODE})"

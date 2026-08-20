@@ -738,3 +738,24 @@ Stage Summary:
 - CSRF: enforced on 36 mutating routes
 - DB: unique constraints + cascading deletes
 - SUPER_ADMIN: dedicated platform admin panel, no operational access
+
+---
+Task ID: 25
+Agent: Super Z (Main)
+Task: Add GitHub Actions CI/CD workflows
+
+Work Log:
+- Created .github/workflows/ directory structure
+- Created ci.yml: lint, type-check, unit tests (vitest), build verification, Trivy dependency scan on PRs, CI status gate job
+- Created deploy.yml: Docker multi-arch build with GHCR, app + WS images, SSH-based deploy with health check, post-deploy smoke test
+- Created e2e.yml: Playwright E2E with standalone Next.js server, test DB seeding, artifact upload for reports/traces
+- Created codeql.yml: Weekly CodeQL TypeScript analysis + PR analysis
+- All YAML files validated successfully
+
+Stage Summary:
+- 4 GitHub Actions workflows: CI, Deploy, E2E, CodeQL
+- CI runs on every push/PR: lint → typecheck → unit tests → build (parallel where possible)
+- Deploy triggers on main push: Docker build → GHCR push → SSH deploy → smoke test
+- E2E runs on main/PR when src/e2e/prisma changes
+- CodeQL runs weekly + on PRs to main
+- Required secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_PORT (optional), DEPLOY_URL (optional)
