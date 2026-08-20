@@ -78,7 +78,6 @@ jobs:
           cp -r .next/static .next/standalone/.next/
           cp -r public .next/standalone/
           cd .next/standalone && node server.js &
-          # Wait for the app to be ready
           timeout 30 bash -c 'until curl -sf http://localhost:3000/api/health > /dev/null 2>&1; do sleep 1; done'
           echo "App is ready"
 
@@ -94,11 +93,3 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 14
-
-      - name: Upload traces
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-traces
-          path: test-results/
-          retention-days: 7

@@ -1,14 +1,16 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # OmniVote — Deploy to Server (Build on Server)
 #
-# Triggers on push to main after CI passes.
-# git pull on server, then builds Docker images and starts all services.
+# Triggers on push to main ONLY after CI passes.
+# git pull on server, builds Docker images, starts all services.
 # ──────────────────────────────────────────────────────────────────────────────
 
 name: Deploy
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -22,15 +24,18 @@ on:
           - production
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-main
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Build & Deploy
     runs-on: ubuntu-latest
-    environment: ${{ (github.event.inputs.deploy_target || (github.ref == 'refs/heads/main' && 'production')) || 'staging' }}
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    # Only deploy if CI passed (or manual trigger)
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    environment: production
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -39,37 +44,39 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
+          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY,DEPLOY_PATH,DEPLOY_BRANCH,GITHUB_TOKEN
           env: |
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
             OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
             DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}
-            DEPLOY_BRANCH: ${{ github.ref_name }}
+            DEPLOY_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+            GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             set -euo pipefail
 
-            # ── Clone repo on first deploy, pull on subsequent ──────────────
+            # ── Clone or pull ────────────────────────────────────────────────
+            REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/olanrewaju111/OmniVote.git"
+
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
               echo "=== First deploy: cloning repo ==="
-              git clone -b "$DEPLOY_BRANCH" https://github.com/olanrewaju111/OmniVote.git "$DEPLOY_PATH"
+              git clone -b "$DEPLOY_BRANCH" "$REPO_URL" "$DEPLOY_PATH"
               cd "$DEPLOY_PATH"
               if [ ! -f .env ]; then
-                echo "Creating .env from .env.example — edit secrets on the server!"
+                echo "Creating .env from .env.example — EDIT SECRETS ON THE SERVER!"
                 cp .env.example .env
               fi
             else
               echo "=== Pulling latest code ==="
               cd "$DEPLOY_PATH"
               git fetch origin "$DEPLOY_BRANCH"
-              git checkout "$DEPLOY_BRANCH"
-              git pull origin "$DEPLOY_BRANCH"
+              git reset --hard "origin/$DEPLOY_BRANCH"
             fi
 
-            # ── Start infrastructure (postgres, redis) ─────────────────────
+            # ── Start infrastructure ────────────────────────────────────────
             echo "=== Starting infrastructure ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
               up -d postgres redis
 
-            # Wait for postgres
             echo "=== Waiting for PostgreSQL ==="
             timeout 60 bash -c '
               until docker compose exec -T postgres pg_isready -U omnivote -d omnivote > /dev/null 2>&1; do
@@ -78,7 +85,6 @@ jobs:
             '
             echo "PostgreSQL is ready"
 
-            # Wait for redis
             echo "=== Waiting for Redis ==="
             timeout 30 bash -c '
               until docker compose exec -T redis redis-cli ping > /dev/null 2>&1; do
@@ -94,9 +100,10 @@ jobs:
               --build-arg OMNIVOTE_ENCRYPTION_KEY="${OMNIVOTE_ENCRYPTION_KEY}" \
               app ws
 
-            # ── Run DB migrations ──────────────────────────────────────────
+            # ── Run DB migrations (uses prod overrides, doesn't expose port) ──
             echo "=== Running database migrations ==="
-            docker compose run --rm app npx prisma migrate deploy
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+              run --rm -p 3001:3000 app npx prisma migrate deploy
 
             # ── Start all services ─────────────────────────────────────────
             echo "=== Starting all services ==="
@@ -122,7 +129,7 @@ jobs:
       - name: Smoke test
         if: always()
         run: |
-          DEPLOY_URL="${{ secrets.DEPLOY_URL || 'http://${{ secrets.DEPLOY_HOST }}:3000' }}"
+          DEPLOY_URL="${{ secrets.DEPLOY_URL || format('http://{0}:3000', secrets.DEPLOY_HOST) }}"
           echo "Testing ${DEPLOY_URL}/api/health ..."
           HTTP_CODE=$(curl -sf -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/api/health" || echo "000")
           if [ "$HTTP_CODE" -ne 200 ]; then
@@ -136,5 +143,4 @@ jobs:
         run: |
           STATUS="${{ job.status }}"
           SHA="${{ github.sha }}"
-          REF="${{ github.ref_name }}"
-          echo "Deploy ${STATUS^^}: ${SHA} to ${REF}"
+          echo "Deploy ${STATUS^^}: ${SHA}"
