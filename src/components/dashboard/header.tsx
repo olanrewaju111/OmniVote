@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { MobileMenuTrigger } from '@/components/dashboard/sidebar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-  DropdownMenuLabel,
+  DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -239,6 +239,74 @@ function getPasswordStrength(pw: string) {
   const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
   const colors = ['', 'text-rose', 'text-amber', 'text-cyan', 'text-emerald'];
   return { score, label: labels[score], color: colors[score] };
+}
+
+// Tenant switcher for platform SUPER_ADMIN
+// The platform admin has a single account but can view any tenant's data.
+// Switching updates the active tenantId and refreshes all queries.
+function TenantSwitcher() {
+  const { user, login, setTenantId, setElectionInfo, setSelectedTab } = useDashboardStore();
+  const queryClient = useQueryClient();
+  const [switching, setSwitching] = useState(false);
+
+  const { data: tenantsData } = useQuery<{ tenants: { id: string; name: string; slug: string; primaryColor: string }[] }>({
+    queryKey: ['auth-tenants-switcher'],
+    queryFn: () => fetchJson('/api/auth'),
+    staleTime: 60_000,
+  });
+
+  const tenants = tenantsData?.tenants || [];
+  const currentSlug = user?.tenantSlug || '';
+
+  const handleSwitch = useCallback(async (targetSlug: string) => {
+    if (targetSlug === currentSlug || switching) return;
+    setSwitching(true);
+    try {
+      // Re-authenticate scoped to the target tenant to get its election info
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: user!.email, password: 'password', tenantSlug: targetSlug }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Switch failed');
+
+      login(data.user);
+      if (data.electionInfo) setElectionInfo(data.electionInfo);
+      if (data.user.tenantId) setTenantId(data.user.tenantId);
+      setSelectedTab('overview');
+      queryClient.invalidateQueries();
+    } catch {
+      // Non-critical: tenant switch failed
+    } finally {
+      setSwitching(false);
+    }
+  }, [currentSlug, switching, user, login, setTenantId, setElectionInfo, setSelectedTab, queryClient]);
+
+  if (tenants.length <= 1) return null;
+
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger disabled={switching}>
+        <Building2 className="mr-2 h-4 w-4" />
+        {switching ? 'Switching...' : 'Switch Tenant'}
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        {tenants.map(t => (
+          <DropdownMenuItem
+            key={t.id}
+            onClick={() => handleSwitch(t.slug)}
+            className={cn(t.slug === currentSlug && 'bg-accent')}
+          >
+            {t.slug === currentSlug && <Check className="mr-2 h-4 w-4 text-emerald" />}
+            {t.slug !== currentSlug && <span className="mr-2 w-4" />}
+            {t.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  );
 }
 
 export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, containerRef }: HeaderProps) {
@@ -494,6 +562,9 @@ export const AppHeader = React.memo(function AppHeader({ breadcrumb, kpis, conta
               <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                 <Settings className="mr-2 h-4 w-4" />Settings
               </DropdownMenuItem>
+              {user?.role === 'SUPER_ADMIN' ? (
+                <TenantSwitcher />
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onClick={logout}>Sign Out</DropdownMenuItem>
             </DropdownMenuContent>

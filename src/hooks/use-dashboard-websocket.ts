@@ -191,7 +191,7 @@ export function useDashboardWebSocket({
   // ── WebSocket connection ──
   // Stable ref for onConnectionChange to prevent infinite re-render loop
   // (Zustand setWsConnected triggers re-render → new callback ref → useEffect re-fires)
-  const onConnectionChangeRef = useRef<(connected: boolean, transport: 'ws' | 'sse' | 'none') => void>();
+  const onConnectionChangeRef = useRef<((connected: boolean, transport: 'ws' | 'sse' | 'none') => void) | undefined>(undefined);
   onConnectionChangeRef.current = (connected, transport) => {
     setWsConnected(connected, transport);
   };
@@ -214,7 +214,7 @@ export function useDashboardWebSocket({
   // Stable ref for SSE onConnectionChange (avoids stale wsTransport closure)
   const wsTransportRef = useRef(wsTransport);
   wsTransportRef.current = wsTransport;
-  const sseOnConnectionChangeRef = useRef<(connected: boolean) => void>();
+  const sseOnConnectionChangeRef = useRef<((connected: boolean) => void) | undefined>(undefined);
   sseOnConnectionChangeRef.current = (connected) => {
     if (connected && wsTransportRef.current !== 'ws') {
       setWsConnected(true, 'sse');

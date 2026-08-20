@@ -1,13 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { m, AnimatePresence } from 'framer-motion';
 import { useDashboardStore } from '@/store/dashboard';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Zap, Loader2, Vote, Building2, ExternalLink, Shield, Lock, Cpu, Globe,
+  Mail, Eye, EyeOff, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
@@ -49,7 +52,15 @@ const item = {
 
 export function LoginScreen() {
   const router = useRouter();
-  const { setElectionInfo, setTenantId } = useDashboardStore();
+  const { login, setElectionInfo, setTenantId } = useDashboardStore();
+
+  // Platform admin form state
+  const [showPlatformLogin, setShowPlatformLogin] = useState(false);
+  const [platformEmail, setPlatformEmail] = useState('');
+  const [platformPassword, setPlatformPassword] = useState('');
+  const [showPlatformPw, setShowPlatformPw] = useState(false);
+  const [platformLoading, setPlatformLoading] = useState(false);
+  const [platformError, setPlatformError] = useState('');
 
   const { data, isLoading } = useQuery<{
     authenticated: boolean;
@@ -63,6 +74,38 @@ export function LoginScreen() {
 
   const handleTenantSelect = (_tenantId: string, tenantSlug: string) => {
     router.push(`/t/${tenantSlug}`);
+  };
+
+  const handlePlatformLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!platformEmail || !platformPassword) {
+      setPlatformError('Email and password are required');
+      return;
+    }
+    setPlatformLoading(true);
+    setPlatformError('');
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: platformEmail, password: platformPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+
+      if (data.user.role !== 'SUPER_ADMIN') {
+        throw new Error('Platform login is for SUPER_ADMIN only. Please select your organization above.');
+      }
+
+      login(data.user);
+      if (data.electionInfo) setElectionInfo(data.electionInfo);
+      if (data.user.tenantId) setTenantId(data.user.tenantId);
+      router.replace('/');
+    } catch (err: unknown) {
+      setPlatformError(err instanceof Error ? err.message : 'Login failed');
+      setPlatformLoading(false);
+    }
   };
 
   return (
@@ -160,7 +203,7 @@ export function LoginScreen() {
         </m.div>
       </div>
 
-      {/* ═══ Right panel — tenant selection ═══ */}
+      {/* ═══ Right panel — tenant selection + platform admin ═══ */}
       <div className="flex-1 flex flex-col min-h-screen">
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-md mx-auto px-4 sm:px-6 py-8">
@@ -246,6 +289,105 @@ export function LoginScreen() {
                   </m.div>
                 </AnimatePresence>
               )}
+            </m.div>
+
+            {/* ═══ Platform Admin Login ═══ */}
+            <m.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="mt-8"
+            >
+              <button
+                type="button"
+                onClick={() => setShowPlatformLogin(!showPlatformLogin)}
+                className="w-full flex items-center justify-between rounded-xl border border-border/40 bg-card/20 hover:bg-card/40 px-4 py-3 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-violet/10 flex items-center justify-center">
+                    <Shield className="h-4 w-4 text-violet" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Platform Administrator</p>
+                    <p className="text-[10px] text-muted-foreground/60">Cross-tenant SUPER_ADMIN access</p>
+                  </div>
+                </div>
+                {showPlatformLogin
+                  ? <ChevronUp className="h-4 w-4 text-muted-foreground/50" />
+                  : <ChevronDown className="h-4 w-4 text-muted-foreground/50" />}
+              </button>
+
+              <AnimatePresence>
+                {showPlatformLogin && (
+                  <m.form
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    onSubmit={handlePlatformLogin}
+                    className="overflow-hidden"
+                  >
+                    <div className="pt-4 space-y-3">
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                        <Input
+                          type="email"
+                          placeholder="admin@omnivote.ng"
+                          value={platformEmail}
+                          onChange={e => setPlatformEmail(e.target.value)}
+                          className="pl-10 bg-card/40 border-border/60"
+                          autoComplete="email"
+                          disabled={platformLoading}
+                        />
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+                        <Input
+                          type={showPlatformPw ? 'text' : 'password'}
+                          placeholder="Password"
+                          value={platformPassword}
+                          onChange={e => setPlatformPassword(e.target.value)}
+                          className="pl-10 pr-10 bg-card/40 border-border/60"
+                          autoComplete="current-password"
+                          disabled={platformLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPlatformPw(!showPlatformPw)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                          tabIndex={-1}
+                        >
+                          {showPlatformPw
+                            ? <EyeOff className="h-4 w-4" />
+                            : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+
+                      {platformError && (
+                        <p className="text-xs text-rose">{platformError}</p>
+                      )}
+
+                      <Button
+                        type="submit"
+                        disabled={platformLoading || !platformEmail || !platformPassword}
+                        className="w-full bg-violet hover:bg-violet/90 text-white"
+                      >
+                        {platformLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Signing in...
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="h-4 w-4 mr-2" />
+                            Sign in as Platform Admin
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </m.form>
+                )}
+              </AnimatePresence>
             </m.div>
           </div>
         </div>
