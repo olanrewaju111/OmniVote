@@ -44,22 +44,19 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY,DEPLOY_PATH,DEPLOY_BRANCH,GITHUB_TOKEN
+          envs: JWT_SECRET,OMNIVOTE_ENCRYPTION_KEY,DEPLOY_PATH,DEPLOY_BRANCH
           env: |
             JWT_SECRET: ${{ secrets.JWT_SECRET }}
             OMNIVOTE_ENCRYPTION_KEY: ${{ secrets.OMNIVOTE_ENCRYPTION_KEY }}
             DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/omnivote' }}
             DEPLOY_BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
-            GITHUB_TOKEN: ${{ secrets.DEPLOY_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
             set -euo pipefail
 
             # ── Clone or pull ────────────────────────────────────────────────
-            REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/olanrewaju111/OmniVote.git"
-
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
               echo "=== First deploy: cloning repo ==="
-              git clone -b "$DEPLOY_BRANCH" "$REPO_URL" "$DEPLOY_PATH"
+              git clone -b "$DEPLOY_BRANCH" https://github.com/olanrewaju111/OmniVote.git "$DEPLOY_PATH"
               cd "$DEPLOY_PATH"
               if [ ! -f .env ]; then
                 echo "Creating .env from .env.example — EDIT SECRETS ON THE SERVER!"
