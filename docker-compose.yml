@@ -27,7 +27,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-file:/app/data/omnivote.db}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - OMNIVOTE_ENCRYPTION_KEY=${OMNIVOTE_ENCRYPTION_KEY:-}
       - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-OmniVote}
       - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:3001}
@@ -62,7 +62,7 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=${DATABASE_URL:-file:/app/data/omnivote.db}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - WS_PORT=3001
     depends_on:
       redis:
