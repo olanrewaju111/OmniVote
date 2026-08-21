@@ -1,6 +1,7 @@
 # ─── OmniVote Production Dockerfile ─────────────────────────────────
-# Multi-stage build: deps -> build -> runner
+# Multi-stage build: deps -> build -> seed-db -> runner
 # No Nginx — Next.js standalone handles all traffic directly.
+# SQLite database is created at build time and seeded at first run.
 # ─────────────────────────────────────────────────────────────────────────
 
 # ─── Stage 1: Dependencies ───────────────────────────────────────────────
@@ -57,6 +58,20 @@ RUN npx next build
 RUN cp -r .next/static .next/standalone/.next/ && \
     cp -r public .next/standalone/
 
+# ─── Stage 2b: Seed SQLite database ──────────────────────────────────────
+FROM node:24-alpine AS seed-db
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma/
+COPY --from=builder /app/package.json ./
+
+# Create seed SQLite database with full schema
+RUN mkdir -p /seed && \
+    DATABASE_URL="file:/seed/omnivote.db" npx prisma db push --accept-data-loss && \
+    ls -la /seed/omnivote.db
+
 # ─── Stage 3: Production Runner ──────────────────────────────────────────
 FROM node:24-alpine AS runner
 
@@ -86,17 +101,18 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 omnivote
 
 # Create required directories
-RUN mkdir -p /app/data /app/logs && \
-    chown -R omnivote:nodejs /app/data /app/logs
+RUN mkdir -p /app/data /app/logs /app/seed && \
+    chown -R omnivote:nodejs /app/data /app/logs /app/seed
 
 # Copy standalone build output
 COPY --from=builder /app/.next/standalone ./
 
-# Copy Prisma schema, CLI, client and engine (for db push at runtime)
-COPY --from=builder /app/prisma ./prisma/
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+# Copy Prisma client and engine only (no CLI needed at runtime)
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy seed database (used to bootstrap /app/data/omnivote.db on first run)
+COPY --from=seed-db /seed/omnivote.db /app/seed/omnivote.db
 
 # Copy init script
 COPY docker/init-entrypoint.sh /app/init-entrypoint.sh

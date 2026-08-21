@@ -1,6 +1,6 @@
 #!/bin/sh
 # ─── OmniVote Container Init Script ────────────────────────────────
-# Runs as root: fixes volume permissions, syncs SQLite schema,
+# Runs as root: fixes volume permissions, seeds SQLite if needed,
 # then drops to non-root user for the app process.
 # ─────────────────────────────────────────────────────────────────────────
 
@@ -10,8 +10,9 @@ DATA_DIR="/app/data"
 LOG_DIR="/app/logs"
 UNAME="omnivote"
 GNAME="nodejs"
-PRISMA_CLI="/app/node_modules/prisma/build/index.js"
-MIGRATION_MARKER="/app/data/.migrated-${DB_SCHEMA_VERSION:-1}"
+SEED_DB="/app/seed/omnivote.db"
+DATA_DB="$DATA_DIR/omnivote.db"
+MIGRATION_MARKER="$DATA_DIR/.migrated-${DB_SCHEMA_VERSION:-1}"
 
 # ── Fix volume permissions (must run as root) ──────────────────────
 mkdir -p "$DATA_DIR" "$LOG_DIR"
@@ -20,15 +21,19 @@ chown -R "$UNAME:$GNAME" "$DATA_DIR" "$LOG_DIR"
 echo "[omnivote] Starting OmniVote v0.2.0..."
 echo "[omnivote] Environment: ${NODE_ENV:-production}"
 
-# ── Sync schema if not already done ────────────────────────────────
+# ── Seed SQLite database if not already done ───────────────────────
 if [ ! -f "$MIGRATION_MARKER" ]; then
-  echo "[omnivote] Syncing SQLite database schema..."
-  su-exec "$UNAME" node "$PRISMA_CLI" db push --accept-data-loss 2>&1 || {
-    echo "[omnivote] WARNING: Schema sync failed. The app may fail if schema is out of date."
-  }
+  if [ ! -f "$DATA_DB" ]; then
+    echo "[omnivote] Seeding SQLite database from build-time seed..."
+    cp "$SEED_DB" "$DATA_DB"
+    chown "$UNAME:$GNAME" "$DATA_DB"
+    echo "[omnivote] Database seeded successfully."
+  else
+    echo "[omnivote] Database file already exists, skipping seed."
+  fi
   touch "$MIGRATION_MARKER"
   chown "$UNAME:$GNAME" "$MIGRATION_MARKER"
-  echo "[omnivote] Schema sync complete."
+  echo "[omnivote] Database ready."
 else
   echo "[omnivote] Database already up-to-date (marker: $MIGRATION_MARKER)."
 fi
