@@ -85,7 +85,7 @@ jobs:
 
             # ── Wait for app health check ──────────────────────────────────
             echo "=== Waiting for app health check ==="
-            if ! timeout 120 bash -c 'until wget -qO- http://localhost:3000/api/health 2>/dev/null | grep -q "ok\|up"; do sleep 2; done'; then
+            if ! timeout 120 bash -c 'until wget -qO- http://localhost:9323/api/health 2>/dev/null | grep -q "ok\|up"; do sleep 2; done'; then
               echo "=== App health check FAILED — dumping logs ==="
               docker compose logs --tail=80 app
               docker compose logs --tail=40 ws
@@ -109,7 +109,7 @@ jobs:
       - name: Smoke test
         if: always()
         run: |
-          DEPLOY_URL="${{ secrets.DEPLOY_URL || format('http://{0}:3000', secrets.DEPLOY_HOST) }}"
+          DEPLOY_URL="${{ secrets.DEPLOY_URL || format('http://{0}:9323', secrets.DEPLOY_HOST) }}"
           echo "Testing ${DEPLOY_URL}/api/health ..."
           HTTP_CODE=$(curl -sf -o /dev/null -w '%{http_code}' "${DEPLOY_URL}/api/health" || echo "000")
           if [ "$HTTP_CODE" -ne 200 ]; then
