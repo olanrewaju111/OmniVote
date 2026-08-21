@@ -104,15 +104,13 @@ services:
       - omnivote-net
     restart: unless-stopped
 
-  # ─── Redis 7 ─────────────────────────────────────────────────────────
+  # ─── Redis 7 (internal only — no host port mapping) ───────────────
   redis:
     image: redis:7-alpine
     container_name: omnivote-redis
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
