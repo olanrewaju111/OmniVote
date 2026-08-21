@@ -25,7 +25,7 @@ services:
       - "${METRICS_PORT:-9323}:9323"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://omnivote:omnivote@postgres:5432/omnivote?schema=public}
+      - DATABASE_URL=${DATABASE_URL:-file:/app/data/omnivote.db}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - OMNIVOTE_ENCRYPTION_KEY=${OMNIVOTE_ENCRYPTION_KEY:-}
@@ -37,8 +37,6 @@ services:
       - app-data:/app/data
       - app-logs:/app/logs
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -62,13 +60,11 @@ services:
       - "${WS_METRICS_PORT:-9324}:9324"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://omnivote:omnivote@postgres:5432/omnivote?schema=public}
+      - DATABASE_URL=${DATABASE_URL:-file:/app/data/omnivote.db}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - WS_PORT=3001
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -80,29 +76,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-  # ─── PostgreSQL 16 ───────────────────────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    container_name: omnivote-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-omnivote}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-omnivote}
-      POSTGRES_DB: ${POSTGRES_DB:-omnivote}
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omnivote} -d ${POSTGRES_DB:-omnivote}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - omnivote-net
-    restart: unless-stopped
 
   # ─── Redis 7 ─────────────────────────────────────────────────────────
   redis:
@@ -166,8 +139,6 @@ volumes:
   app-data:
     driver: local
   app-logs:
-    driver: local
-  postgres-data:
     driver: local
   redis-data:
     driver: local

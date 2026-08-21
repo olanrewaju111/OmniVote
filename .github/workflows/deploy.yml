@@ -59,15 +59,7 @@ jobs:
             # ── Start infrastructure ────────────────────────────────────────
             echo "=== Starting infrastructure ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              up -d postgres redis
-
-            echo "=== Waiting for PostgreSQL ==="
-            timeout 60 bash -c '
-              until docker compose exec -T postgres pg_isready -U omnivote -d omnivote > /dev/null 2>&1; do
-                sleep 2
-              done
-            '
-            echo "PostgreSQL is ready"
+              up -d redis
 
             echo "=== Waiting for Redis ==="
             timeout 30 bash -c '
@@ -83,11 +75,6 @@ jobs:
               --build-arg JWT_SECRET="${_BUILD_JWT_SECRET}" \
               --build-arg OMNIVOTE_ENCRYPTION_KEY="${_BUILD_ENC_KEY}" \
               app ws
-
-            # ── Run DB migrations ────────────────────────────────────────────
-            echo "=== Running database migrations ==="
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              run --rm -p 3001:3000 app npx prisma migrate deploy
 
             # ── Start all services (runtime vars come from server .env file) ──
             echo "=== Starting all services ==="

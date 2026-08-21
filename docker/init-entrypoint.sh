@@ -1,27 +1,26 @@
 #!/bin/sh
 # ─── OmniVote Container Init Script ────────────────────────────────
-# Runs database migrations on first start, then launches the app.
+# Syncs SQLite schema on first start, then launches the app.
 # ─────────────────────────────────────────────────────────────────────────
 
 set -e
 
 MIGRATION_MARKER="/app/data/.migrated-${DB_SCHEMA_VERSION:-1}"
 
+# Ensure data directory exists
+mkdir -p /app/data
+
 echo "[omnivote] Starting OmniVote v0.2.0..."
 echo "[omnivote] Environment: ${NODE_ENV:-production}"
 
-# ── Run migrations if not already done ──────────────────────────────────
+# ── Sync schema if not already done ────────────────────────────────────
 if [ ! -f "$MIGRATION_MARKER" ]; then
-  echo "[omnivote] Running database migrations..."
-  npx prisma migrate deploy 2>&1 || {
-    echo "[omnivote] Migration failed, attempting prisma db push..."
-    npx prisma db push --accept-data-loss 2>&1 || {
-      echo "[omnivote] WARNING: Could not run migrations. The app may fail if schema is out of date."
-    }
+  echo "[omnivote] Syncing SQLite database schema..."
+  npx prisma db push --accept-data-loss 2>&1 || {
+    echo "[omnivote] WARNING: Schema sync failed. The app may fail if schema is out of date."
   }
-  mkdir -p /app/data
   touch "$MIGRATION_MARKER"
-  echo "[omnivote] Migrations complete."
+  echo "[omnivote] Schema sync complete."
 else
   echo "[omnivote] Database already up-to-date (marker: $MIGRATION_MARKER)."
 fi
