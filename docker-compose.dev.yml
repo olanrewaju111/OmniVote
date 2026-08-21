@@ -59,10 +59,6 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
 
-  # ─── Disable nginx in dev (direct access to ports) ─────────────────────
-  nginx:
-    profiles: []  # Effectively disables nginx in dev
-
   # ─── Disable monitoring in dev ─────────────────────────────────────────
   prometheus:
     profiles: []

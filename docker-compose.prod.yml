@@ -7,20 +7,6 @@
 # ──────────────────────────────────────────────────────────────────────────────
 
 services:
-  # ─── Nginx (Production) ───────────────────────────────────────────────
-  nginx:
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "20m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.5'
-
   # ─── App (Production Overrides) ──────────────────────────────────────────
   app:
     restart: unless-stopped
