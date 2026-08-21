@@ -68,7 +68,7 @@ LABEL org.opencontainers.image.source="https://github.com/omnivote/omnivote"
 # Security: minimal runtime deps + security updates
 RUN apk update && \
     apk upgrade --no-cache && \
-    apk add --no-cache wget ca-certificates dumb-init tzdata && \
+    apk add --no-cache wget ca-certificates dumb-init su-exec tzdata && \
     rm -rf /var/cache/apk/*
 
 # Set timezone
@@ -104,8 +104,7 @@ RUN chmod +x /app/init-entrypoint.sh
 # Set ownership
 RUN chown -R omnivote:nodejs /app
 
-USER omnivote
-
+# Run as root so init script can fix volume permissions, then drops to omnivote
 EXPOSE 3000 9323
 
 VOLUME ["/app/data"]

@@ -23,7 +23,7 @@ RUN \
 FROM node:24-alpine
 
 RUN apk update && apk upgrade --no-cache && \
-    apk add --no-cache wget ca-certificates dumb-init tzdata && \
+    apk add --no-cache wget ca-certificates dumb-init su-exec tzdata && \
     rm -rf /var/cache/apk/*
 
 ENV TZ=Africa/Lagos
@@ -46,7 +46,6 @@ COPY src/lib/sanitize.ts ./src/lib/sanitize.ts
 COPY src/types/ ./src/types/
 
 RUN chown -R omnivote:nodejs /app
-USER omnivote
 
 EXPOSE 3001 9324
 
@@ -54,4 +53,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3001/health || exit 1
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["npx", "tsx", "src/lib/ws-server.ts"]
+CMD ["su-exec", "omnivote", "npx", "tsx", "src/lib/ws-server.ts"]
