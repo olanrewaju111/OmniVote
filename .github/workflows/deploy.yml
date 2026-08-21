@@ -81,11 +81,18 @@ jobs:
             # ── Start all services (runtime vars come from server .env file) ──
             echo "=== Starting all services ==="
             docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-              up -d
+              up -d --remove-orphans
 
             # ── Wait for app health check ──────────────────────────────────
             echo "=== Waiting for app health check ==="
-            timeout 120 bash -c 'until wget -qO- http://localhost:3000/api/health 2>/dev/null | grep -q "ok\|up"; do sleep 2; done'
+            if ! timeout 120 bash -c 'until wget -qO- http://localhost:3000/api/health 2>/dev/null | grep -q "ok\|up"; do sleep 2; done'; then
+              echo "=== App health check FAILED — dumping logs ==="
+              docker compose logs --tail=80 app
+              docker compose logs --tail=40 ws
+              echo "=== Container status ==="
+              docker compose ps
+              exit 1
+            fi
             echo "App is healthy!"
 
             # ── Cleanup ────────────────────────────────────────────────────
