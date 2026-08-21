@@ -38,6 +38,8 @@ jobs:
 
             DEPLOY_PATH="${DEPLOY_PATH:-/home/apps/OmniVote}"
             DEPLOY_BRANCH="main"
+            _BUILD_JWT_SECRET="${_BUILD_JWT_SECRET:-build-time-placeholder}"
+            _BUILD_ENC_KEY="${_BUILD_ENC_KEY:-build-time-placeholder}"
 
             # ── Clone or pull ────────────────────────────────────────────────
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
