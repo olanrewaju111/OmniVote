@@ -92,8 +92,9 @@ RUN mkdir -p /app/data /app/logs && \
 # Copy standalone build output
 COPY --from=builder /app/.next/standalone ./
 
-# Copy Prisma schema and engine (for migrations at runtime)
+# Copy Prisma schema, CLI, client and engine (for db push at runtime)
 COPY --from=builder /app/prisma ./prisma/
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
